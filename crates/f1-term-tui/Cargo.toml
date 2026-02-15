@@ -1,0 +1,13 @@
+[package]
+name = "f1-term-tui"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+crossterm = "0.29.0"
+f1-term-core = { path = "../f1-term-core/" }
+ratatui = "0.30.0"
+
+[[bin]]
+name = "tui"
+path = "main.rs"
