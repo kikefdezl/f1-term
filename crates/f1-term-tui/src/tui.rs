@@ -1,27 +1,20 @@
 use f1_term_core::snapshot::FullSnapshot;
-use ratatui::widgets::Paragraph;
-use ratatui::{DefaultTerminal, Frame};
+use ratatui::Frame;
 
-#[derive(Default)]
-pub struct Tui {
-    pub snapshot: FullSnapshot,
-}
+use crate::table::{Table, TableData};
 
-impl Tui {
-    pub fn render(&self, frame: &mut Frame) {
-        let text = self.snapshot.to_string();
-        let paragraph = Paragraph::new(text);
-        frame.render_widget(paragraph, frame.area());
-    }
-}
-
-pub fn app(terminal: &mut DefaultTerminal) -> std::io::Result<()> {
-    let tui = Tui::default();
-
-    loop {
-        terminal.draw(|frame| tui.render(frame))?;
-        if crossterm::event::read()?.is_key_press() {
-            break Ok(());
+pub fn render(frame: &mut Frame, snapshot: &FullSnapshot) {
+    let table_datas = {
+        let mut tds = Vec::new();
+        for driver in snapshot.drivers.values() {
+            let team = snapshot
+                .teams
+                .get(&driver.team_name)
+                .expect("Team should be in snapshot");
+            tds.push(TableData::from_driver_team(driver, team));
         }
-    }
+        tds
+    };
+    let table = Table::new(table_datas);
+    frame.render_widget(table, frame.area());
 }

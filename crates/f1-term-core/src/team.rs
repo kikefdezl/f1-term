@@ -7,7 +7,7 @@ pub struct TeamName {
 
 #[derive(Debug)]
 pub struct TeamColor {
-    pub hex: String,
+    pub u32: u32, // 0x00RRGGBB
 }
 
 #[derive(Debug)]
@@ -18,6 +18,6 @@ pub struct Team {
 
 impl Display for Team {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        writeln!(f, "{}: #{}", self.name.value, self.color.hex)
+        writeln!(f, "{}: #{:X}", self.name.value, self.color.u32)
     }
 }

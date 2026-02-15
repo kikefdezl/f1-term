@@ -18,6 +18,7 @@ pub struct Driver {
     pub headshot_url: String,
     pub line: u8,
     pub public_id_right: String,
+    /// Three Letter Acronym
     pub tla: String,
     pub reference: String,
 }

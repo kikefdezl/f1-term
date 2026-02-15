@@ -159,7 +159,6 @@ fn parse_message(text: &str) -> Option<TelemetryEvent> {
             (drivers, teams)
         }
     };
-
     let snapshot = FullSnapshot { drivers, teams };
     Some(TelemetryEvent::Full(snapshot))
 }
@@ -283,11 +282,11 @@ fn parse_team(val: &Value) -> Result<Team, Box<dyn std::error::Error>> {
                     .to_string(),
             },
             color: TeamColor {
-                hex: attrs
+                u32: attrs
                     .get("TeamColour")
                     .and_then(|v| v.as_str())
-                    .ok_or("Missing or invalid TeamColour")?
-                    .to_string(),
+                    .and_then(|v| u32::from_str_radix(v, 16).ok())
+                    .ok_or("Missing or invalid TeamColour")?,
             },
         }),
         _ => Err("Error parsing team from driver, should be a JSON Object".into()),
