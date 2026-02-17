@@ -1,19 +1,14 @@
-use std::collections::HashMap;
-
+use super::parsing::parse_message;
 use super::topic::Topic;
-use f1_term_core::team::{Team, TeamColor, TeamName};
+use f1_term_core::client::{F1Client, TelemetryEvent};
 use futures_util::stream::{SplitSink, SplitStream};
 use futures_util::{SinkExt, StreamExt};
 use reqwest::Url;
 use serde::Deserialize;
-use serde_json::{Value, json};
+use serde_json::json;
 use tokio::net::TcpStream;
 use tokio_tungstenite::tungstenite::{Message, client::IntoClientRequest};
 use tokio_tungstenite::{MaybeTlsStream, WebSocketStream, connect_async};
-
-use f1_term_core::client::{F1Client, TelemetryEvent};
-use f1_term_core::driver::{Driver, DriverNumber};
-use f1_term_core::snapshot::FullSnapshot;
 
 const URL: &str = "livetiming.formula1.com/signalr";
 const HUB: &str = "Streaming";
@@ -143,152 +138,5 @@ impl F1Client for SignalRF1Client {
                 _ => {}
             }
         }
-    }
-}
-
-fn parse_message(text: &str) -> Option<TelemetryEvent> {
-    let json: serde_json::Value = serde_json::from_str(text).ok()?;
-
-    let response = json.get("R")?;
-
-    let (drivers, teams) = match response.get(Topic::DriverList.to_string()) {
-        None => (HashMap::new(), HashMap::new()),
-        Some(dl) => {
-            let drivers: HashMap<DriverNumber, Driver> = parse_drivers(dl);
-            let teams: HashMap<TeamName, Team> = parse_teams(dl);
-            (drivers, teams)
-        }
-    };
-    let snapshot = FullSnapshot { drivers, teams };
-    Some(TelemetryEvent::Full(snapshot))
-}
-
-fn parse_drivers(val: &Value) -> HashMap<DriverNumber, Driver> {
-    let mut drivers: HashMap<DriverNumber, Driver> = HashMap::new();
-    match val {
-        Value::Object(map) => {
-            for (num, attrs) in map.iter() {
-                let number: u8 = match num.parse() {
-                    Ok(n) => n,
-                    // Some non-grid cars have non-digits or numbers above 255. Ignore.
-                    Err(_) => continue,
-                };
-                let driver_number = DriverNumber { value: number };
-                // Medical and safety cars don't have all fields, so those fail to parse.
-                // We just ignore them.
-                if let Ok(d) = parse_driver(attrs) {
-                    drivers.insert(driver_number, d);
-                };
-            }
-        }
-        // TODO: handle this properly
-        _ => {}
-    }
-    drivers
-}
-
-fn parse_driver(val: &Value) -> Result<Driver, Box<dyn std::error::Error>> {
-    match val {
-        Value::Object(attrs) => Ok(Driver {
-            number: DriverNumber {
-                value: attrs
-                    .get("RacingNumber")
-                    .and_then(|v| v.as_str())
-                    .ok_or("Missing or invalid RacingNumber")?
-                    .parse()?,
-            },
-            first_name: attrs
-                .get("FirstName")
-                .and_then(|v| v.as_str())
-                .ok_or("Missing or invalid FirstName")?
-                .to_string(),
-            last_name: attrs
-                .get("LastName")
-                .and_then(|v| v.as_str())
-                .ok_or("Missing or invalid LastName")?
-                .to_string(),
-            full_name: attrs
-                .get("FullName")
-                .and_then(|v| v.as_str())
-                .ok_or("Missing or invalid FullName")?
-                .to_string(),
-            broadcast_name: attrs
-                .get("BroadcastName")
-                .and_then(|v| v.as_str())
-                .ok_or("Missing or invalid BroadcastName")?
-                .to_string(),
-            headshot_url: attrs
-                .get("HeadshotUrl")
-                .and_then(|v| v.as_str())
-                .ok_or("Missing or invalid HeadshotUrl")?
-                .to_string(),
-            line: attrs
-                .get("Line")
-                .and_then(|v| v.as_u64())
-                .ok_or("Missing or invalid Line")? as u8,
-            public_id_right: attrs
-                .get("PublicIdRight")
-                .and_then(|v| v.as_str())
-                .ok_or("Missing or invalid PublicIdRight")?
-                .to_string(),
-            tla: attrs
-                .get("Tla")
-                .and_then(|v| v.as_str())
-                .ok_or("Missing or invalid Tla")?
-                .to_string(),
-            team_name: TeamName {
-                value: attrs
-                    .get("TeamName")
-                    .and_then(|v| v.as_str())
-                    .ok_or("Missing or invalid TeamName")?
-                    .to_string(),
-            },
-            reference: attrs
-                .get("Reference")
-                .and_then(|v| v.as_str())
-                .ok_or("Missing or invalid Reference")?
-                .to_string(),
-        }),
-        _ => Err("Error parsing driver: attrs is not an Object".into()),
-    }
-}
-
-fn parse_teams(val: &Value) -> HashMap<TeamName, Team> {
-    let mut teams: HashMap<TeamName, Team> = HashMap::new();
-    match val {
-        Value::Object(map) => {
-            for (_, attrs) in map.iter() {
-                // Medical and safety cars don't have a team, so those fail to parse.
-                // We just ignore them.
-                if let Ok(t) = parse_team(attrs) {
-                    teams.insert(t.name.clone(), t);
-                };
-            }
-        }
-        // TODO: Handle this properly
-        _ => {}
-    }
-    teams
-}
-
-fn parse_team(val: &Value) -> Result<Team, Box<dyn std::error::Error>> {
-    match val {
-        Value::Object(attrs) => Ok(Team {
-            name: TeamName {
-                value: attrs
-                    .get("TeamName")
-                    .and_then(|v| v.as_str())
-                    .ok_or("Missing or invalid TeamName")?
-                    .to_string(),
-            },
-            color: TeamColor {
-                u32: attrs
-                    .get("TeamColour")
-                    .and_then(|v| v.as_str())
-                    .and_then(|v| u32::from_str_radix(v, 16).ok())
-                    .ok_or("Missing or invalid TeamColour")?,
-            },
-        }),
-        _ => Err("Error parsing team from driver, should be a JSON Object".into()),
     }
 }

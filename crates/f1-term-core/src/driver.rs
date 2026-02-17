@@ -16,7 +16,7 @@ pub struct Driver {
     pub full_name: String,
     pub broadcast_name: String,
     pub headshot_url: String,
-    pub line: u8,
+    pub line: Option<u8>,
     pub public_id_right: String,
     /// Three Letter Acronym
     pub tla: String,

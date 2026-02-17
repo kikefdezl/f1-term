@@ -461,6 +461,7 @@ dependencies = [
  "f1-term-core",
  "futures-util",
  "http",
+ "log",
  "reqwest",
  "serde",
  "serde_json",
