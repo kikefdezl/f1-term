@@ -6,6 +6,7 @@ use ratatui::text::Line;
 use ratatui::widgets::{Cell, Row, Table as RatatuiTable, Widget};
 
 pub struct TableData {
+    line: Option<u8>,
     driver_tla: String,
     driver_number: String,
     team_color: Color,
@@ -14,6 +15,7 @@ pub struct TableData {
 impl TableData {
     pub fn from_driver_team(driver: &Driver, team: &Team) -> Self {
         TableData {
+            line: driver.line,
             driver_tla: driver.tla.clone(),
             driver_number: driver.number.value.to_string(),
             team_color: Color::from_u32(team.color.u32),
@@ -37,8 +39,16 @@ impl Widget for Table {
     where
         Self: Sized,
     {
-        let mut rows: Vec<Row> = self
-            .items
+        let mut items = self.items;
+        items.sort_by(|a, b| {
+            (a.line.is_none(), a.line, &a.driver_tla).cmp(&(
+                b.line.is_none(),
+                b.line,
+                &b.driver_tla,
+            ))
+        });
+
+        let mut rows: Vec<Row> = items
             .iter()
             .enumerate()
             .map(|(i, data)| {

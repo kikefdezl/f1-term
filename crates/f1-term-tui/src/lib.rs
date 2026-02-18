@@ -1,2 +1,2 @@
-pub mod tui;
 mod table;
+pub mod tui;
