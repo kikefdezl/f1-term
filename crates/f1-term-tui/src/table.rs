@@ -1,8 +1,9 @@
 use f1_term_core::driver::Driver;
 use f1_term_core::team::Team;
 use ratatui::layout::Constraint;
-use ratatui::style::Color;
-use ratatui::widgets::{Row, Table as RatatuiTable, Widget};
+use ratatui::style::{Color, Modifier, Style};
+use ratatui::text::Line;
+use ratatui::widgets::{Cell, Row, Table as RatatuiTable, Widget};
 
 pub struct TableData {
     driver_tla: String,
@@ -17,10 +18,6 @@ impl TableData {
             driver_number: driver.number.value.to_string(),
             team_color: Color::from_u32(team.color.u32),
         }
-    }
-
-    fn ref_array(&self) -> [&str; 2] {
-        [&self.driver_tla, &self.driver_number]
     }
 }
 
@@ -40,19 +37,48 @@ impl Widget for Table {
     where
         Self: Sized,
     {
-        let rows: Vec<Row> = self
+        let mut rows: Vec<Row> = self
             .items
             .iter()
-            .map(|data| data.ref_array().into_iter().collect())
+            .enumerate()
+            .map(|(i, data)| {
+                let pos = i + 1;
+                Row::new(vec![
+                    Cell::from(format!("{:>3}", pos)),
+                    Cell::from(data.driver_tla.clone()).style(
+                        Style::default()
+                            .fg(data.team_color)
+                            .add_modifier(Modifier::BOLD),
+                    ),
+                    Cell::from(data.driver_number.clone()),
+                ])
+            })
             .collect();
+
+        rows.insert(
+            0,
+            Row::new(vec![
+                Cell::from("···").style(Style::default().fg(Color::DarkGray)),
+                Cell::from("······").style(Style::default().fg(Color::DarkGray)),
+                Cell::from("···").style(Style::default().fg(Color::DarkGray)),
+            ]),
+        );
+
+        let header = Row::new(vec![
+            Cell::from(Line::from("#").alignment(ratatui::layout::Alignment::Right)),
+            Cell::from("Driver"),
+            Cell::from("Num"),
+        ]);
 
         let t = RatatuiTable::new(
             rows,
             [
-                Constraint::Length(4), // 3 from TLA + 1 for padding
+                Constraint::Length(3),
+                Constraint::Length(6),
                 Constraint::Min(3),
             ],
-        );
+        )
+        .header(header);
         t.render(area, buf);
     }
 }
