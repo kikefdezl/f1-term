@@ -1,5 +1,6 @@
 use super::driver::{Driver, DriverNumber};
 use super::team::{Team, TeamName};
+use super::timing::LiveTiming;
 use std::collections::HashMap;
 use std::fmt::Display;
 
@@ -7,6 +8,7 @@ use std::fmt::Display;
 pub struct FullSnapshot {
     pub teams: HashMap<TeamName, Team>,
     pub drivers: HashMap<DriverNumber, Driver>,
+    pub timing_data: HashMap<DriverNumber, LiveTiming>,
 }
 
 impl Display for FullSnapshot {
@@ -17,6 +19,7 @@ impl Display for FullSnapshot {
         for driver in self.drivers.values() {
             writeln!(f, "{}", driver)?;
         }
+        // TODO: Implement display for timing data if needed
         Ok(())
     }
 }

@@ -1,7 +1,7 @@
 use f1_term_core::snapshot::FullSnapshot;
 use ratatui::Frame;
 
-use crate::table::{Table, TableData};
+use crate::table::{Table, TableData, TableDataArgs};
 
 pub fn render(frame: &mut Frame, snapshot: &FullSnapshot) {
     let table_datas = {
@@ -11,7 +11,13 @@ pub fn render(frame: &mut Frame, snapshot: &FullSnapshot) {
                 .teams
                 .get(&driver.team_name)
                 .expect("Team should be in snapshot");
-            tds.push(TableData::from_driver_team(driver, team));
+            let live_timing = snapshot.timing_data.get(&driver.number);
+            let args = TableDataArgs {
+                driver,
+                team,
+                live_timing,
+            };
+            tds.push(TableData::from(&args));
         }
         tds
     };

@@ -2,7 +2,7 @@ use std::fmt::Display;
 
 use super::team::TeamName;
 
-#[derive(Eq, PartialEq, Hash, Debug)]
+#[derive(Eq, PartialEq, Hash, Debug, Clone, Copy, Default)]
 pub struct DriverNumber {
     pub value: u8,
 }
