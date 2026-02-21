@@ -3,7 +3,7 @@ use super::driver::DriverNumber;
 #[derive(Debug, Default, Clone, PartialEq)]
 pub struct LiveTiming {
     pub driver_number: DriverNumber,
-    pub best_lap_time: String,
+    pub best_lap_time: Option<String>,
     pub in_pit: bool,
     pub pit_out: bool,
     pub last_lap: LastLap,
@@ -20,7 +20,7 @@ pub struct LastLap {
     pub overall_fastest: bool,
     pub personal_fastest: bool,
     pub status: u8,
-    pub time: String,
+    pub time: Option<String>,
     pub sectors: Vec<Sector>,
     pub show_position: bool,
     pub speeds: Speeds,

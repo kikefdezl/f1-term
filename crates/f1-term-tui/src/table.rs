@@ -11,7 +11,10 @@ pub struct TableData {
     driver_tla: String,
     driver_number: String,
     team_color: Color,
+    best_lap_time: Option<String>,
     last_lap_time: Option<String>,
+    last_lap_overall_fastest: bool,
+    last_lap_personal_fastest: bool,
 }
 
 pub struct TableDataArgs<'a> {
@@ -27,7 +30,16 @@ impl TableData {
             driver_tla: args.driver.tla.clone(),
             driver_number: args.driver.number.value.to_string(),
             team_color: Color::from_u32(args.team.color.u32),
-            last_lap_time: args.live_timing.map(|lt| lt.last_lap.time.clone()),
+            best_lap_time: args.live_timing.and_then(|lt| lt.best_lap_time.clone()),
+            last_lap_time: args.live_timing.and_then(|lt| lt.last_lap.time.clone()),
+            last_lap_overall_fastest: args
+                .live_timing
+                .map(|lt| lt.last_lap.overall_fastest)
+                .unwrap_or(false),
+            last_lap_personal_fastest: args
+                .live_timing
+                .map(|lt| lt.last_lap.personal_fastest)
+                .unwrap_or(false),
         }
     }
 }
@@ -57,15 +69,48 @@ impl Widget for Table {
             ))
         });
 
+        let rows = Table::_create_rows(&items);
+        let header = Table::_create_header();
+
+        let t = RatatuiTable::new(
+            rows,
+            [
+                Constraint::Length(3),
+                Constraint::Length(6),
+                Constraint::Length(3),
+                Constraint::Length(9),
+                Constraint::Length(9),
+            ],
+        )
+        .header(header);
+        t.render(area, buf);
+    }
+}
+
+impl Table {
+    fn _create_rows(items: &[TableData]) -> Vec<Row<'_>> {
         let mut rows: Vec<Row> = items
             .iter()
             .enumerate()
             .map(|(i, data)| {
                 let pos = i + 1;
 
+                let best_lap = match &data.best_lap_time {
+                    Some(ll) => ll.clone(),
+                    None => "-:--:---".to_string(),
+                };
+
                 let last_lap = match &data.last_lap_time {
                     Some(ll) => ll.clone(),
                     None => "-:--:---".to_string(),
+                };
+
+                let last_lap_style = if data.last_lap_overall_fastest {
+                    Style::default().fg(Color::from_u32(0xBF00FF)) // #BF00FF
+                } else if data.last_lap_personal_fastest {
+                    Style::default().fg(Color::from_u32(0x39FF14)) // #39FF14
+                } else {
+                    Style::default()
                 };
 
                 Row::new(vec![
@@ -76,7 +121,8 @@ impl Widget for Table {
                             .add_modifier(Modifier::BOLD),
                     ),
                     Cell::from(data.driver_number.clone()),
-                    Cell::from(last_lap),
+                    Cell::from(best_lap),
+                    Cell::from(last_lap).style(last_lap_style),
                 ])
             })
             .collect();
@@ -87,27 +133,20 @@ impl Widget for Table {
                 Cell::from("···").style(Style::default().fg(Color::DarkGray)),
                 Cell::from("······").style(Style::default().fg(Color::DarkGray)),
                 Cell::from("···").style(Style::default().fg(Color::DarkGray)),
-                Cell::from("······").style(Style::default().fg(Color::DarkGray)),
+                Cell::from("········").style(Style::default().fg(Color::DarkGray)),
+                Cell::from("········").style(Style::default().fg(Color::DarkGray)),
             ]),
         );
+        rows
+    }
 
-        let header = Row::new(vec![
+    fn _create_header() -> Row<'static> {
+        Row::new(vec![
             Cell::from(Line::from("#").alignment(ratatui::layout::Alignment::Right)),
             Cell::from("Driver"),
             Cell::from("Num"),
+            Cell::from("Best Lap"),
             Cell::from("Last Lap"),
-        ]);
-
-        let t = RatatuiTable::new(
-            rows,
-            [
-                Constraint::Length(3),
-                Constraint::Length(6),
-                Constraint::Min(3),
-                Constraint::Min(6),
-            ],
-        )
-        .header(header);
-        t.render(area, buf);
+        ])
     }
 }
