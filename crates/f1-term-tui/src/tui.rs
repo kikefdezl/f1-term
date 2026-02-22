@@ -1,21 +1,17 @@
-use f1_term_core::snapshot::FullSnapshot;
+use f1_term_core::session::Session;
 use ratatui::Frame;
 
 use crate::table::{Table, TableData, TableDataArgs};
 
-pub fn render(frame: &mut Frame, snapshot: &FullSnapshot) {
+pub fn render(frame: &mut Frame, session: &Session) {
     let table_datas = {
         let mut tds = Vec::new();
-        for driver in snapshot.drivers.values() {
-            let team = snapshot
-                .teams
-                .get(&driver.team_name)
-                .expect("Team should be in snapshot");
+        for participant in session.leaderboard() {
             let args = TableDataArgs {
-                driver,
-                team,
-                live_timing: snapshot.timing_data.get(&driver.number),
-                stints: snapshot.stints.get(&driver.number),
+                driver: participant.driver,
+                team: participant.team,
+                live_timing: participant.timing,
+                stints: participant.stints,
             };
             tds.push(TableData::from(&args));
         }

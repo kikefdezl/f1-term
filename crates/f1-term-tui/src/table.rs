@@ -141,12 +141,12 @@ impl Table {
 
                 let best_lap = match &data.best_lap_time {
                     Some(ll) => ll.clone(),
-                    None => "-:--:---".to_string(),
+                    None => "-:--.---".to_string(),
                 };
 
                 let last_lap = match &data.last_lap_time {
                     Some(ll) => ll.clone(),
-                    None => "-:--:---".to_string(),
+                    None => "-:--.---".to_string(),
                 };
 
                 let last_lap_style = if data.last_lap_overall_fastest {

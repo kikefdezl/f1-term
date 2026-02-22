@@ -1,8 +1,10 @@
-use crate::snapshot::FullSnapshot;
+use crate::session::Session;
+use std::future::Future;
+use std::sync::Arc;
 
 #[derive(Debug)]
 pub enum TelemetryEvent {
-    Full(FullSnapshot),
+    SessionUpdate(Arc<Session>),
     Empty,
 }
 

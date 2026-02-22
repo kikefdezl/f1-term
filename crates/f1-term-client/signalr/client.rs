@@ -3,10 +3,10 @@ use super::topic::Topic;
 use f1_term_core::client::{F1Client, TelemetryEvent};
 use futures_util::stream::{SplitSink, SplitStream};
 use futures_util::{SinkExt, StreamExt};
+use log::{debug, error, info, warn};
 use reqwest::Url;
 use serde::Deserialize;
 use serde_json::json;
-use std::fs::write;
 use tokio::net::TcpStream;
 use tokio_tungstenite::tungstenite::{Message, client::IntoClientRequest};
 use tokio_tungstenite::{MaybeTlsStream, WebSocketStream, connect_async};
@@ -20,6 +20,7 @@ pub struct SignalRF1Client {
     reader: Option<SplitStream<TcpWebSocketStream>>,
     writer: Option<SplitSink<TcpWebSocketStream, Message>>,
     topics: Vec<Topic>,
+    canonical_state: serde_json::Value,
 }
 
 impl Default for SignalRF1Client {
@@ -28,6 +29,7 @@ impl Default for SignalRF1Client {
             reader: None,
             writer: None,
             topics: Topic::all(),
+            canonical_state: json!({}),
         }
     }
 }
@@ -63,7 +65,7 @@ struct NegotiateResponse {
 
 impl F1Client for SignalRF1Client {
     async fn connect(&mut self) -> Result<(), Box<dyn std::error::Error>> {
-        println!("=== Negotiating connection ===");
+        info!("=== Negotiating connection ===");
 
         let connection_data = json!([{"name": HUB}]).to_string();
         let negotiate_url = format!("https://{}/negotiate", URL);
@@ -79,8 +81,8 @@ impl F1Client for SignalRF1Client {
             .to_string();
 
         let negotiate_data: NegotiateResponse = negotiate_response.json().await?;
-        println!("Connection token: {}", negotiate_data.connection_token);
-        println!("Cookie: {}", cookie);
+        debug!("Connection token: {}", negotiate_data.connection_token);
+        debug!("Cookie: {}", cookie);
 
         let ws_url = Url::parse_with_params(
             &format!("wss://{}/connect", URL),
@@ -92,21 +94,21 @@ impl F1Client for SignalRF1Client {
             ],
         )?;
 
-        println!("\n=== Connecting to WebSocket ===");
-        println!("URL: {}", ws_url);
+        info!("=== Connecting to WebSocket ===");
+        info!("URL: {}", ws_url);
 
         let mut req = ws_url.to_string().into_client_request()?;
         let headers = req.headers_mut();
         headers.insert("Cookie", cookie.parse().unwrap());
 
         let (ws_stream, _) = connect_async(req).await?;
-        println!("✓ WebSocket connected!");
+        info!("✓ WebSocket connected!");
 
         let (writer, reader) = ws_stream.split();
         self.writer = Some(writer);
         self.reader = Some(reader);
 
-        println!("\n === Subscribing to topics ===");
+        info!("\n === Subscribing to topics ===");
         self.subscribe().await?;
         Ok(())
     }
@@ -117,28 +119,95 @@ impl F1Client for SignalRF1Client {
         loop {
             match reader.next().await? {
                 Ok(Message::Text(text)) => {
-                    let _ = write("example.json", &text);
-                    if let Some(event) = parse_message(&text) {
-                        return Some(event);
+                    debug!("Received SignalR Text Message. Length: {}", text.len());
+
+                    let mut updated = false;
+
+                    if let Ok(json) = serde_json::from_str::<serde_json::Value>(&text) {
+                        // 1. Initial State (the 'R' field from Subscribe)
+                        if let Some(r) = json.get("R") {
+                            debug!("Applying initial state (R field)");
+                            self.canonical_state = r.clone();
+                            updated = true;
+                        }
+
+                        // 2. Partial Updates (the 'M' array of messages)
+                        if let Some(m_arr) = json.get("M").and_then(|m| m.as_array()) {
+                            for msg in m_arr {
+                                if msg.get("M").and_then(|m| m.as_str()) == Some("feed")
+                                    && let Some(args) = msg.get("A").and_then(|a| a.as_array())
+                                    && args.len() >= 2
+                                {
+                                    let topic = args[0].as_str().unwrap_or("UnknownTopic");
+                                    let delta = &args[1];
+                                    debug!("Applying partial update for topic: {}", topic);
+
+                                    if !self.canonical_state.is_object() {
+                                        self.canonical_state = json!({});
+                                    }
+                                    let canonical_obj =
+                                        self.canonical_state.as_object_mut().unwrap();
+
+                                    let topic_entry = canonical_obj
+                                        .entry(topic.to_string())
+                                        .or_insert_with(|| json!({}));
+                                    merge_patch(topic_entry, delta);
+                                    updated = true;
+                                }
+                            }
+                        }
                     }
-                    // Continue looping if we got a message we don't care about
+
+                    if updated {
+                        if let Some(event) = parse_message(&self.canonical_state) {
+                            match &event {
+                                TelemetryEvent::SessionUpdate(_) => {
+                                    info!("Parsed SessionUpdate Telemetry Snapshot")
+                                }
+                                TelemetryEvent::Empty => debug!("Parsed Empty Telemetry Event"),
+                            }
+                            return Some(event);
+                        } else {
+                            debug!("Failed to parse canonical state into snapshot");
+                        }
+                    }
                 }
                 Ok(Message::Close(_)) => {
-                    println!("Connection closed");
+                    warn!("Connection closed by server");
                     return None;
                 }
                 Ok(Message::Ping(_) | Message::Pong(_)) => {
-                    // Ignore ping/pong, continue loop
+                    debug!("Received Ping/Pong");
                 }
                 Ok(Message::Binary(_)) => {
-                    // Skip binary messages for now
+                    debug!("Received unhandled Binary message");
                 }
                 Err(e) => {
-                    eprintln!("WebSocket error: {}", e);
+                    error!("WebSocket error: {}", e);
                     return None;
                 }
                 _ => {}
             }
+        }
+    }
+}
+
+// Deep JSON merge patch (RFC 7386)
+fn merge_patch(a: &mut serde_json::Value, b: &serde_json::Value) {
+    use serde_json::Value;
+
+    match (a, b) {
+        (Value::Object(a_obj), Value::Object(b_obj)) => {
+            for (k, v) in b_obj {
+                if v.is_null() {
+                    a_obj.remove(k);
+                } else {
+                    merge_patch(a_obj.entry(k.clone()).or_insert(Value::Null), v);
+                }
+            }
+        }
+        (a_val, b_val) => {
+            *a_val = b_val.clone();
         }
     }
 }

@@ -1,27 +1,47 @@
 use f1_term_client::signalr::client::SignalRF1Client;
 use f1_term_core::client::{F1Client, TelemetryEvent};
-use f1_term_core::snapshot::FullSnapshot;
+use f1_term_core::session::Session;
 use f1_term_tui::tui::render;
 
 use crossterm::event::{self, Event};
+use directories::ProjectDirs;
+use simplelog::{Config, LevelFilter, WriteLogger};
+use std::fs::File;
 use std::time::Duration;
+use std::sync::Arc;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let log_path = if let Some(proj_dirs) = ProjectDirs::from("", "", "f1-term") {
+        let dir = proj_dirs
+            .state_dir()
+            .unwrap_or_else(|| proj_dirs.data_local_dir());
+        std::fs::create_dir_all(dir).unwrap();
+        dir.join("f1-term.log")
+    } else {
+        std::path::PathBuf::from("f1-term.log")
+    };
+
+    let _ = WriteLogger::init(
+        LevelFilter::Debug,
+        Config::default(),
+        File::create(&log_path).unwrap(),
+    );
+
     let mut client = SignalRF1Client::new();
     client.connect().await?;
 
     let mut terminal = ratatui::init();
 
-    let mut last_snap: Option<FullSnapshot> = None;
+    let mut session_state: Option<Arc<Session>> = None;
     let mut render_interval = tokio::time::interval(Duration::from_millis(333));
 
     loop {
         tokio::select! {
             // Update data when telemetry arrives
             update = client.next_event() => {
-                if let Some(TelemetryEvent::Full(fs)) = update {
-                    last_snap = Some(fs);
+                if let Some(TelemetryEvent::SessionUpdate(fs)) = update {
+                    session_state = Some(fs);
                 }
             }
 
@@ -31,11 +51,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                         break;
                 }
 
-                if let Some(ls) = last_snap.as_mut()
-                    && !ls.drivers.is_empty()
-                    && !ls.teams.is_empty()
+                if let Some(state) = session_state.as_ref()
+                    && !state.drivers.is_empty()
+                    && !state.teams.is_empty()
                 {
-                    terminal.draw(|frame| render(frame, ls))?;
+                    terminal.draw(|frame| render(frame, state))?;
                 }
             }
         }
