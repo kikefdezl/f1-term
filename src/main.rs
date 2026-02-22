@@ -14,6 +14,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut terminal = ratatui::init();
 
     let mut last_snap: Option<FullSnapshot> = None;
+    let mut render_interval = tokio::time::interval(Duration::from_millis(333));
 
     loop {
         tokio::select! {
@@ -24,19 +25,19 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 }
             }
 
-            // Check for key press to exit
-            _ = tokio::time::sleep(Duration::from_millis(16)) => {
+            // Check for key press to exit and render
+            _ = render_interval.tick() => {
                 if event::poll(Duration::from_millis(0))? && let Event::Key(_) = event::read()? {
                         break;
                 }
-            }
-        }
 
-        if let Some(ls) = last_snap.as_mut()
-            && !ls.drivers.is_empty()
-            && !ls.teams.is_empty()
-        {
-            terminal.draw(|frame| render(frame, ls))?;
+                if let Some(ls) = last_snap.as_mut()
+                    && !ls.drivers.is_empty()
+                    && !ls.teams.is_empty()
+                {
+                    terminal.draw(|frame| render(frame, ls))?;
+                }
+            }
         }
     }
 

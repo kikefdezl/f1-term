@@ -210,9 +210,9 @@ impl Table {
                 Cell::from("·······").style(Style::default().fg(Color::DarkGray)),
                 Cell::from("········").style(Style::default().fg(Color::DarkGray)),
                 Cell::from("········").style(Style::default().fg(Color::DarkGray)),
-                Cell::from("··········").style(Style::default().fg(Color::DarkGray)),
-                Cell::from("··········").style(Style::default().fg(Color::DarkGray)),
-                Cell::from("··········").style(Style::default().fg(Color::DarkGray)),
+                Cell::from("············").style(Style::default().fg(Color::DarkGray)),
+                Cell::from("············").style(Style::default().fg(Color::DarkGray)),
+                Cell::from("············").style(Style::default().fg(Color::DarkGray)),
             ]),
         );
         rows
