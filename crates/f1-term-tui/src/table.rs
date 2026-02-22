@@ -23,6 +23,8 @@ pub struct TableData {
     last_lap_overall_fastest: bool,
     last_lap_personal_fastest: bool,
     segments: Vec<Vec<SegmentStatus>>,
+    time_diff_to_fastest: Option<String>,
+    time_diff_to_position_ahead: Option<String>,
 }
 
 pub struct TableDataArgs<'a> {
@@ -70,6 +72,10 @@ impl TableData {
                         .collect()
                 })
                 .unwrap_or_default(),
+            time_diff_to_fastest: args.live_timing.map(|lt| lt.time_diff_to_fastest.clone()),
+            time_diff_to_position_ahead: args
+                .live_timing
+                .map(|lt| lt.time_diff_to_position_ahead.clone()),
         }
     }
 }
@@ -122,8 +128,9 @@ impl Widget for Table {
                 Constraint::Length(6),
                 Constraint::Length(3),
                 Constraint::Length(7),
-                Constraint::Length(9),
-                Constraint::Length(9),
+                Constraint::Length(7),
+                Constraint::Length(10),
+                Constraint::Length(10),
                 Constraint::Length(s1_segments),
                 Constraint::Length(s2_segments),
                 Constraint::Length(s3_segments),
@@ -143,13 +150,22 @@ impl Table {
                 let pos = i + 1;
 
                 let best_lap = match &data.best_lap_time {
-                    Some(ll) => ll.clone(),
-                    None => "-:--.---".to_string(),
+                    Some(ll) => ll,
+                    None => "-:--.---",
                 };
 
                 let last_lap = match &data.last_lap_time {
-                    Some(ll) => ll.clone(),
-                    None => "-:--.---".to_string(),
+                    Some(ll) => ll,
+                    None => "-:--.---",
+                };
+
+                let time_diff = if i == 0 {
+                    "------"
+                } else {
+                    match &data.time_diff_to_fastest {
+                        Some(t) => t,
+                        None => " -.---",
+                    }
                 };
 
                 let last_lap_style = if data.last_lap_overall_fastest {
@@ -163,7 +179,7 @@ impl Table {
                 let segment_data = |sector: usize| -> Cell {
                     data.segments
                         .get(sector)
-                        .map(|s| Table::_process_segments(s))
+                        .map(|s| Table::_create_segments(s))
                         .unwrap_or_default()
                 };
                 let s1 = segment_data(0);
@@ -195,6 +211,7 @@ impl Table {
                     ),
                     Cell::from(data.driver_number.clone()),
                     tire_cell,
+                    Cell::from(time_diff),
                     Cell::from(best_lap),
                     Cell::from(last_lap).style(last_lap_style),
                     s1,
@@ -207,15 +224,16 @@ impl Table {
         rows.insert(
             0,
             Row::new(vec![
-                Cell::from("···").style(Style::default().fg(Color::DarkGray)),
-                Cell::from("······").style(Style::default().fg(Color::DarkGray)),
-                Cell::from("···").style(Style::default().fg(Color::DarkGray)),
-                Cell::from("·······").style(Style::default().fg(Color::DarkGray)),
-                Cell::from("········").style(Style::default().fg(Color::DarkGray)),
-                Cell::from("········").style(Style::default().fg(Color::DarkGray)),
-                Cell::from("············").style(Style::default().fg(Color::DarkGray)),
-                Cell::from("············").style(Style::default().fg(Color::DarkGray)),
-                Cell::from("············").style(Style::default().fg(Color::DarkGray)),
+                Cell::from("···").style(Style::default().fg(Color::DarkGray)), // #
+                Cell::from("······").style(Style::default().fg(Color::DarkGray)), // Driver
+                Cell::from("···").style(Style::default().fg(Color::DarkGray)), // Num
+                Cell::from("·······").style(Style::default().fg(Color::DarkGray)), // Tire
+                Cell::from("·······").style(Style::default().fg(Color::DarkGray)), // Gap
+                Cell::from("·········").style(Style::default().fg(Color::DarkGray)), // Best Lap
+                Cell::from("·········").style(Style::default().fg(Color::DarkGray)), // Last Lap
+                Cell::from("············").style(Style::default().fg(Color::DarkGray)), // S1
+                Cell::from("············").style(Style::default().fg(Color::DarkGray)), // S2
+                Cell::from("············").style(Style::default().fg(Color::DarkGray)), // S3
             ]),
         );
         rows
@@ -223,10 +241,11 @@ impl Table {
 
     fn _create_header() -> Row<'static> {
         Row::new(vec![
-            Cell::from(Line::from("#").alignment(ratatui::layout::Alignment::Right)),
+            Cell::from("  #"),
             Cell::from("Driver"),
             Cell::from("Num"),
             Cell::from("Tire"),
+            Cell::from("Gap"),
             Cell::from("Best Lap"),
             Cell::from("Last Lap"),
             Cell::from("S1"),
@@ -235,7 +254,7 @@ impl Table {
         ])
     }
 
-    fn _process_segments(segments: &[SegmentStatus]) -> Cell<'_> {
+    fn _create_segments(segments: &[SegmentStatus]) -> Cell<'_> {
         let spans: Vec<Span> = segments
             .iter()
             .map(|s| {
