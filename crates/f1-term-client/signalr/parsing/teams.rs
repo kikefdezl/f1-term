@@ -1,8 +1,31 @@
+use super::Result;
 use f1_term_core::team::{Team, TeamColor, TeamName};
 use log::info;
+use serde::Deserialize;
 use serde_json::Value;
 use std::collections::HashMap;
-use super::Result;
+
+#[derive(Deserialize, Debug)]
+#[allow(non_snake_case)]
+struct TeamPayload {
+    TeamName: String,
+    TeamColour: String,
+}
+
+impl TryFrom<TeamPayload> for Team {
+    type Error = Box<dyn std::error::Error>;
+
+    fn try_from(payload: TeamPayload) -> Result<Self> {
+        Ok(Team {
+            name: TeamName {
+                value: payload.TeamName,
+            },
+            color: TeamColor {
+                u32: u32::from_str_radix(&payload.TeamColour, 16)?,
+            },
+        })
+    }
+}
 
 pub fn parse_teams(val: &Value) -> Result<HashMap<TeamName, Team>> {
     let mut teams: HashMap<TeamName, Team> = HashMap::new();
@@ -11,12 +34,17 @@ pub fn parse_teams(val: &Value) -> Result<HashMap<TeamName, Team>> {
             for (_, attrs) in map.iter() {
                 // Medical and safety cars don't have a team, so those fail to parse.
                 // We just ignore them.
-                match parse_team(attrs) {
-                    Ok(t) => {
-                        teams.insert(t.name.clone(), t);
-                    }
+                match serde_json::from_value::<TeamPayload>(attrs.clone()) {
+                    Ok(payload) => match Team::try_from(payload) {
+                        Ok(t) => {
+                            teams.insert(t.name.clone(), t);
+                        }
+                        Err(e) => {
+                            info!("Failed to convert team payload: {}", e);
+                        }
+                    },
                     Err(e) => {
-                        info!("Failed to parse team with attrs {}: {}", attrs, e);
+                        info!("Failed to parse team payload: {}", e);
                     }
                 }
             }
@@ -26,24 +54,42 @@ pub fn parse_teams(val: &Value) -> Result<HashMap<TeamName, Team>> {
     Ok(teams)
 }
 
-fn parse_team(val: &Value) -> Result<Team> {
-    match val {
-        Value::Object(attrs) => Ok(Team {
-            name: TeamName {
-                value: attrs
-                    .get("TeamName")
-                    .and_then(|v| v.as_str())
-                    .ok_or("Missing or invalid TeamName")?
-                    .to_string(),
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use serde_json::json;
+
+    #[test]
+    fn test_parse_teams() {
+        let json = json!({
+            "1": {
+                "TeamName": "Red Bull Racing",
+                "TeamColour": "3671C6"
             },
-            color: TeamColor {
-                u32: attrs
-                    .get("TeamColour")
-                    .and_then(|v| v.as_str())
-                    .and_then(|v| u32::from_str_radix(v, 16).ok())
-                    .ok_or("Missing or invalid TeamColour")?,
+            "2": {
+                "TeamName": "Ferrari",
+                "TeamColour": "F91536"
             },
-        }),
-        _ => Err("Error parsing team from driver, should be a JSON Object".into()),
+            "invalid": {
+                "NotATeam": "Something"
+            }
+        });
+
+        let teams = parse_teams(&json).unwrap();
+        assert_eq!(teams.len(), 2);
+
+        let rb = teams
+            .get(&TeamName {
+                value: "Red Bull Racing".to_string(),
+            })
+            .unwrap();
+        assert_eq!(rb.color.u32, 0x3671C6);
+
+        let ferrari = teams
+            .get(&TeamName {
+                value: "Ferrari".to_string(),
+            })
+            .unwrap();
+        assert_eq!(ferrari.color.u32, 0xF91536);
     }
 }

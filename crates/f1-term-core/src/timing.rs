@@ -9,7 +9,7 @@ pub struct LiveTiming {
     pub last_lap: LastLap,
     pub position: u8,
     pub retired: bool,
-    pub status: u8,
+    pub status: u32,
     pub stopped: bool,
     pub time_diff_to_fastest: String,
     pub time_diff_to_position_ahead: String,
@@ -19,7 +19,7 @@ pub struct LiveTiming {
 pub struct LastLap {
     pub overall_fastest: bool,
     pub personal_fastest: bool,
-    pub status: u8,
+    pub status: u32,
     pub time: Option<String>,
     pub sectors: Vec<Sector>,
     pub show_position: bool,
@@ -31,14 +31,14 @@ pub struct Sector {
     pub overall_fastest: bool,
     pub personal_fastest: bool,
     pub segments: Vec<Segment>,
-    pub status: u8,
+    pub status: u32,
     pub stopped: bool,
     pub value: String,
 }
 
 #[derive(Debug, Default, Clone, PartialEq)]
 pub struct Segment {
-    pub status: u8,
+    pub status: u32,
 }
 
 #[derive(Debug, Default, Clone, PartialEq)]
@@ -53,6 +53,6 @@ pub struct Speeds {
 pub struct Speed {
     pub overall_fastest: bool,
     pub personal_fastest: bool,
-    pub status: u8,
+    pub status: u32,
     pub value: String,
 }

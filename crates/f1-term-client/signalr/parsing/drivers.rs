@@ -2,8 +2,49 @@ use super::Result;
 use f1_term_core::driver::{Driver, DriverNumber};
 use f1_term_core::team::TeamName;
 use log::info;
+use serde::Deserialize;
 use serde_json::Value;
 use std::collections::HashMap;
+
+#[derive(Deserialize, Debug)]
+#[allow(non_snake_case)]
+struct DriverPayload {
+    RacingNumber: String,
+    FirstName: String,
+    LastName: String,
+    FullName: String,
+    BroadcastName: String,
+    HeadshotUrl: String,
+    Line: u8,
+    PublicIdRight: String,
+    Tla: String,
+    TeamName: String,
+    Reference: String,
+}
+
+impl TryFrom<DriverPayload> for Driver {
+    type Error = Box<dyn std::error::Error>;
+
+    fn try_from(payload: DriverPayload) -> Result<Self> {
+        Ok(Driver {
+            number: DriverNumber {
+                value: payload.RacingNumber.parse()?,
+            },
+            first_name: payload.FirstName,
+            last_name: payload.LastName,
+            full_name: payload.FullName,
+            broadcast_name: payload.BroadcastName,
+            headshot_url: payload.HeadshotUrl,
+            line: Some(payload.Line),
+            public_id_right: payload.PublicIdRight,
+            tla: payload.Tla,
+            team_name: TeamName {
+                value: payload.TeamName,
+            },
+            reference: payload.Reference,
+        })
+    }
+}
 
 pub fn parse_drivers(val: &Value) -> Result<HashMap<DriverNumber, Driver>> {
     let mut drivers: HashMap<DriverNumber, Driver> = HashMap::new();
@@ -16,14 +57,20 @@ pub fn parse_drivers(val: &Value) -> Result<HashMap<DriverNumber, Driver>> {
                     Err(_) => continue,
                 };
                 let driver_number = DriverNumber { value: number };
+
                 // Medical and safety cars don't have all fields, so those fail to parse.
                 // We just ignore them too.
-                match parse_driver(attrs) {
-                    Ok(d) => {
-                        drivers.insert(driver_number, d);
-                    }
+                match serde_json::from_value::<DriverPayload>(attrs.clone()) {
+                    Ok(payload) => match Driver::try_from(payload) {
+                        Ok(d) => {
+                            drivers.insert(driver_number, d);
+                        }
+                        Err(e) => {
+                            info!("Failed to convert driver payload {}: {}", number, e);
+                        }
+                    },
                     Err(e) => {
-                        info!("Failed to parse driver with attrs {}: {}", attrs, e);
+                        info!("Failed to parse driver payload for {}: {}", number, e);
                     }
                 }
             }
@@ -31,67 +78,4 @@ pub fn parse_drivers(val: &Value) -> Result<HashMap<DriverNumber, Driver>> {
         _ => return Err("Drivers value is not a JSON object".into()),
     }
     Ok(drivers)
-}
-
-fn parse_driver(val: &Value) -> Result<Driver> {
-    match val {
-        Value::Object(attrs) => Ok(Driver {
-            number: DriverNumber {
-                value: attrs
-                    .get("RacingNumber")
-                    .and_then(|v| v.as_str())
-                    .ok_or("Missing or invalid RacingNumber")?
-                    .parse()?,
-            },
-            first_name: attrs
-                .get("FirstName")
-                .and_then(|v| v.as_str())
-                .ok_or("Missing or invalid FirstName")?
-                .to_string(),
-            last_name: attrs
-                .get("LastName")
-                .and_then(|v| v.as_str())
-                .ok_or("Missing or invalid LastName")?
-                .to_string(),
-            full_name: attrs
-                .get("FullName")
-                .and_then(|v| v.as_str())
-                .ok_or("Missing or invalid FullName")?
-                .to_string(),
-            broadcast_name: attrs
-                .get("BroadcastName")
-                .and_then(|v| v.as_str())
-                .ok_or("Missing or invalid BroadcastName")?
-                .to_string(),
-            headshot_url: attrs
-                .get("HeadshotUrl")
-                .and_then(|v| v.as_str())
-                .ok_or("Missing or invalid HeadshotUrl")?
-                .to_string(),
-            line: attrs.get("Line").and_then(|v| v.as_u64()).map(|v| v as u8),
-            public_id_right: attrs
-                .get("PublicIdRight")
-                .and_then(|v| v.as_str())
-                .ok_or("Missing or invalid PublicIdRight")?
-                .to_string(),
-            tla: attrs
-                .get("Tla")
-                .and_then(|v| v.as_str())
-                .ok_or("Missing or invalid Tla")?
-                .to_string(),
-            team_name: TeamName {
-                value: attrs
-                    .get("TeamName")
-                    .and_then(|v| v.as_str())
-                    .ok_or("Missing or invalid TeamName")?
-                    .to_string(),
-            },
-            reference: attrs
-                .get("Reference")
-                .and_then(|v| v.as_str())
-                .ok_or("Missing or invalid Reference")?
-                .to_string(),
-        }),
-        _ => Err("Error parsing driver: attrs is not an Object".into()),
-    }
 }

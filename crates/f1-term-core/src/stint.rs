@@ -1,15 +1,16 @@
 pub type Stints = Vec<Stint>;
 
-#[derive(Debug)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum Compound {
     Soft,
     Medium,
     Hard,
-    Inter,
+    Intermediate,
     Wet,
+    Unknown,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct Stint {
     pub compound: Compound,
     pub lap_flags: u8,

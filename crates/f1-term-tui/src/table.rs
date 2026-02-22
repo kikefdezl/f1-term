@@ -1,4 +1,5 @@
 use f1_term_core::driver::Driver;
+use f1_term_core::stint::{Compound, Stints};
 use f1_term_core::team::Team;
 use f1_term_core::timing::LiveTiming;
 use ratatui::layout::Constraint;
@@ -11,6 +12,8 @@ pub struct TableData {
     driver_tla: String,
     driver_number: String,
     team_color: Color,
+    tire_compound: Option<Compound>,
+    tire_laps: Option<u8>,
     best_lap_time: Option<String>,
     last_lap_time: Option<String>,
     last_lap_overall_fastest: bool,
@@ -21,6 +24,7 @@ pub struct TableDataArgs<'a> {
     pub driver: &'a Driver,
     pub team: &'a Team,
     pub live_timing: Option<&'a LiveTiming>,
+    pub stints: Option<&'a Stints>,
 }
 
 impl TableData {
@@ -30,6 +34,12 @@ impl TableData {
             driver_tla: args.driver.tla.clone(),
             driver_number: args.driver.number.value.to_string(),
             team_color: Color::from_u32(args.team.color.u32),
+            tire_compound: args
+                .stints
+                .and_then(|s| s.last().map(|stint| stint.compound.clone())),
+            tire_laps: args
+                .stints
+                .and_then(|s| s.last().map(|stint| stint.total_laps)),
             best_lap_time: args.live_timing.and_then(|lt| lt.best_lap_time.clone()),
             last_lap_time: args.live_timing.and_then(|lt| lt.last_lap.time.clone()),
             last_lap_overall_fastest: args
@@ -78,6 +88,7 @@ impl Widget for Table {
                 Constraint::Length(3),
                 Constraint::Length(6),
                 Constraint::Length(3),
+                Constraint::Length(7),
                 Constraint::Length(9),
                 Constraint::Length(9),
             ],
@@ -113,6 +124,22 @@ impl Table {
                     Style::default()
                 };
 
+                let tire_cell = match (&data.tire_compound, data.tire_laps) {
+                    (Some(compound), Some(laps)) => {
+                        let (letter, color) = match compound {
+                            Compound::Soft => ("S", Color::Red),
+                            Compound::Medium => ("M", Color::Yellow),
+                            Compound::Hard => ("H", Color::White),
+                            Compound::Wet => ("W", Color::Blue),
+                            Compound::Intermediate => ("I", Color::Green),
+                            Compound::Unknown => ("?", Color::DarkGray),
+                        };
+                        Cell::from(format!("{} ({})", letter, laps))
+                            .style(Style::default().fg(color))
+                    }
+                    _ => Cell::from(""),
+                };
+
                 Row::new(vec![
                     Cell::from(format!("{:>3}", pos)),
                     Cell::from(data.driver_tla.clone()).style(
@@ -121,6 +148,7 @@ impl Table {
                             .add_modifier(Modifier::BOLD),
                     ),
                     Cell::from(data.driver_number.clone()),
+                    tire_cell,
                     Cell::from(best_lap),
                     Cell::from(last_lap).style(last_lap_style),
                 ])
@@ -133,6 +161,7 @@ impl Table {
                 Cell::from("···").style(Style::default().fg(Color::DarkGray)),
                 Cell::from("······").style(Style::default().fg(Color::DarkGray)),
                 Cell::from("···").style(Style::default().fg(Color::DarkGray)),
+                Cell::from("·······").style(Style::default().fg(Color::DarkGray)),
                 Cell::from("········").style(Style::default().fg(Color::DarkGray)),
                 Cell::from("········").style(Style::default().fg(Color::DarkGray)),
             ]),
@@ -145,6 +174,7 @@ impl Table {
             Cell::from(Line::from("#").alignment(ratatui::layout::Alignment::Right)),
             Cell::from("Driver"),
             Cell::from("Num"),
+            Cell::from("Tire"),
             Cell::from("Best Lap"),
             Cell::from("Last Lap"),
         ])

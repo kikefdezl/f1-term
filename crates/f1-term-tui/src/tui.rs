@@ -11,11 +11,11 @@ pub fn render(frame: &mut Frame, snapshot: &FullSnapshot) {
                 .teams
                 .get(&driver.team_name)
                 .expect("Team should be in snapshot");
-            let live_timing = snapshot.timing_data.get(&driver.number);
             let args = TableDataArgs {
                 driver,
                 team,
-                live_timing,
+                live_timing: snapshot.timing_data.get(&driver.number),
+                stints: snapshot.stints.get(&driver.number),
             };
             tds.push(TableData::from(&args));
         }
