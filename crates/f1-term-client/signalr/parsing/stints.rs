@@ -110,7 +110,7 @@ mod tests {
                             "New": "true",
                             "StartLaps": 0,
                             "TotalLaps": 15,
-                            "TyresNotChanged": 0
+                            "TyresNotChanged": "0"
                         },
                         {
                             "Compound": "MEDIUM",
@@ -118,7 +118,7 @@ mod tests {
                             "New": "false",
                             "StartLaps": 3,
                             "TotalLaps": 25,
-                            "TyresNotChanged": 0
+                            "TyresNotChanged": "0"
                         }
                     ]
                 }

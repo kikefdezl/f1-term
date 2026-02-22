@@ -83,3 +83,69 @@ pub fn parse_drivers(val: &Value) -> Result<HashMap<DriverNumber, Driver>> {
     }
     Ok(drivers)
 }
+
+#[cfg(test)]
+mod tests {
+    use serde_json::json;
+
+    use super::*;
+
+    #[test]
+    fn test_parse_drivers() {
+        let val = json!({
+            "1": {
+                "RacingNumber": "1",
+                "FirstName": "Max",
+                "LastName": "Verstappen",
+                "FullName": "Max VERSTAPPEN",
+                "BroadcastName": "M VERSTAPPEN",
+                "HeadshotUrl": "https://example.com/max.png",
+                "Line": 1,
+                "PublicIdRight": "something",
+                "Tla": "VER",
+                "TeamName": "Red Bull Racing",
+                "Reference": "MAXVER01"
+            },
+            "16": {
+                "RacingNumber": "16",
+                "FirstName": "Charles",
+                "LastName": "Leclerc",
+                "FullName": "Charles LECLERC",
+                "BroadcastName": "C LECLERC",
+                "HeadshotUrl": "https://example.com/charles.png",
+                "Line": 2,
+                "PublicIdRight": "something_else",
+                "Tla": "LEC",
+                "TeamName": "Ferrari",
+                "Reference": "CHALEC01"
+            },
+            "SC": {
+                "RacingNumber": "SC",
+                "SomeOtherField": "Medical Car"
+            }
+        });
+
+        let drivers = parse_drivers(&val).unwrap();
+
+        assert_eq!(drivers.len(), 2);
+
+        let driver_1 = drivers.get(&DriverNumber { value: 1 }).unwrap();
+        assert_eq!(driver_1.first_name, "Max");
+        assert_eq!(driver_1.last_name, "Verstappen");
+        assert_eq!(driver_1.tla, "VER");
+        assert_eq!(driver_1.team_name.value, "Red Bull Racing");
+
+        let driver_16 = drivers.get(&DriverNumber { value: 16 }).unwrap();
+        assert_eq!(driver_16.first_name, "Charles");
+        assert_eq!(driver_16.last_name, "Leclerc");
+        assert_eq!(driver_16.tla, "LEC");
+        assert_eq!(driver_16.team_name.value, "Ferrari");
+    }
+
+    #[test]
+    fn test_parse_drivers_invalid() {
+        let val = json!("invalid");
+        let result = parse_drivers(&val);
+        assert!(result.is_err());
+    }
+}
