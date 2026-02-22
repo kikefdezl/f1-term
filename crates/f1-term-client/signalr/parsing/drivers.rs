@@ -1,10 +1,14 @@
-use super::Result;
-use f1_term_core::driver::{Driver, DriverNumber};
-use f1_term_core::team::TeamName;
+use std::collections::HashMap;
+
+use f1_term_core::{
+    driver::{Driver, DriverNumber},
+    team::TeamName,
+};
 use log::info;
 use serde::Deserialize;
 use serde_json::Value;
-use std::collections::HashMap;
+
+use super::Result;
 
 #[derive(Deserialize, Debug)]
 #[allow(non_snake_case)]

@@ -1,12 +1,15 @@
-use f1_term_core::driver::Driver;
-use f1_term_core::stint::{Compound, Stints};
-use f1_term_core::team::Team;
-use f1_term_core::timing::{LiveTiming, SegmentStatus};
-use ratatui::layout::Constraint;
-use ratatui::style::{Color, Modifier, Style};
-use ratatui::text::Line;
-use ratatui::text::Span;
-use ratatui::widgets::{Cell, Row, Table as RatatuiTable, Widget};
+use f1_term_core::{
+    driver::Driver,
+    stint::{Compound, Stints},
+    team::Team,
+    timing::{LiveTiming, SegmentStatus},
+};
+use ratatui::{
+    layout::Constraint,
+    style::{Color, Modifier, Style},
+    text::{Line, Span},
+    widgets::{Cell, Row, Table as RatatuiTable, Widget},
+};
 
 pub struct TableData {
     line: Option<u8>,

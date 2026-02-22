@@ -1,15 +1,19 @@
-use super::parsing::parse_message;
-use super::topic::Topic;
 use f1_term_core::client::{F1Client, TelemetryEvent};
-use futures_util::stream::{SplitSink, SplitStream};
-use futures_util::{SinkExt, StreamExt};
+use futures_util::{
+    SinkExt, StreamExt,
+    stream::{SplitSink, SplitStream},
+};
 use log::{debug, error, info, warn};
 use reqwest::Url;
 use serde::Deserialize;
 use serde_json::json;
 use tokio::net::TcpStream;
-use tokio_tungstenite::tungstenite::{Message, client::IntoClientRequest};
-use tokio_tungstenite::{MaybeTlsStream, WebSocketStream, connect_async};
+use tokio_tungstenite::{
+    MaybeTlsStream, WebSocketStream, connect_async,
+    tungstenite::{Message, client::IntoClientRequest},
+};
+
+use super::{parsing::parse_message, topic::Topic};
 
 const URL: &str = "livetiming.formula1.com/signalr";
 const HUB: &str = "Streaming";

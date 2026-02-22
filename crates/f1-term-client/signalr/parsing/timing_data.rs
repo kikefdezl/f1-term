@@ -1,11 +1,14 @@
-use f1_term_core::timing::{LastLap, LiveTiming, Sector, Segment, SegmentStatus, Speed, Speeds};
+use std::collections::HashMap;
 
-use super::Result;
-use f1_term_core::driver::DriverNumber;
+use f1_term_core::{
+    driver::DriverNumber,
+    timing::{LastLap, LiveTiming, Sector, Segment, SegmentStatus, Speed, Speeds},
+};
 use log::info;
 use serde::Deserialize;
 use serde_json::Value;
-use std::collections::HashMap;
+
+use super::Result;
 
 #[derive(Deserialize, Debug, Default)]
 #[allow(non_snake_case)]
@@ -203,8 +206,9 @@ pub fn parse_timing_data(val: &Value) -> Result<HashMap<DriverNumber, LiveTiming
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use serde_json::json;
+
+    use super::*;
 
     #[test]
     fn test_parse_timing_data() {

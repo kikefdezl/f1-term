@@ -1,14 +1,14 @@
-use f1_term_client::signalr::client::SignalRF1Client;
-use f1_term_core::client::{F1Client, TelemetryEvent};
-use f1_term_core::session::Session;
-use f1_term_tui::tui::render;
+use std::{fs::File, sync::Arc, time::Duration};
 
 use crossterm::event::{self, Event};
 use directories::ProjectDirs;
+use f1_term_client::signalr::client::SignalRF1Client;
+use f1_term_core::{
+    client::{F1Client, TelemetryEvent},
+    session::Session,
+};
+use f1_term_tui::tui::render;
 use simplelog::{Config, LevelFilter, WriteLogger};
-use std::fs::File;
-use std::time::Duration;
-use std::sync::Arc;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {

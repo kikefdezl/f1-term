@@ -1,8 +1,11 @@
-use super::driver::{Driver, DriverNumber};
-use super::stint::Stints;
-use super::team::{Team, TeamName};
-use super::timing::LiveTiming;
 use std::collections::HashMap;
+
+use super::{
+    driver::{Driver, DriverNumber},
+    stint::Stints,
+    team::{Team, TeamName},
+    timing::LiveTiming,
+};
 
 #[derive(Debug, Default)]
 pub struct Session {

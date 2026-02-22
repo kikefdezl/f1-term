@@ -1,15 +1,18 @@
-use self::drivers::parse_drivers;
-use self::stints::parse_stints;
-use self::teams::parse_teams;
-use self::timing_data::parse_timing_data;
-use super::topic::Topic;
-use f1_term_core::client::TelemetryEvent;
-use f1_term_core::driver::{Driver, DriverNumber};
-use f1_term_core::session::Session;
-use f1_term_core::team::{Team, TeamName};
+use std::{collections::HashMap, sync::Arc};
+
+use f1_term_core::{
+    client::TelemetryEvent,
+    driver::{Driver, DriverNumber},
+    session::Session,
+    team::{Team, TeamName},
+};
 use log::{debug, info};
-use std::collections::HashMap;
-use std::sync::Arc;
+
+use self::{
+    drivers::parse_drivers, stints::parse_stints, teams::parse_teams,
+    timing_data::parse_timing_data,
+};
+use super::topic::Topic;
 
 mod drivers;
 mod stints;

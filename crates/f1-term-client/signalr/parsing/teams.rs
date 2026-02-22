@@ -1,9 +1,11 @@
-use super::Result;
+use std::collections::HashMap;
+
 use f1_term_core::team::{Team, TeamColor, TeamName};
 use log::info;
 use serde::Deserialize;
 use serde_json::Value;
-use std::collections::HashMap;
+
+use super::Result;
 
 #[derive(Deserialize, Debug)]
 #[allow(non_snake_case)]
@@ -56,8 +58,9 @@ pub fn parse_teams(val: &Value) -> Result<HashMap<TeamName, Team>> {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use serde_json::json;
+
+    use super::*;
 
     #[test]
     fn test_parse_teams() {

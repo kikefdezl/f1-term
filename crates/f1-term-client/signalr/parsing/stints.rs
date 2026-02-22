@@ -1,9 +1,12 @@
-use f1_term_core::driver::DriverNumber;
-use f1_term_core::stint::{Compound, Stint, Stints};
+use std::collections::HashMap;
+
+use f1_term_core::{
+    driver::DriverNumber,
+    stint::{Compound, Stint, Stints},
+};
 use log::info;
 use serde::Deserialize;
 use serde_json::Value;
-use std::collections::HashMap;
 
 use super::Result;
 
@@ -91,8 +94,9 @@ pub fn parse_stints(val: &Value) -> Result<HashMap<DriverNumber, Stints>> {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use serde_json::json;
+
+    use super::*;
 
     #[test]
     fn test_parse_stints() {

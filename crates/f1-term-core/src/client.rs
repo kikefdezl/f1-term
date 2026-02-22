@@ -1,6 +1,6 @@
+use std::{future::Future, sync::Arc};
+
 use crate::session::Session;
-use std::future::Future;
-use std::sync::Arc;
 
 #[derive(Debug)]
 pub enum TelemetryEvent {
