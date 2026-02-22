@@ -1,2 +1,3 @@
+pub mod app;
+mod state;
 mod table;
-pub mod tui;

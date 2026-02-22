@@ -11,8 +11,11 @@ use ratatui::{
     widgets::{Cell, Row, Table as RatatuiTable, Widget},
 };
 
+use super::state::GapMode;
+
+const SEGMENTS: &str = "⯀"; // other options: ▮ ▰  ● ⬤
+
 pub struct TableData {
-    line: Option<u8>,
     driver_tla: String,
     driver_number: String,
     team_color: Color,
@@ -37,7 +40,6 @@ pub struct TableDataArgs<'a> {
 impl TableData {
     pub fn from(args: &TableDataArgs) -> Self {
         TableData {
-            line: args.driver.line,
             driver_tla: args.driver.tla.clone(),
             driver_number: args.driver.number.value.to_string(),
             team_color: Color::from_u32(args.team.color.u32),
@@ -80,14 +82,14 @@ impl TableData {
     }
 }
 
-#[derive(Default)]
 pub struct Table {
     items: Vec<TableData>,
+    gap_mode: GapMode,
 }
 
 impl Table {
-    pub fn new(items: Vec<TableData>) -> Self {
-        Table { items }
+    pub fn new(items: Vec<TableData>, gap_mode: GapMode) -> Self {
+        Table { items, gap_mode }
     }
 }
 
@@ -96,20 +98,11 @@ impl Widget for Table {
     where
         Self: Sized,
     {
-        let mut items = self.items;
-        items.sort_by(|a, b| {
-            (a.line.is_none(), a.line, &a.driver_tla).cmp(&(
-                b.line.is_none(),
-                b.line,
-                &b.driver_tla,
-            ))
-        });
-
-        let rows = Table::_create_rows(&items);
+        let rows = self._create_rows();
         let header = Table::_create_header();
 
         let segment_len = |sector: usize| -> u16 {
-            items
+            self.items
                 .first()
                 .and_then(|outer| outer.segments.get(sector))
                 .map_or(0, |inner| inner.len())
@@ -124,16 +117,16 @@ impl Widget for Table {
         let t = RatatuiTable::new(
             rows,
             [
-                Constraint::Length(3),
-                Constraint::Length(6),
-                Constraint::Length(3),
-                Constraint::Length(7),
-                Constraint::Length(7),
-                Constraint::Length(10),
-                Constraint::Length(10),
-                Constraint::Length(s1_segments),
-                Constraint::Length(s2_segments),
-                Constraint::Length(s3_segments),
+                Constraint::Length(3),           // #
+                Constraint::Length(4),           // driver
+                Constraint::Length(3),           // num
+                Constraint::Length(7),           // tire
+                Constraint::Length(10),          // best lap
+                Constraint::Length(7),           // gap
+                Constraint::Length(10),          // last lap
+                Constraint::Length(s1_segments), // s1
+                Constraint::Length(s2_segments), // s2
+                Constraint::Length(s3_segments), // s3
             ],
         )
         .header(header);
@@ -142,8 +135,9 @@ impl Widget for Table {
 }
 
 impl Table {
-    fn _create_rows(items: &[TableData]) -> Vec<Row<'_>> {
-        let mut rows: Vec<Row> = items
+    fn _create_rows(&self) -> Vec<Row<'_>> {
+        let mut rows: Vec<Row> = self
+            .items
             .iter()
             .enumerate()
             .map(|(i, data)| {
@@ -162,8 +156,12 @@ impl Table {
                 let time_diff = if i == 0 {
                     "------"
                 } else {
-                    match &data.time_diff_to_fastest {
-                        Some(t) => t,
+                    let diff = match self.gap_mode {
+                        GapMode::ToFastest => &data.time_diff_to_fastest,
+                        GapMode::ToPositionAhead => &data.time_diff_to_position_ahead,
+                    };
+                    match diff {
+                        Some(t) => t.as_str(),
                         None => " -.---",
                     }
                 };
@@ -211,8 +209,8 @@ impl Table {
                     ),
                     Cell::from(data.driver_number.clone()),
                     tire_cell,
-                    Cell::from(time_diff),
                     Cell::from(best_lap),
+                    Cell::from(time_diff),
                     Cell::from(last_lap).style(last_lap_style),
                     s1,
                     s2,
@@ -225,11 +223,11 @@ impl Table {
             0,
             Row::new(vec![
                 Cell::from("···").style(Style::default().fg(Color::DarkGray)), // #
-                Cell::from("······").style(Style::default().fg(Color::DarkGray)), // Driver
+                Cell::from("····").style(Style::default().fg(Color::DarkGray)), // Driver
                 Cell::from("···").style(Style::default().fg(Color::DarkGray)), // Num
                 Cell::from("·······").style(Style::default().fg(Color::DarkGray)), // Tire
-                Cell::from("·······").style(Style::default().fg(Color::DarkGray)), // Gap
                 Cell::from("·········").style(Style::default().fg(Color::DarkGray)), // Best Lap
+                Cell::from("·······").style(Style::default().fg(Color::DarkGray)), // Gap
                 Cell::from("·········").style(Style::default().fg(Color::DarkGray)), // Last Lap
                 Cell::from("············").style(Style::default().fg(Color::DarkGray)), // S1
                 Cell::from("············").style(Style::default().fg(Color::DarkGray)), // S2
@@ -242,11 +240,11 @@ impl Table {
     fn _create_header() -> Row<'static> {
         Row::new(vec![
             Cell::from("  #"),
-            Cell::from("Driver"),
+            Cell::from("Drv"),
             Cell::from("Num"),
             Cell::from("Tire"),
-            Cell::from("Gap"),
             Cell::from("Best Lap"),
+            Cell::from("Gap"),
             Cell::from("Last Lap"),
             Cell::from("S1"),
             Cell::from("S2"),
@@ -265,7 +263,7 @@ impl Table {
                     SegmentStatus::PersonalFastest => Color::Rgb(0, 255, 127), // #00FF7F
                     SegmentStatus::Normal => Color::Yellow,
                 };
-                Span::styled("●", Style::default().fg(color))
+                Span::styled(SEGMENTS, Style::default().fg(color))
             })
             .collect();
 

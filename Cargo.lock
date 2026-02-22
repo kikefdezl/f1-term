@@ -505,6 +505,7 @@ dependencies = [
  "crossterm",
  "f1-term-core",
  "ratatui",
+ "tokio",
 ]
 
 [[package]]
