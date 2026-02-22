@@ -1,4 +1,4 @@
-use f1_term_core::timing::{LastLap, LiveTiming, Sector, Segment, Speed, Speeds};
+use f1_term_core::timing::{LastLap, LiveTiming, Sector, Segment, SegmentStatus, Speed, Speeds};
 
 use super::Result;
 use f1_term_core::driver::DriverNumber;
@@ -78,7 +78,13 @@ struct LiveTimingPayload {
 
 impl From<SegmentPayload> for Segment {
     fn from(p: SegmentPayload) -> Self {
-        Segment { status: p.Status }
+        let status = match p.Status {
+            2048 => SegmentStatus::Normal,
+            2049 => SegmentStatus::PersonalFastest,
+            2064 => SegmentStatus::InPit,
+            _ => SegmentStatus::None,
+        };
+        Segment { status }
     }
 }
 

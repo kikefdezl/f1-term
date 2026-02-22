@@ -38,7 +38,17 @@ pub struct Sector {
 
 #[derive(Debug, Default, Clone, PartialEq)]
 pub struct Segment {
-    pub status: u32,
+    pub status: SegmentStatus,
+}
+
+#[derive(Debug, Default, Clone, PartialEq)]
+pub enum SegmentStatus {
+    #[default]
+    None,
+    Normal,
+    OverallFastest,
+    PersonalFastest,
+    InPit,
 }
 
 #[derive(Debug, Default, Clone, PartialEq)]

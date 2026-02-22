@@ -6,6 +6,7 @@ use futures_util::{SinkExt, StreamExt};
 use reqwest::Url;
 use serde::Deserialize;
 use serde_json::json;
+use std::fs::write;
 use tokio::net::TcpStream;
 use tokio_tungstenite::tungstenite::{Message, client::IntoClientRequest};
 use tokio_tungstenite::{MaybeTlsStream, WebSocketStream, connect_async};
@@ -116,6 +117,7 @@ impl F1Client for SignalRF1Client {
         loop {
             match reader.next().await? {
                 Ok(Message::Text(text)) => {
+                    let _ = write("example.json", &text);
                     if let Some(event) = parse_message(&text) {
                         return Some(event);
                     }

@@ -1,10 +1,11 @@
 use f1_term_core::driver::Driver;
 use f1_term_core::stint::{Compound, Stints};
 use f1_term_core::team::Team;
-use f1_term_core::timing::LiveTiming;
+use f1_term_core::timing::{LiveTiming, SegmentStatus};
 use ratatui::layout::Constraint;
 use ratatui::style::{Color, Modifier, Style};
 use ratatui::text::Line;
+use ratatui::text::Span;
 use ratatui::widgets::{Cell, Row, Table as RatatuiTable, Widget};
 
 pub struct TableData {
@@ -18,6 +19,7 @@ pub struct TableData {
     last_lap_time: Option<String>,
     last_lap_overall_fastest: bool,
     last_lap_personal_fastest: bool,
+    segments: Vec<Vec<SegmentStatus>>,
 }
 
 pub struct TableDataArgs<'a> {
@@ -50,6 +52,21 @@ impl TableData {
                 .live_timing
                 .map(|lt| lt.last_lap.personal_fastest)
                 .unwrap_or(false),
+            segments: args
+                .live_timing
+                .map(|lt| {
+                    lt.last_lap
+                        .sectors
+                        .iter()
+                        .map(|s| {
+                            s.segments
+                                .iter()
+                                .map(|s| s.status.clone())
+                                .collect::<Vec<SegmentStatus>>()
+                        })
+                        .collect()
+                })
+                .unwrap_or_default(),
         }
     }
 }
@@ -82,6 +99,19 @@ impl Widget for Table {
         let rows = Table::_create_rows(&items);
         let header = Table::_create_header();
 
+        let segment_len = |sector: usize| -> u16 {
+            items
+                .first()
+                .and_then(|outer| outer.segments.get(sector))
+                .map_or(0, |inner| inner.len())
+                .try_into()
+                .expect("Should always fit in u16")
+        };
+
+        let s1_segments = segment_len(0);
+        let s2_segments = segment_len(1);
+        let s3_segments = segment_len(2);
+
         let t = RatatuiTable::new(
             rows,
             [
@@ -91,6 +121,9 @@ impl Widget for Table {
                 Constraint::Length(7),
                 Constraint::Length(9),
                 Constraint::Length(9),
+                Constraint::Length(s1_segments),
+                Constraint::Length(s2_segments),
+                Constraint::Length(s3_segments),
             ],
         )
         .header(header);
@@ -124,6 +157,16 @@ impl Table {
                     Style::default()
                 };
 
+                let segment_data = |sector: usize| -> Cell {
+                    data.segments
+                        .get(sector)
+                        .map(|s| Table::_process_segments(s))
+                        .unwrap_or_default()
+                };
+                let s1 = segment_data(0);
+                let s2 = segment_data(1);
+                let s3 = segment_data(2);
+
                 let tire_cell = match (&data.tire_compound, data.tire_laps) {
                     (Some(compound), Some(laps)) => {
                         let (letter, color) = match compound {
@@ -151,6 +194,9 @@ impl Table {
                     tire_cell,
                     Cell::from(best_lap),
                     Cell::from(last_lap).style(last_lap_style),
+                    s1,
+                    s2,
+                    s3,
                 ])
             })
             .collect();
@@ -164,6 +210,9 @@ impl Table {
                 Cell::from("·······").style(Style::default().fg(Color::DarkGray)),
                 Cell::from("········").style(Style::default().fg(Color::DarkGray)),
                 Cell::from("········").style(Style::default().fg(Color::DarkGray)),
+                Cell::from("··········").style(Style::default().fg(Color::DarkGray)),
+                Cell::from("··········").style(Style::default().fg(Color::DarkGray)),
+                Cell::from("··········").style(Style::default().fg(Color::DarkGray)),
             ]),
         );
         rows
@@ -177,6 +226,27 @@ impl Table {
             Cell::from("Tire"),
             Cell::from("Best Lap"),
             Cell::from("Last Lap"),
+            Cell::from("S1"),
+            Cell::from("S2"),
+            Cell::from("S3"),
         ])
+    }
+
+    fn _process_segments(segments: &[SegmentStatus]) -> Cell<'_> {
+        let spans: Vec<Span> = segments
+            .iter()
+            .map(|s| {
+                let color = match s {
+                    SegmentStatus::None => Color::DarkGray,
+                    SegmentStatus::InPit => Color::Blue,
+                    SegmentStatus::OverallFastest => Color::Magenta,
+                    SegmentStatus::PersonalFastest => Color::Rgb(0, 255, 127), // #00FF7F
+                    SegmentStatus::Normal => Color::Yellow,
+                };
+                Span::styled("●", Style::default().fg(color))
+            })
+            .collect();
+
+        Cell::from(Line::from(spans))
     }
 }
