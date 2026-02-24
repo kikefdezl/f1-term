@@ -6,15 +6,17 @@ use f1_term_core::{
     session::Session,
     team::{Team, TeamName},
 };
-use log::{debug, info};
+use log::{debug, error, info};
 
 use self::{
     drivers::parse_drivers, stints::parse_stints, teams::parse_teams,
     timing_data::parse_timing_data,
 };
 use super::topic::Topic;
+use crate::signalr::parsing::session_info::parse_session_info;
 
 mod drivers;
+mod session_info;
 mod stints;
 mod teams;
 mod timing_data;
@@ -40,6 +42,14 @@ pub fn parse_message(state: &serde_json::Value) -> Option<TelemetryEvent> {
         }
     };
 
+    let info = match state.get(Topic::SessionInfo.to_string()) {
+        None => {
+            error!("No message from the SessionInfo topic!");
+            return None;
+        }
+        Some(si) => parse_session_info(si).ok()?,
+    };
+
     let timing_data = match state.get(Topic::TimingData.to_string()) {
         None => HashMap::new(),
         Some(td) => parse_timing_data(td).unwrap_or_else(|e| {
@@ -57,6 +67,7 @@ pub fn parse_message(state: &serde_json::Value) -> Option<TelemetryEvent> {
     };
 
     let snapshot = Session {
+        info,
         drivers,
         teams,
         timing_data,

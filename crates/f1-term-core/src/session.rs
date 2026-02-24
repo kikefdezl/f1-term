@@ -6,9 +6,11 @@ use super::{
     team::{Team, TeamName},
     timing::LiveTiming,
 };
+use crate::session_info::SessionInfo;
 
-#[derive(Debug, Default)]
+#[derive(Debug)]
 pub struct Session {
+    pub info: SessionInfo,
     pub teams: HashMap<TeamName, Team>,
     pub drivers: HashMap<DriverNumber, Driver>,
     pub timing_data: HashMap<DriverNumber, LiveTiming>,

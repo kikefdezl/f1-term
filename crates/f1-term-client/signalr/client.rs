@@ -124,7 +124,6 @@ impl F1Client for SignalRF1Client {
             match reader.next().await? {
                 Ok(Message::Text(text)) => {
                     debug!("Received SignalR Text Message. Length: {}", text.len());
-                    let _ = std::fs::write("example.json", &text);
                     let mut updated = false;
 
                     if let Ok(json) = serde_json::from_str::<serde_json::Value>(&text) {
