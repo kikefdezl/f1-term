@@ -1,17 +1,23 @@
+use std::sync::Arc;
+
+use crossterm::event::KeyCode;
 use f1_term_core::{
     driver::Driver,
+    session::Session,
     stint::{Compound, Stints},
     team::Team,
     timing::{LiveTiming, SegmentStatus},
 };
 use ratatui::{
-    layout::Constraint,
+    Frame,
+    layout::{Constraint, Rect},
     style::{Color, Modifier, Style},
     text::{Line, Span},
-    widgets::{Cell, Row, Table as RatatuiTable, Widget},
+    widgets::{Cell, Row, Table as RatatuiTable, TableState},
 };
 
-use super::state::GapMode;
+use super::Component;
+use crate::{action::Action, state::GapMode};
 
 const SEGMENTS: &str = "⯀"; // other options: ▮ ▰  ● ⬤
 
@@ -37,8 +43,8 @@ pub struct TableDataArgs<'a> {
     pub stints: Option<&'a Stints>,
 }
 
-impl TableData {
-    pub fn from(args: &TableDataArgs) -> Self {
+impl From<&TableDataArgs<'_>> for TableData {
+    fn from(args: &'_ TableDataArgs) -> Self {
         TableData {
             driver_tla: args.driver.tla.clone(),
             driver_number: args.driver.number.value.to_string(),
@@ -82,24 +88,92 @@ impl TableData {
     }
 }
 
-pub struct Table {
+#[derive(Default)]
+pub struct TableComponent {
     items: Vec<TableData>,
+    state: TableState,
     gap_mode: GapMode,
 }
 
-impl Table {
-    pub fn new(items: Vec<TableData>, gap_mode: GapMode) -> Self {
-        Table { items, gap_mode }
+impl TableComponent {
+    pub fn next(&mut self) {
+        let i = match self.state.selected() {
+            Some(i) => {
+                if i >= self.items.len() - 1 {
+                    0
+                } else {
+                    i + 1
+                }
+            }
+            None => 0,
+        };
+        self.state.select(Some(i));
+    }
+
+    pub fn previous(&mut self) {
+        let i = match self.state.selected() {
+            Some(i) => {
+                if i == 0 {
+                    self.items.len() - 1
+                } else {
+                    i - 1
+                }
+            }
+            None => 0,
+        };
+        self.state.select(Some(i));
+    }
+
+    fn update_data(&mut self, session: &Arc<Session>) {
+        let mut tds = Vec::new();
+        for participant in session.leaderboard() {
+            let args = TableDataArgs {
+                driver: participant.driver,
+                team: participant.team,
+                live_timing: participant.timing,
+                stints: participant.stints,
+            };
+            tds.push(TableData::from(&args));
+        }
+        self.items = tds;
     }
 }
 
-impl Widget for Table {
-    fn render(self, area: ratatui::prelude::Rect, buf: &mut ratatui::prelude::Buffer)
-    where
-        Self: Sized,
-    {
-        let rows = self._create_rows();
-        let header = Table::_create_header();
+impl Component for TableComponent {
+    fn update(&mut self, action: Action) -> Result<Option<Action>, Box<dyn std::error::Error>> {
+        match action {
+            Action::KeyPress(key) => match key.code {
+                KeyCode::Down | KeyCode::Char('j') => {
+                    self.next();
+                    return Ok(Some(Action::Render));
+                }
+                KeyCode::Up | KeyCode::Char('k') => {
+                    self.previous();
+                    return Ok(Some(Action::Render));
+                }
+                KeyCode::Char('g') => return Ok(Some(Action::ToggleGapMode)),
+                _ => {}
+            },
+            Action::SessionUpdate(ref session) => {
+                if !session.drivers.is_empty() && !session.teams.is_empty() {
+                    self.update_data(session);
+                }
+            }
+            Action::ToggleGapMode => {
+                self.gap_mode.toggle();
+            }
+            _ => {}
+        }
+        Ok(None)
+    }
+
+    fn draw(&mut self, frame: &mut Frame, area: Rect) -> Result<(), Box<dyn std::error::Error>> {
+        if self.items.is_empty() {
+            return Ok(());
+        }
+
+        let rows = TableComponent::_create_rows(&self.items, self.gap_mode);
+        let header = TableComponent::_create_header();
 
         let segment_len = |sector: usize| -> u16 {
             self.items
@@ -129,15 +203,18 @@ impl Widget for Table {
                 Constraint::Length(s3_segments), // s3
             ],
         )
-        .header(header);
-        t.render(area, buf);
+        .header(header)
+        .row_highlight_style(Style::default().add_modifier(Modifier::REVERSED));
+
+        frame.render_stateful_widget(t, area, &mut self.state);
+
+        Ok(())
     }
 }
 
-impl Table {
-    fn _create_rows(&self) -> Vec<Row<'_>> {
-        let mut rows: Vec<Row> = self
-            .items
+impl TableComponent {
+    fn _create_rows(items: &[TableData], gap_mode: GapMode) -> Vec<Row<'_>> {
+        let rows: Vec<Row> = items
             .iter()
             .enumerate()
             .map(|(i, data)| {
@@ -156,7 +233,7 @@ impl Table {
                 let time_diff = if i == 0 {
                     "------"
                 } else {
-                    let diff = match self.gap_mode {
+                    let diff = match gap_mode {
                         GapMode::ToFastest => &data.time_diff_to_fastest,
                         GapMode::ToPositionAhead => &data.time_diff_to_position_ahead,
                     };
@@ -177,7 +254,7 @@ impl Table {
                 let segment_data = |sector: usize| -> Cell {
                     data.segments
                         .get(sector)
-                        .map(|s| Table::_create_segments(s))
+                        .map(|s| TableComponent::_create_segments(s))
                         .unwrap_or_default()
                 };
                 let s1 = segment_data(0);
@@ -218,22 +295,6 @@ impl Table {
                 ])
             })
             .collect();
-
-        rows.insert(
-            0,
-            Row::new(vec![
-                Cell::from("···").style(Style::default().fg(Color::DarkGray)), // #
-                Cell::from("····").style(Style::default().fg(Color::DarkGray)), // Driver
-                Cell::from("···").style(Style::default().fg(Color::DarkGray)), // Num
-                Cell::from("·······").style(Style::default().fg(Color::DarkGray)), // Tire
-                Cell::from("·········").style(Style::default().fg(Color::DarkGray)), // Best Lap
-                Cell::from("·······").style(Style::default().fg(Color::DarkGray)), // Gap
-                Cell::from("·········").style(Style::default().fg(Color::DarkGray)), // Last Lap
-                Cell::from("············").style(Style::default().fg(Color::DarkGray)), // S1
-                Cell::from("············").style(Style::default().fg(Color::DarkGray)), // S2
-                Cell::from("············").style(Style::default().fg(Color::DarkGray)), // S3
-            ]),
-        );
         rows
     }
 

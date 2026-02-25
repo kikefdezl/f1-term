@@ -1,30 +1,33 @@
-use std::{sync::Arc, time::Duration};
+use std::time::Duration;
 
-use crossterm::event::{self, Event, KeyCode, KeyEvent};
-use f1_term_core::{
-    client::{F1Client, TelemetryEvent},
-    session::Session,
-};
+use crossterm::event::{self, Event, KeyCode};
+use f1_term_core::client::{F1Client, TelemetryEvent};
 use ratatui::{DefaultTerminal, Frame};
-use tokio::time::interval;
+use tokio::{sync::mpsc, time::interval};
 
-use super::{
+use crate::{
+    action::Action,
+    components::Component,
+    pages::{PageType, live_timing::LiveTimingPage},
     state::AppState,
-    table::{Table, TableData, TableDataArgs},
 };
+
+const REFRESH_RATE_MILLIS: u64 = 200;
 
 pub struct App<C: F1Client> {
     client: C,
     app_state: AppState,
-    session_state: Option<Arc<Session>>,
+    active_page: PageType,
+    live_timing_page: LiveTimingPage,
 }
 
 impl<C: F1Client> App<C> {
     pub fn new(client: C) -> Self {
         Self {
             client,
-            session_state: None,
             app_state: AppState::default(),
+            active_page: PageType::LiveTiming,
+            live_timing_page: LiveTimingPage::default(),
         }
     }
 
@@ -32,55 +35,72 @@ impl<C: F1Client> App<C> {
         &mut self,
         terminal: &mut DefaultTerminal,
     ) -> Result<(), Box<dyn std::error::Error>> {
-        let mut render_interval = interval(Duration::from_millis(333));
+        let mut render_interval = interval(Duration::from_millis(REFRESH_RATE_MILLIS));
+
+        let (action_tx, mut action_rx) = mpsc::unbounded_channel();
+
+        self.live_timing_page.init()?;
 
         while !self.app_state.exit {
             tokio::select! {
                 update = self.client.next_event() => {
                     if let Some(TelemetryEvent::SessionUpdate(fs)) = update {
-                        self.session_state = Some(fs);
+                        action_tx.send(Action::SessionUpdate(fs))?;
                     }
                 }
 
                 _ = render_interval.tick() => {
-                    if event::poll(Duration::from_millis(0))? &&
-                        let Event::Key(key) = event::read()? {
-                            self.handle_key_press(key);
+                    action_tx.send(Action::Tick)?;
+                }
+
+                Some(action) = action_rx.recv() => {
+                    if let Some(new_action) = self.update(action.clone())? {
+                        action_tx.send(new_action)?;
                     }
 
-                    if let Some(state) = self.session_state.as_ref() &&
-                        !state.drivers.is_empty() && !state.teams.is_empty() {
-                            terminal.draw(|frame| self.render(frame, state))?;
+                    if matches!(action, Action::Render | Action::SessionUpdate(_) | Action::ToggleGapMode) {
+                        terminal.draw(|frame| self.render(frame).unwrap())?;
+                    }
+
+                    if self.app_state.exit {
+                        break;
                     }
                 }
+            }
+
+            if event::poll(Duration::from_millis(0))?
+                && let Event::Key(key) = event::read()?
+            {
+                action_tx.send(Action::KeyPress(key))?;
             }
         }
         Ok(())
     }
 
-    pub fn handle_key_press(&mut self, key: KeyEvent) {
-        match key.code {
-            KeyCode::Char('q') | KeyCode::Esc => self.app_state.exit = true,
-            KeyCode::Char('g') => self.app_state.gap_mode.toggle(),
+    fn update(&mut self, action: Action) -> Result<Option<Action>, Box<dyn std::error::Error>> {
+        match &action {
+            Action::Quit => {
+                self.app_state.exit = true;
+                return Ok(None);
+            }
+            Action::KeyPress(key) => match key.code {
+                KeyCode::Char('q') | KeyCode::Esc => {
+                    return Ok(Some(Action::Quit));
+                }
+                _ => {}
+            },
             _ => {}
+        }
+
+        match self.active_page {
+            PageType::LiveTiming => self.live_timing_page.update(action),
         }
     }
 
-    pub fn render(&self, frame: &mut Frame, session: &Session) {
-        let table_datas = {
-            let mut tds = Vec::new();
-            for participant in session.leaderboard() {
-                let args = TableDataArgs {
-                    driver: participant.driver,
-                    team: participant.team,
-                    live_timing: participant.timing,
-                    stints: participant.stints,
-                };
-                tds.push(TableData::from(&args));
-            }
-            tds
-        };
-        let table = Table::new(table_datas, self.app_state.gap_mode);
-        frame.render_widget(table, frame.area());
+    fn render(&mut self, frame: &mut Frame) -> Result<(), Box<dyn std::error::Error>> {
+        match self.active_page {
+            PageType::LiveTiming => self.live_timing_page.draw(frame, frame.area())?,
+        }
+        Ok(())
     }
 }

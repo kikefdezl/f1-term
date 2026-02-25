@@ -1,3 +1,5 @@
+pub mod action;
 pub mod app;
-mod state;
-mod table;
+pub mod components;
+pub mod pages;
+pub mod state;
