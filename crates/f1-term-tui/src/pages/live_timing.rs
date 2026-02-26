@@ -11,6 +11,11 @@ pub struct LiveTimingPage {
 }
 
 impl Component for LiveTimingPage {
+    fn init(&mut self) -> Result<(), Box<dyn std::error::Error>> {
+        self.table.init()?;
+        Ok(())
+    }
+
     fn update(&mut self, action: Action) -> Result<Option<Action>, Box<dyn std::error::Error>> {
         self.table.update(action)
     }

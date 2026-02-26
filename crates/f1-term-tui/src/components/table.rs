@@ -93,6 +93,7 @@ pub struct TableComponent {
     items: Vec<TableData>,
     state: TableState,
     gap_mode: GapMode,
+    session_title: Option<String>,
 }
 
 impl TableComponent {
@@ -155,6 +156,15 @@ impl Component for TableComponent {
                 _ => {}
             },
             Action::SessionUpdate(ref session) => {
+                let title = format!(
+                    " {} - {} | {} ({}) ",
+                    session.info.meeting.official_name,
+                    session.info.name,
+                    session.info.meeting.circuit.short_name,
+                    session.info.meeting.country.name
+                );
+                self.session_title = Some(title);
+
                 if !session.drivers.is_empty() && !session.teams.is_empty() {
                     self.update_data(session);
                 }
@@ -188,6 +198,17 @@ impl Component for TableComponent {
         let s2_segments = segment_len(1);
         let s3_segments = segment_len(2);
 
+        let mut block = ratatui::widgets::Block::default()
+            .borders(ratatui::widgets::Borders::ALL)
+            .border_style(Style::default());
+
+        if let Some(title) = &self.session_title {
+            block = block.title(ratatui::text::Span::styled(
+                title.as_str(),
+                Style::default(),
+            ));
+        }
+
         let t = RatatuiTable::new(
             rows,
             [
@@ -204,6 +225,7 @@ impl Component for TableComponent {
             ],
         )
         .header(header)
+        .block(block)
         .row_highlight_style(Style::default().add_modifier(Modifier::REVERSED));
 
         frame.render_stateful_widget(t, area, &mut self.state);
