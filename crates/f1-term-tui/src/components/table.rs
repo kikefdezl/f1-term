@@ -1,5 +1,6 @@
 use std::sync::Arc;
 
+use super::Action;
 use crossterm::event::KeyCode;
 use f1_term_core::{
     driver::Driver,
@@ -17,7 +18,6 @@ use ratatui::{
 };
 
 use super::Component;
-use crate::{action::Action, state::GapMode};
 
 const SEGMENTS: &str = "⯀"; // other options: ▮ ▰  ● ⬤
 
@@ -85,6 +85,22 @@ impl From<&TableDataArgs<'_>> for TableData {
                 .live_timing
                 .map(|lt| lt.time_diff_to_position_ahead.clone()),
         }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum GapMode {
+    #[default]
+    ToFastest,
+    ToPositionAhead,
+}
+
+impl GapMode {
+    pub fn toggle(&mut self) {
+        *self = match self {
+            GapMode::ToFastest => GapMode::ToPositionAhead,
+            GapMode::ToPositionAhead => GapMode::ToFastest,
+        };
     }
 }
 
