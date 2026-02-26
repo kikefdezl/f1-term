@@ -6,7 +6,10 @@ use ratatui::{DefaultTerminal, Frame};
 use tokio::{sync::mpsc, time::interval};
 
 use crate::{
-    action::Action, components::Component, pages::live_timing::LiveTimingPage, state::AppState,
+    action::Action,
+    components::Component,
+    pages::{ActivePage, live_timing::LiveTimingPage},
+    state::AppState,
 };
 
 const REFRESH_RATE_MILLIS: u64 = 200;
@@ -14,7 +17,7 @@ const REFRESH_RATE_MILLIS: u64 = 200;
 pub struct App<C: F1Client> {
     client: C,
     app_state: AppState,
-    session: Option<std::sync::Arc<f1_term_core::session::Session>>,
+    active_page: ActivePage,
     live_timing_page: LiveTimingPage,
 }
 
@@ -23,7 +26,7 @@ impl<C: F1Client> App<C> {
         Self {
             client,
             app_state: AppState::default(),
-            session: None,
+            active_page: ActivePage::default(),
             live_timing_page: LiveTimingPage::default(),
         }
     }
@@ -80,8 +83,9 @@ impl<C: F1Client> App<C> {
                 self.app_state.exit = true;
                 return Ok(None);
             }
-            Action::SessionUpdate(session) => {
-                self.session = Some(session.clone());
+            Action::Navigate(page) => {
+                self.active_page = *page;
+                return Ok(Some(Action::Render));
             }
             Action::KeyPress(key) => match key.code {
                 KeyCode::Char('q') | KeyCode::Esc => {
@@ -92,11 +96,15 @@ impl<C: F1Client> App<C> {
             _ => {}
         }
 
-        self.live_timing_page.update(action)
+        match self.active_page {
+            ActivePage::LiveTiming => self.live_timing_page.update(action),
+        }
     }
 
     fn render(&mut self, frame: &mut Frame) -> Result<(), Box<dyn std::error::Error>> {
-        self.live_timing_page.draw(frame, frame.area())?;
+        match self.active_page {
+            ActivePage::LiveTiming => self.live_timing_page.draw(frame, frame.area())?,
+        }
         Ok(())
     }
 }

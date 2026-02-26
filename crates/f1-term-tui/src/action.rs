@@ -2,6 +2,8 @@ use std::sync::Arc;
 
 use f1_term_core::session::Session;
 
+use crate::pages::ActivePage;
+
 #[derive(Debug, Clone)]
 pub enum Action {
     Tick,
@@ -9,5 +11,6 @@ pub enum Action {
     KeyPress(crossterm::event::KeyEvent),
     ToggleGapMode,
     SessionUpdate(Arc<Session>),
+    Navigate(ActivePage),
     Quit,
 }
