@@ -1,6 +1,6 @@
 use std::time::Duration;
 
-use crossterm::event::{self, Event, KeyCode};
+use crossterm::event::{self, Event as CrosstermEvent, KeyCode};
 use f1_term_core::client::{F1Client, TelemetryEvent};
 use ratatui::{DefaultTerminal, Frame};
 use tokio::{sync::mpsc, time::interval};
@@ -57,7 +57,7 @@ impl<C: F1Client> App<C> {
                         action_tx.send(new_action)?;
                     }
 
-                    if matches!(action, Action::Render | Action::SessionUpdate(_) | Action::ToggleGapMode) {
+                    if action.should_rerender() {
                         terminal.draw(|frame| self.render(frame).unwrap())?;
                     }
 
@@ -67,10 +67,12 @@ impl<C: F1Client> App<C> {
                 }
             }
 
-            if event::poll(Duration::from_millis(0))?
-                && let Event::Key(key) = event::read()?
-            {
-                action_tx.send(Action::KeyPress(key))?;
+            if event::poll(Duration::from_millis(0))? {
+                match event::read()? {
+                    CrosstermEvent::Key(key) => action_tx.send(Action::KeyPress(key))?,
+                    CrosstermEvent::Resize(w, h) => action_tx.send(Action::Resize(w, h))?,
+                    _ => {}
+                }
             }
         }
         Ok(())
