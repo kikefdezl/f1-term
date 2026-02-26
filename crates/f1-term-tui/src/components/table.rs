@@ -1,6 +1,5 @@
 use std::sync::Arc;
 
-use super::Action;
 use crossterm::event::KeyCode;
 use f1_term_core::{
     driver::Driver,
@@ -17,7 +16,7 @@ use ratatui::{
     widgets::{Cell, Row, Table as RatatuiTable, TableState},
 };
 
-use super::Component;
+use super::{Action, Component};
 
 const SEGMENTS: &str = "⯀"; // other options: ▮ ▰  ● ⬤
 
