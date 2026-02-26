@@ -11,8 +11,8 @@ pub struct LiveTiming {
     pub retired: bool,
     pub status: u32,
     pub stopped: bool,
-    pub time_diff_to_fastest: String,
-    pub time_diff_to_position_ahead: String,
+    pub time_diff_to_fastest: Option<String>,
+    pub time_diff_to_position_ahead: Option<String>,
 }
 
 #[derive(Debug, Default, Clone, PartialEq)]
@@ -33,7 +33,9 @@ pub struct Sector {
     pub segments: Vec<Segment>,
     pub status: u32,
     pub stopped: bool,
-    pub value: String,
+    /// value is None if driver is on their next lap
+    pub value: Option<String>,
+    pub previous_value: String,
 }
 
 #[derive(Debug, Default, Clone, PartialEq)]

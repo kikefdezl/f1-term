@@ -5,7 +5,7 @@ format:
 	cargo +nightly fmt
 
 lint:
-	cargo clippy
+	cargo clippy --all
 
 test:
 	cargo test --all

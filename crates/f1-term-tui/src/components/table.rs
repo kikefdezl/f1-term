@@ -6,7 +6,7 @@ use f1_term_core::{
     session::Session,
     stint::{Compound, Stints},
     team::Team,
-    timing::{LiveTiming, SegmentStatus},
+    timing::{LiveTiming, Sector, Segment, SegmentStatus},
 };
 use ratatui::{
     Frame,
@@ -20,6 +20,10 @@ use super::{Action, Component};
 
 const SEGMENTS: &str = "⯀"; // other options: ▮ ▰  ● ⬤
 
+const COLOR_OVERALL_FASTEST: Color = Color::from_u32(0xB11DFB); // #B11DFB
+const COLOR_PERSONAL_FASTEST: Color = Color::from_u32(0x33D176); // #33D176
+const COLOR_SLOWER: Color = Color::Yellow;
+
 pub struct TableData {
     driver_tla: String,
     driver_number: String,
@@ -30,7 +34,7 @@ pub struct TableData {
     last_lap_time: Option<String>,
     last_lap_overall_fastest: bool,
     last_lap_personal_fastest: bool,
-    segments: Vec<Vec<SegmentStatus>>,
+    sectors: Vec<Sector>,
     time_diff_to_fastest: Option<String>,
     time_diff_to_position_ahead: Option<String>,
 }
@@ -64,25 +68,16 @@ impl From<&TableDataArgs<'_>> for TableData {
                 .live_timing
                 .map(|lt| lt.last_lap.personal_fastest)
                 .unwrap_or(false),
-            segments: args
+            sectors: args
                 .live_timing
-                .map(|lt| {
-                    lt.last_lap
-                        .sectors
-                        .iter()
-                        .map(|s| {
-                            s.segments
-                                .iter()
-                                .map(|s| s.status.clone())
-                                .collect::<Vec<SegmentStatus>>()
-                        })
-                        .collect()
-                })
+                .map(|lt| lt.last_lap.sectors.clone())
                 .unwrap_or_default(),
-            time_diff_to_fastest: args.live_timing.map(|lt| lt.time_diff_to_fastest.clone()),
+            time_diff_to_fastest: args
+                .live_timing
+                .and_then(|lt| lt.time_diff_to_fastest.clone()),
             time_diff_to_position_ahead: args
                 .live_timing
-                .map(|lt| lt.time_diff_to_position_ahead.clone()),
+                .and_then(|lt| lt.time_diff_to_position_ahead.clone()),
         }
     }
 }
@@ -167,7 +162,10 @@ impl Component for TableComponent {
                     self.previous();
                     return Ok(Some(Action::Render));
                 }
-                KeyCode::Char('g') => return Ok(Some(Action::ToggleGapMode)),
+                KeyCode::Char('g') => {
+                    self.gap_mode.toggle();
+                    return Ok(Some(Action::Render));
+                }
                 _ => {}
             },
             Action::SessionUpdate(ref session) => {
@@ -184,9 +182,6 @@ impl Component for TableComponent {
                     self.update_data(session);
                 }
             }
-            Action::ToggleGapMode => {
-                self.gap_mode.toggle();
-            }
             _ => {}
         }
         Ok(None)
@@ -197,14 +192,14 @@ impl Component for TableComponent {
             return Ok(());
         }
 
-        let rows = TableComponent::_create_rows(&self.items, self.gap_mode);
-        let header = TableComponent::_create_header();
+        let rows = TableComponent::rows(&self.items, self.gap_mode);
+        let header = TableComponent::header();
 
         let segment_len = |sector: usize| -> u16 {
             self.items
                 .first()
-                .and_then(|outer| outer.segments.get(sector))
-                .map_or(0, |inner| inner.len())
+                .and_then(|td| td.sectors.get(sector))
+                .map_or(0, |inner| inner.segments.len())
                 .try_into()
                 .expect("Should always fit in u16")
         };
@@ -234,9 +229,12 @@ impl Component for TableComponent {
                 Constraint::Length(10),          // best lap
                 Constraint::Length(7),           // gap
                 Constraint::Length(10),          // last lap
-                Constraint::Length(s1_segments), // s1
-                Constraint::Length(s2_segments), // s2
-                Constraint::Length(s3_segments), // s3
+                Constraint::Length(9),           // s1
+                Constraint::Length(9),           // s2
+                Constraint::Length(9),           // s3
+                Constraint::Length(s1_segments), // s1 segments
+                Constraint::Length(s2_segments), // s2 segments
+                Constraint::Length(s3_segments), // s3 segments
             ],
         )
         .header(header)
@@ -250,12 +248,45 @@ impl Component for TableComponent {
 }
 
 impl TableComponent {
-    fn _create_rows(items: &[TableData], gap_mode: GapMode) -> Vec<Row<'_>> {
+    fn header() -> Row<'static> {
+        Row::new(vec![
+            Cell::from("  #"),
+            Cell::from("Drv"),
+            Cell::from("Num"),
+            Cell::from("Tire"),
+            Cell::from("Best Lap"),
+            Cell::from("Gap"),
+            Cell::from("Last Lap"),
+            Cell::from("S1"),
+            Cell::from("S2"),
+            Cell::from("S3"),
+            Cell::from("S1 μ"),
+            Cell::from("S2 μ"),
+            Cell::from("S3 μ"),
+        ])
+    }
+    fn rows(items: &[TableData], gap_mode: GapMode) -> Vec<Row<'_>> {
         let rows: Vec<Row> = items
             .iter()
             .enumerate()
             .map(|(i, data)| {
                 let pos = i + 1;
+
+                let tire_cell = match (&data.tire_compound, data.tire_laps) {
+                    (Some(compound), Some(laps)) => {
+                        let (letter, color) = match compound {
+                            Compound::Soft => ("S", Color::Red),
+                            Compound::Medium => ("M", Color::Yellow),
+                            Compound::Hard => ("H", Color::White),
+                            Compound::Wet => ("W", Color::Blue),
+                            Compound::Intermediate => ("I", Color::Green),
+                            Compound::Unknown => ("?", Color::DarkGray),
+                        };
+                        Cell::from(format!("{} ({})", letter, laps))
+                            .style(Style::default().fg(color))
+                    }
+                    _ => Cell::from(""),
+                };
 
                 let best_lap = match &data.best_lap_time {
                     Some(ll) => ll,
@@ -281,38 +312,32 @@ impl TableComponent {
                 };
 
                 let last_lap_style = if data.last_lap_overall_fastest {
-                    Style::default().fg(Color::from_u32(0xBF00FF)) // #BF00FF
+                    Style::default().fg(COLOR_OVERALL_FASTEST)
                 } else if data.last_lap_personal_fastest {
-                    Style::default().fg(Color::from_u32(0x39FF14)) // #39FF14
+                    Style::default().fg(COLOR_PERSONAL_FASTEST)
                 } else {
-                    Style::default()
+                    Style::default().fg(COLOR_SLOWER)
                 };
+
+                let sector_data = |sector: usize| -> Cell {
+                    data.sectors
+                        .get(sector)
+                        .map(|s| TableComponent::sector(s))
+                        .unwrap_or(Cell::from(""))
+                };
+                let s1 = sector_data(0);
+                let s2 = sector_data(1);
+                let s3 = sector_data(2);
 
                 let segment_data = |sector: usize| -> Cell {
-                    data.segments
+                    data.sectors
                         .get(sector)
-                        .map(|s| TableComponent::_create_segments(s))
+                        .map(|s| TableComponent::segments(&s.segments))
                         .unwrap_or_default()
                 };
-                let s1 = segment_data(0);
-                let s2 = segment_data(1);
-                let s3 = segment_data(2);
-
-                let tire_cell = match (&data.tire_compound, data.tire_laps) {
-                    (Some(compound), Some(laps)) => {
-                        let (letter, color) = match compound {
-                            Compound::Soft => ("S", Color::Red),
-                            Compound::Medium => ("M", Color::Yellow),
-                            Compound::Hard => ("H", Color::White),
-                            Compound::Wet => ("W", Color::Blue),
-                            Compound::Intermediate => ("I", Color::Green),
-                            Compound::Unknown => ("?", Color::DarkGray),
-                        };
-                        Cell::from(format!("{} ({})", letter, laps))
-                            .style(Style::default().fg(color))
-                    }
-                    _ => Cell::from(""),
-                };
+                let s1_segments = segment_data(0);
+                let s2_segments = segment_data(1);
+                let s3_segments = segment_data(2);
 
                 Row::new(vec![
                     Cell::from(format!("{:>3}", pos)),
@@ -321,7 +346,7 @@ impl TableComponent {
                             .fg(data.team_color)
                             .add_modifier(Modifier::BOLD),
                     ),
-                    Cell::from(data.driver_number.clone()),
+                    Cell::from(data.driver_number.as_str()),
                     tire_cell,
                     Cell::from(best_lap),
                     Cell::from(time_diff),
@@ -329,37 +354,44 @@ impl TableComponent {
                     s1,
                     s2,
                     s3,
+                    s1_segments,
+                    s2_segments,
+                    s3_segments,
                 ])
             })
             .collect();
         rows
     }
 
-    fn _create_header() -> Row<'static> {
-        Row::new(vec![
-            Cell::from("  #"),
-            Cell::from("Drv"),
-            Cell::from("Num"),
-            Cell::from("Tire"),
-            Cell::from("Best Lap"),
-            Cell::from("Gap"),
-            Cell::from("Last Lap"),
-            Cell::from("S1"),
-            Cell::from("S2"),
-            Cell::from("S3"),
-        ])
+    fn sector(sector: &Sector) -> Cell<'_> {
+        let value = match &sector.value {
+            Some(v) => v,
+            None => sector.previous_value.as_str(),
+        };
+
+        let color = if sector.value.is_none() {
+            Color::DarkGray
+        } else if sector.overall_fastest {
+            COLOR_OVERALL_FASTEST
+        } else if sector.personal_fastest {
+            COLOR_PERSONAL_FASTEST
+        } else {
+            COLOR_SLOWER
+        };
+
+        Cell::from(value).style(Style::default().fg(color))
     }
 
-    fn _create_segments(segments: &[SegmentStatus]) -> Cell<'_> {
+    fn segments(segments: &[Segment]) -> Cell<'_> {
         let spans: Vec<Span> = segments
             .iter()
             .map(|s| {
-                let color = match s {
+                let color = match s.status {
                     SegmentStatus::None => Color::DarkGray,
                     SegmentStatus::InPit => Color::Blue,
-                    SegmentStatus::OverallFastest => Color::Magenta,
-                    SegmentStatus::PersonalFastest => Color::Rgb(0, 255, 127), // #00FF7F
-                    SegmentStatus::Normal => Color::Yellow,
+                    SegmentStatus::OverallFastest => COLOR_OVERALL_FASTEST,
+                    SegmentStatus::PersonalFastest => COLOR_PERSONAL_FASTEST,
+                    SegmentStatus::Normal => COLOR_SLOWER,
                 };
                 Span::styled(SEGMENTS, Style::default().fg(color))
             })

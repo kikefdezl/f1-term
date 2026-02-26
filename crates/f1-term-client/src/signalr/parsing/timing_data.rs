@@ -4,7 +4,7 @@ use f1_term_core::{
     driver::DriverNumber,
     timing::{LastLap, LiveTiming, Sector, Segment, SegmentStatus, Speed, Speeds},
 };
-use log::info;
+use log::{info, warn};
 use serde::Deserialize;
 use serde_json::Value;
 
@@ -40,6 +40,7 @@ struct SectorPayload {
     Status: u32,
     Stopped: bool,
     Value: String,
+    PreviousValue: String,
 }
 
 #[derive(Deserialize, Debug)]
@@ -85,7 +86,10 @@ impl From<SegmentPayload> for Segment {
             2048 => SegmentStatus::Normal,
             2049 => SegmentStatus::PersonalFastest,
             2064 => SegmentStatus::InPit,
-            _ => SegmentStatus::None,
+            other => {
+                warn!("Unknown SegmentStatus value {}!", other);
+                SegmentStatus::None
+            }
         };
         Segment { status }
     }
@@ -93,13 +97,15 @@ impl From<SegmentPayload> for Segment {
 
 impl From<SectorPayload> for Sector {
     fn from(p: SectorPayload) -> Self {
+        let value = Some(p.Value).filter(|s| !s.is_empty());
         Sector {
             overall_fastest: p.OverallFastest,
             personal_fastest: p.PersonalFastest,
             segments: p.Segments.into_iter().map(Into::into).collect(),
             status: p.Status,
             stopped: p.Stopped,
-            value: p.Value,
+            value,
+            previous_value: p.PreviousValue,
         }
     }
 }
@@ -134,17 +140,12 @@ impl TryFrom<LiveTimingPayload> for LiveTiming {
             value: payload.RacingNumber.parse()?,
         };
 
-        let best_lap_time = if payload.BestLapTime.Value.is_empty() {
-            None
-        } else {
-            Some(payload.BestLapTime.Value)
-        };
-
-        let last_lap_time = if payload.LastLapTime.Value.is_empty() {
-            None
-        } else {
-            Some(payload.LastLapTime.Value)
-        };
+        // API returns empty strings, we convert those to None
+        let best_lap_time = Some(payload.BestLapTime.Value).filter(|s| !s.is_empty());
+        let last_lap_time = Some(payload.LastLapTime.Value).filter(|s| !s.is_empty());
+        let time_diff_to_fastest = Some(payload.TimeDiffToFastest).filter(|s| !s.is_empty());
+        let time_diff_to_position_ahead =
+            Some(payload.TimeDiffToPositionAhead).filter(|s| !s.is_empty());
 
         let last_lap = LastLap {
             overall_fastest: payload.LastLapTime.OverallFastest,
@@ -166,8 +167,8 @@ impl TryFrom<LiveTimingPayload> for LiveTiming {
             retired: payload.Retired,
             status: payload.Status,
             stopped: payload.Stopped,
-            time_diff_to_fastest: payload.TimeDiffToFastest,
-            time_diff_to_position_ahead: payload.TimeDiffToPositionAhead,
+            time_diff_to_fastest,
+            time_diff_to_position_ahead,
         })
     }
 }
@@ -242,7 +243,8 @@ mod tests {
                             ],
                             "Status": 0,
                             "Stopped": false,
-                            "Value": "25.1"
+                            "Value": "25.1",
+                            "PreviousValue": "25.6"
                         }
                     ],
                     "ShowPosition": true,
