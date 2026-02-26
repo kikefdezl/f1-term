@@ -9,25 +9,24 @@ use crate::{
     action::Action,
     components::Component,
     pages::{ActivePage, live_timing::LiveTimingPage},
-    state::AppState,
 };
 
 const REFRESH_RATE_MILLIS: u64 = 200;
 
 pub struct App<C: F1Client> {
     client: C,
-    app_state: AppState,
     active_page: ActivePage,
     live_timing_page: LiveTimingPage,
+    exit: bool,
 }
 
 impl<C: F1Client> App<C> {
     pub fn new(client: C) -> Self {
         Self {
             client,
-            app_state: AppState::default(),
             active_page: ActivePage::default(),
             live_timing_page: LiveTimingPage::default(),
+            exit: false,
         }
     }
 
@@ -41,7 +40,7 @@ impl<C: F1Client> App<C> {
 
         self.live_timing_page.init()?;
 
-        while !self.app_state.exit {
+        while !self.exit {
             tokio::select! {
                 update = self.client.next_event() => {
                     if let Some(TelemetryEvent::SessionUpdate(fs)) = update {
@@ -62,7 +61,7 @@ impl<C: F1Client> App<C> {
                         terminal.draw(|frame| self.render(frame).unwrap())?;
                     }
 
-                    if self.app_state.exit {
+                    if self.exit {
                         break;
                     }
                 }
@@ -80,7 +79,7 @@ impl<C: F1Client> App<C> {
     fn update(&mut self, action: Action) -> Result<Option<Action>, Box<dyn std::error::Error>> {
         match &action {
             Action::Quit => {
-                self.app_state.exit = true;
+                self.exit = true;
                 return Ok(None);
             }
             Action::Navigate(page) => {
