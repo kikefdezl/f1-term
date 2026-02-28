@@ -64,7 +64,7 @@ impl Component for MessageLog {
 
         let block = Block::default()
             .title(" Race Control Messages ")
-            .borders(Borders::ALL)
+            .borders(Borders::LEFT)
             .border_style(Style::default().fg(Color::DarkGray));
 
         let p = Paragraph::new(lines).block(block).wrap(Wrap { trim: true });

@@ -18,7 +18,7 @@ use ratatui::{
 
 use super::{Action, Component};
 
-const SEGMENTS: &str = "⯀"; // other options: ▮ ▰  ● ⬤
+const SEGMENTS: &str = "▰"; // other options: ▮ ▰ ● ⬤
 
 const COLOR_OVERALL_FASTEST: Color = Color::from_u32(0xB11DFB); // #B11DFB
 const COLOR_PERSONAL_FASTEST: Color = Color::from_u32(0x33D176); // #33D176
@@ -207,11 +207,11 @@ impl Component for TimingTable {
                 Constraint::Length(3),           // num
                 Constraint::Length(7),           // tire
                 Constraint::Length(10),          // best lap
-                Constraint::Length(7),           // gap
+                Constraint::Length(8),           // gap
                 Constraint::Length(10),          // last lap
-                Constraint::Length(9),           // s1
-                Constraint::Length(9),           // s2
-                Constraint::Length(9),           // s3
+                Constraint::Length(8),           // s1
+                Constraint::Length(8),           // s2
+                Constraint::Length(8),           // s3
                 Constraint::Length(s1_segments), // s1 segments
                 Constraint::Length(s2_segments), // s2 segments
                 Constraint::Length(s3_segments), // s3 segments

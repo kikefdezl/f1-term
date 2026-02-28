@@ -4,7 +4,7 @@ use f1_term_core::{session::Session, track_status::TrackStatus, weather::Weather
 use ratatui::{
     Frame,
     layout::{Alignment, Constraint, Layout, Rect},
-    style::{Style, Stylize},
+    style::{Color, Style, Stylize},
     text::{Line, Span},
     widgets::{Block, Borders, Paragraph},
 };
@@ -41,56 +41,110 @@ impl Component for TitleBar {
         let inner_area = block.inner(area);
         frame.render_widget(block, area);
 
-        let title = format!(
-            "  {} - {} {} | {} ({}) ",
-            self.session_official_name,
-            self.session_type,
-            self.session_name,
-            self.session_circuit_name,
-            self.session_country_name,
-        );
+        let rows =
+            Layout::vertical([Constraint::Length(1), Constraint::Length(1)]).split(inner_area);
 
-        let title_span = Span::from(title).bold();
+        let title_line = self.title_line();
+        let status_line = self.status_line();
+        let location_line = self.location_line();
+        let weather_line = self.weather_line();
 
-        let weather_text = format!(
-            "🌡air: {}°C  🌡 track: {}°C   🌧: {}%   ༄: {}m/s {}   Ψ: {}mb   🌢: {}%",
-            self.weather.air_temperature,
-            self.weather.track_temperature,
-            self.weather.rainfall,
-            self.weather.wind.speed,
-            self.weather.wind.direction.to_direction(),
-            self.weather.pressure,
-            self.weather.humidity,
-        );
-        let weather_span = Span::from(weather_text);
-
-        let track_status_text = match &self.track_status {
-            Some(ts) => ts.message.as_str(),
-            None => "Track Status Unknown",
-        };
-        let track_status_span = Span::from(track_status_text);
-
-        let layout = Layout::horizontal([
+        let row1_layout = Layout::horizontal([
             Constraint::Min(0),
-            Constraint::Min(0),
-            Constraint::Length(track_status_text.len() as u16 + 2), // +2 for right padding
+            Constraint::Length(status_line.width() as u16),
         ])
-        .split(inner_area);
+        .split(rows[0]);
 
-        let title_para = Paragraph::new(vec![Line::from(""), Line::from(title_span)]);
-        let weather_para = Paragraph::new(vec![Line::from(""), Line::from(weather_span)]);
-        let status_para = Paragraph::new(vec![Line::from(""), Line::from(track_status_span)])
-            .alignment(Alignment::Right);
+        let row2_layout = Layout::horizontal([
+            Constraint::Min(0),
+            Constraint::Length(weather_line.width() as u16),
+        ])
+        .split(rows[1]);
 
-        frame.render_widget(title_para, layout[0]);
-        frame.render_widget(weather_para, layout[1]);
-        frame.render_widget(status_para, layout[2]);
+        frame.render_widget(Paragraph::new(title_line), row1_layout[0]);
+        frame.render_widget(
+            Paragraph::new(status_line).alignment(Alignment::Right),
+            row1_layout[1],
+        );
+
+        frame.render_widget(Paragraph::new(location_line), row2_layout[0]);
+        frame.render_widget(
+            Paragraph::new(weather_line).alignment(Alignment::Right),
+            row2_layout[1],
+        );
 
         Ok(())
     }
 }
 
 impl TitleBar {
+    fn title_line(&self) -> Line<'_> {
+        Line::from(vec![
+            Span::raw("  "),
+            Span::styled(&self.session_official_name, Style::default().bold()),
+            Span::raw(format!(" | {} - {} ", self.session_type, self.session_name)).dim(),
+        ])
+    }
+
+    fn status_line(&self) -> Line<'_> {
+        let track_status_text = match &self.track_status {
+            Some(ts) => ts.message.as_str(),
+            None => "Unknown",
+        };
+
+        let status_color = if track_status_text.contains("Clear") {
+            Color::Green
+        } else if track_status_text.contains("Yellow") {
+            Color::Yellow
+        } else if track_status_text.contains("Red") {
+            Color::Red
+        } else {
+            Color::White
+        };
+
+        Line::from(vec![
+            Span::styled("[ ", Style::default().dim()),
+            Span::styled("STATUS: ", Style::default()),
+            Span::styled(
+                track_status_text.to_uppercase(),
+                Style::default().fg(status_color).bold(),
+            ),
+            Span::styled(" ]  ", Style::default().dim()),
+        ])
+    }
+
+    fn location_line(&self) -> Line<'_> {
+        Line::from(vec![
+            Span::raw("  "),
+            Span::styled(&self.session_circuit_name, Style::default().bold()),
+            Span::styled(
+                format!(" ({}) ", self.session_country_name),
+                Style::default().dim(),
+            ),
+        ])
+    }
+
+    fn weather_line(&self) -> Line<'_> {
+        Line::from(vec![
+            Span::raw("Air: ").dim(),
+            format!("{}°C   ", self.weather.air_temperature).into(),
+            Span::raw("Trk: ").dim(),
+            format!("{}°C   ", self.weather.track_temperature).into(),
+            Span::raw("Rain: ").dim(),
+            format!("{}%   ", self.weather.rainfall).into(),
+            Span::raw("Wind: ").dim(),
+            format!(
+                "{}m/s {}   ",
+                self.weather.wind.speed,
+                self.weather.wind.direction.to_direction()
+            )
+            .bold(),
+            Span::raw("Pres: ").dim(),
+            format!("{}mb   ", self.weather.pressure).into(),
+            Span::raw("Hum: ").dim(),
+            format!("{}%  ", self.weather.humidity).into(),
+        ])
+    }
     fn update_data(&mut self, session: &Arc<Session>) -> bool {
         let mut updated = false;
         if self.session_official_name != session.info.meeting.official_name {
