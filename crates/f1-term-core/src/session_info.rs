@@ -1,3 +1,5 @@
+use chrono::{DateTime, FixedOffset, Utc};
+
 #[derive(Debug)]
 pub struct SessionInfo {
     pub meeting: Meeting,
@@ -7,9 +9,9 @@ pub struct SessionInfo {
     pub type_: SessionType,
     pub number: u8,
     pub name: String,
-    pub start_date: chrono::DateTime<chrono::Utc>,
-    pub end_date: chrono::DateTime<chrono::Utc>,
-    pub utc_offset: chrono::FixedOffset,
+    pub start_date: DateTime<Utc>,
+    pub end_date: DateTime<Utc>,
+    pub utc_offset: FixedOffset,
     pub path: String,
 }
 
