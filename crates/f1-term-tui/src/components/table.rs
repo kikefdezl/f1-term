@@ -24,7 +24,7 @@ const COLOR_OVERALL_FASTEST: Color = Color::from_u32(0xB11DFB); // #B11DFB
 const COLOR_PERSONAL_FASTEST: Color = Color::from_u32(0x33D176); // #33D176
 const COLOR_SLOWER: Color = Color::Yellow;
 
-pub struct TableData {
+pub struct TimingTableData {
     driver_tla: String,
     driver_number: String,
     team_color: Color,
@@ -39,16 +39,16 @@ pub struct TableData {
     time_diff_to_position_ahead: Option<String>,
 }
 
-pub struct TableDataArgs<'a> {
+pub struct TimingTableDataArgs<'a> {
     pub driver: &'a Driver,
     pub team: &'a Team,
     pub live_timing: Option<&'a LiveTiming>,
     pub stints: Option<&'a Stints>,
 }
 
-impl From<&TableDataArgs<'_>> for TableData {
-    fn from(args: &'_ TableDataArgs) -> Self {
-        TableData {
+impl From<&TimingTableDataArgs<'_>> for TimingTableData {
+    fn from(args: &'_ TimingTableDataArgs) -> Self {
+        TimingTableData {
             driver_tla: args.driver.tla.clone(),
             driver_number: args.driver.number.value.to_string(),
             team_color: Color::from_u32(args.team.color.u32),
@@ -99,13 +99,13 @@ impl GapMode {
 }
 
 #[derive(Default)]
-pub struct TableComponent {
-    items: Vec<TableData>,
+pub struct TimingTable {
+    items: Vec<TimingTableData>,
     state: TableState,
     gap_mode: GapMode,
 }
 
-impl TableComponent {
+impl TimingTable {
     pub fn next(&mut self) {
         let i = match self.state.selected() {
             Some(i) => {
@@ -137,19 +137,19 @@ impl TableComponent {
     fn update_data(&mut self, session: &Arc<Session>) {
         let mut tds = Vec::new();
         for participant in session.leaderboard() {
-            let args = TableDataArgs {
+            let args = TimingTableDataArgs {
                 driver: participant.driver,
                 team: participant.team,
                 live_timing: participant.timing,
                 stints: participant.stints,
             };
-            tds.push(TableData::from(&args));
+            tds.push(TimingTableData::from(&args));
         }
         self.items = tds;
     }
 }
 
-impl Component for TableComponent {
+impl Component for TimingTable {
     fn update(&mut self, action: Action) -> Result<Option<Action>, Box<dyn std::error::Error>> {
         match action {
             Action::KeyPress(key) => match key.code {
@@ -170,6 +170,7 @@ impl Component for TableComponent {
             Action::SessionUpdate(ref session) => {
                 if !session.drivers.is_empty() && !session.teams.is_empty() {
                     self.update_data(session);
+                    return Ok(Some(Action::Render));
                 }
             }
             _ => {}
@@ -182,8 +183,8 @@ impl Component for TableComponent {
             return Ok(());
         }
 
-        let rows = TableComponent::rows(&self.items, self.gap_mode);
-        let header = TableComponent::header();
+        let rows = TimingTable::rows(&self.items, self.gap_mode);
+        let header = TimingTable::header();
 
         let segment_len = |sector: usize| -> u16 {
             self.items
@@ -225,7 +226,7 @@ impl Component for TableComponent {
     }
 }
 
-impl TableComponent {
+impl TimingTable {
     fn header() -> Row<'static> {
         Row::new(vec![
             Cell::from("  #"),
@@ -243,7 +244,7 @@ impl TableComponent {
             Cell::from("S3 μ"),
         ])
     }
-    fn rows(items: &[TableData], gap_mode: GapMode) -> Vec<Row<'_>> {
+    fn rows(items: &[TimingTableData], gap_mode: GapMode) -> Vec<Row<'_>> {
         let rows: Vec<Row> = items
             .iter()
             .enumerate()
@@ -300,7 +301,7 @@ impl TableComponent {
                 let sector_data = |sector: usize| -> Cell {
                     data.sectors
                         .get(sector)
-                        .map(|s| TableComponent::sector(s))
+                        .map(|s| TimingTable::sector(s))
                         .unwrap_or(Cell::from(""))
                 };
                 let s1 = sector_data(0);
@@ -310,7 +311,7 @@ impl TableComponent {
                 let segment_data = |sector: usize| -> Cell {
                     data.sectors
                         .get(sector)
-                        .map(|s| TableComponent::segments(&s.segments))
+                        .map(|s| TimingTable::segments(&s.segments))
                         .unwrap_or_default()
                 };
                 let s1_segments = segment_data(0);

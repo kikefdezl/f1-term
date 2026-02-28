@@ -15,6 +15,7 @@ use self::{
 use super::topic::Topic;
 use crate::signalr::parsing::{
     race_control_messages::parse_race_control_messages, session_info::parse_session_info,
+    track_status::parse_track_status,
 };
 
 pub mod drivers;
@@ -23,6 +24,7 @@ pub mod session_info;
 pub mod stints;
 pub mod teams;
 pub mod timing_data;
+pub mod track_status;
 
 type Result<T> = std::result::Result<T, Box<dyn std::error::Error>>;
 
@@ -69,6 +71,10 @@ pub fn parse_message(state: &serde_json::Value) -> Option<TelemetryEvent> {
         }),
     };
 
+    let track_status = state
+        .get(Topic::TrackStatus.to_string())
+        .and_then(|ts| parse_track_status(ts).ok());
+
     let race_control_messages = match state.get(Topic::RaceControlMessages.to_string()) {
         None => Vec::new(),
         Some(rcm) => parse_race_control_messages(rcm).unwrap_or_else(|e| {
@@ -83,6 +89,7 @@ pub fn parse_message(state: &serde_json::Value) -> Option<TelemetryEvent> {
         teams,
         timing_data,
         stints,
+        track_status,
         race_control_messages,
     };
 

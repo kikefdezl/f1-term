@@ -58,7 +58,18 @@ impl TryFrom<RaceControlMessagePayload> for RaceControlMessage {
 
                 MessageCategory::Flag(Flag { color, scope })
             }
-            "Other" => MessageCategory::Other,
+            "Other" => {
+                // Some messages containing flag information don't come categorized as "Flag".
+                // We parse them here if they contain flag specific keywords to properly colorize the UI.
+                if value.Message.contains("RED FLAG") {
+                    MessageCategory::Flag(Flag {
+                        color: FlagColor::Red,
+                        scope: FlagScope::Track,
+                    })
+                } else {
+                    MessageCategory::Other
+                }
+            }
             _ => return Err(format!("Unknown Category: {}", value.Category).into()),
         };
 
@@ -197,7 +208,13 @@ mod tests {
             parsed[0].timestamp,
             Utc.with_ymd_and_hms(2026, 2, 20, 9, 11, 25).unwrap()
         );
-        assert_eq!(parsed[0].category, MessageCategory::Other);
+        assert_eq!(
+            parsed[0].category,
+            MessageCategory::Flag(Flag {
+                color: FlagColor::Red,
+                scope: FlagScope::Track,
+            })
+        );
         assert_eq!(parsed[0].message, "RED FLAG - RACE SUSPENDED");
     }
 

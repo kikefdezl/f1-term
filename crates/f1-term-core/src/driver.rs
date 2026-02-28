@@ -1,5 +1,3 @@
-use std::fmt::Display;
-
 use super::team::TeamName;
 
 #[derive(Eq, PartialEq, Hash, Debug, Clone, Copy, Default)]
@@ -21,13 +19,4 @@ pub struct Driver {
     /// Three Letter Acronym
     pub tla: String,
     pub reference: String,
-}
-
-impl Display for Driver {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        writeln!(f, "{}", self.tla)?;
-        writeln!(f, "{}", self.full_name)?;
-        writeln!(f, "Number: {}", self.number.value)?;
-        writeln!(f, "Team: {}", self.team_name.value)
-    }
 }

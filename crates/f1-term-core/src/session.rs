@@ -5,6 +5,7 @@ use super::{
     stint::Stints,
     team::{Team, TeamName},
     timing::LiveTiming,
+    track_status::TrackStatus,
 };
 use crate::{race_control_message::RaceControlMessage, session_info::SessionInfo};
 
@@ -15,6 +16,7 @@ pub struct Session {
     pub drivers: HashMap<DriverNumber, Driver>,
     pub timing_data: HashMap<DriverNumber, LiveTiming>,
     pub stints: HashMap<DriverNumber, Stints>,
+    pub track_status: Option<TrackStatus>,
     pub race_control_messages: Vec<RaceControlMessage>,
 }
 

@@ -1,6 +1,8 @@
+use std::fmt::Display;
+
 use chrono::{DateTime, FixedOffset, Utc};
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct SessionInfo {
     pub meeting: Meeting,
     pub session_status: SessionStatus,
@@ -15,7 +17,7 @@ pub struct SessionInfo {
     pub path: String,
 }
 
-#[derive(Debug, Default)]
+#[derive(Debug, Default, Clone)]
 pub struct Meeting {
     pub key: u32,
     pub name: String,
@@ -26,30 +28,38 @@ pub struct Meeting {
     pub circuit: Circuit,
 }
 
-#[derive(Debug, Default)]
+#[derive(Debug, Default, Clone)]
 pub struct Country {
     pub key: u32,
     pub code: String,
     pub name: String,
 }
 
-#[derive(Debug, Default)]
+#[derive(Debug, Default, Clone)]
 pub struct Circuit {
     pub key: u32,
     pub short_name: String,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum SessionStatus {
     Finalised,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum ArchiveStatus {
     Complete,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum SessionType {
     Practice,
+}
+
+impl Display for SessionType {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Practice => write!(f, "Practice"),
+        }
+    }
 }
