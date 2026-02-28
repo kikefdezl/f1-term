@@ -8,7 +8,7 @@ use tokio::{sync::mpsc, time::interval};
 use crate::{
     action::Action,
     components::Component,
-    pages::{ActivePage, live_timing::LiveTimingPage},
+    pages::{ActivePage, dashboard::DashboardPage},
 };
 
 const REFRESH_RATE_MILLIS: u64 = 200;
@@ -16,7 +16,7 @@ const REFRESH_RATE_MILLIS: u64 = 200;
 pub struct App<C: F1Client> {
     client: C,
     active_page: ActivePage,
-    live_timing_page: LiveTimingPage,
+    live_timing_page: DashboardPage,
     exit: bool,
 }
 
@@ -25,7 +25,7 @@ impl<C: F1Client> App<C> {
         Self {
             client,
             active_page: ActivePage::default(),
-            live_timing_page: LiveTimingPage::default(),
+            live_timing_page: DashboardPage::default(),
             exit: false,
         }
     }

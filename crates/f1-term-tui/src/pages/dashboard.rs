@@ -6,11 +6,11 @@ use crate::{
 };
 
 #[derive(Default)]
-pub struct LiveTimingPage {
+pub struct DashboardPage {
     table: TableComponent,
 }
 
-impl Component for LiveTimingPage {
+impl Component for DashboardPage {
     fn init(&mut self) -> Result<(), Box<dyn std::error::Error>> {
         self.table.init()?;
         Ok(())

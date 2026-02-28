@@ -1,4 +1,4 @@
-pub mod live_timing;
+pub mod dashboard;
 
 #[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
 pub enum ActivePage {
