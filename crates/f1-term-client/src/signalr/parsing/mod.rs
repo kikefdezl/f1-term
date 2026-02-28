@@ -15,7 +15,7 @@ use self::{
 use super::topic::Topic;
 use crate::signalr::parsing::{
     race_control_messages::parse_race_control_messages, session_info::parse_session_info,
-    track_status::parse_track_status,
+    track_status::parse_track_status, weather_data::parse_weather_data,
 };
 
 pub mod drivers;
@@ -25,6 +25,7 @@ pub mod stints;
 pub mod teams;
 pub mod timing_data;
 pub mod track_status;
+pub mod weather_data;
 
 type Result<T> = std::result::Result<T, Box<dyn std::error::Error>>;
 
@@ -39,10 +40,8 @@ pub fn parse_message(state: &serde_json::Value) -> Option<TelemetryEvent> {
     let (drivers, teams) = match state.get(Topic::DriverList.to_string()) {
         None => (HashMap::new(), HashMap::new()),
         Some(dl) => {
-            // TODO: If either of these fail right now the whole thing fails, but
-            // this shouldn't be and we will need incremental updates
-            let drivers: HashMap<DriverNumber, Driver> = parse_drivers(dl).ok()?;
-            let teams: HashMap<TeamName, Team> = parse_teams(dl).ok()?;
+            let drivers: HashMap<DriverNumber, Driver> = parse_drivers(dl).unwrap_or_default();
+            let teams: HashMap<TeamName, Team> = parse_teams(dl).ok().unwrap_or_default();
             (drivers, teams)
         }
     };
@@ -83,6 +82,10 @@ pub fn parse_message(state: &serde_json::Value) -> Option<TelemetryEvent> {
         }),
     };
 
+    let weather = state
+        .get(Topic::WeatherData.to_string())
+        .and_then(|wd| parse_weather_data(wd).ok());
+
     let session = Session {
         info,
         drivers,
@@ -91,6 +94,7 @@ pub fn parse_message(state: &serde_json::Value) -> Option<TelemetryEvent> {
         stints,
         track_status,
         race_control_messages,
+        weather,
     };
 
     Some(TelemetryEvent::SessionUpdate(Arc::new(session)))

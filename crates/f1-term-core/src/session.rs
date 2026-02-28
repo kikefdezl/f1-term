@@ -6,6 +6,7 @@ use super::{
     team::{Team, TeamName},
     timing::LiveTiming,
     track_status::TrackStatus,
+    weather::Weather,
 };
 use crate::{race_control_message::RaceControlMessage, session_info::SessionInfo};
 
@@ -18,6 +19,7 @@ pub struct Session {
     pub stints: HashMap<DriverNumber, Stints>,
     pub track_status: Option<TrackStatus>,
     pub race_control_messages: Vec<RaceControlMessage>,
+    pub weather: Option<Weather>,
 }
 
 #[derive(Debug)]

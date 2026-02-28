@@ -8,3 +8,4 @@ pub mod stint;
 pub mod team;
 pub mod timing;
 pub mod track_status;
+pub mod weather;
