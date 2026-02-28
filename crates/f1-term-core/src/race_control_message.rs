@@ -1,5 +1,6 @@
-use super::flag::Flag;
 use chrono::{DateTime, Utc};
+
+use super::flag::Flag;
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct RaceControlMessage {

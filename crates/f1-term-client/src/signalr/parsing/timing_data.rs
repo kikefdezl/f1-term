@@ -270,7 +270,7 @@ mod tests {
         assert!(timing.last_lap.personal_fastest);
 
         assert_eq!(timing.last_lap.sectors.len(), 1);
-        assert_eq!(timing.last_lap.sectors[0].value, "25.1");
+        assert_eq!(timing.last_lap.sectors[0].value.as_deref(), Some("25.1"));
         assert!(timing.last_lap.sectors[0].personal_fastest);
 
         assert_eq!(timing.last_lap.speeds.fl.value, "320");

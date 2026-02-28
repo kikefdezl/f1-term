@@ -13,13 +13,16 @@ use self::{
     timing_data::parse_timing_data,
 };
 use super::topic::Topic;
-use crate::signalr::parsing::session_info::parse_session_info;
+use crate::signalr::parsing::{
+    race_control_messages::parse_race_control_messages, session_info::parse_session_info,
+};
 
-mod drivers;
-mod session_info;
-mod stints;
-mod teams;
-mod timing_data;
+pub mod drivers;
+pub mod race_control_messages;
+pub mod session_info;
+pub mod stints;
+pub mod teams;
+pub mod timing_data;
 
 type Result<T> = std::result::Result<T, Box<dyn std::error::Error>>;
 
@@ -66,12 +69,22 @@ pub fn parse_message(state: &serde_json::Value) -> Option<TelemetryEvent> {
         }),
     };
 
-    let snapshot = Session {
+    let race_control_messages = match state.get(Topic::RaceControlMessages.to_string()) {
+        None => Vec::new(),
+        Some(rcm) => parse_race_control_messages(rcm).unwrap_or_else(|e| {
+            info!("Failed to parse race control messages: {}", e);
+            Vec::new()
+        }),
+    };
+
+    let session = Session {
         info,
         drivers,
         teams,
         timing_data,
         stints,
+        race_control_messages,
     };
-    Some(TelemetryEvent::SessionUpdate(Arc::new(snapshot)))
+
+    Some(TelemetryEvent::SessionUpdate(Arc::new(session)))
 }

@@ -6,7 +6,7 @@ use super::{
     team::{Team, TeamName},
     timing::LiveTiming,
 };
-use crate::session_info::SessionInfo;
+use crate::{race_control_message::RaceControlMessage, session_info::SessionInfo};
 
 #[derive(Debug)]
 pub struct Session {
@@ -15,6 +15,7 @@ pub struct Session {
     pub drivers: HashMap<DriverNumber, Driver>,
     pub timing_data: HashMap<DriverNumber, LiveTiming>,
     pub stints: HashMap<DriverNumber, Stints>,
+    pub race_control_messages: Vec<RaceControlMessage>,
 }
 
 #[derive(Debug)]
