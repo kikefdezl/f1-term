@@ -1,3 +1,4 @@
+pub mod circuit;
 pub mod client;
 pub mod driver;
 pub mod flag;

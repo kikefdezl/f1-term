@@ -1,0 +1,11 @@
+[package]
+name = "f1-term-multiviewer"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+anyhow = "1.0.102"
+f1-term-core = { version = "0.1.0", path = "../f1-term-core" }
+reqwest = { version = "0.13.2", features = ["json"] }
+serde = { version = "1.0.228", features = ["derive"] }
+tokio = { version = "1.49.0", features = ["full"] }
