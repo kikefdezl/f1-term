@@ -18,7 +18,8 @@ use ratatui::{
 
 use super::{Action, Component};
 
-const SEGMENTS: &str = "▰"; // other options: ▮ ▰ ● ⬤
+const SEGMENTS: &str = "▰ "; // other options: ▮ ▰  ● ⬤
+const SEGMENT_WIDTH: u16 = 2; // The render with of the character above
 
 const COLOR_OVERALL_FASTEST: Color = Color::from_u32(0xB11DFB); // #B11DFB
 const COLOR_PERSONAL_FASTEST: Color = Color::from_u32(0x33D176); // #33D176
@@ -195,9 +196,9 @@ impl Component for TimingTable {
                 .expect("Should always fit in u16")
         };
 
-        let s1_segments = segment_len(0);
-        let s2_segments = segment_len(1);
-        let s3_segments = segment_len(2);
+        let s1_segments = segment_len(0) * SEGMENT_WIDTH;
+        let s2_segments = segment_len(1) * SEGMENT_WIDTH;
+        let s3_segments = segment_len(2) * SEGMENT_WIDTH;
 
         let t = RatatuiTable::new(
             rows,
