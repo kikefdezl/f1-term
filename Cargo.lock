@@ -417,16 +417,24 @@ version = "0.1.0"
 dependencies = [
  "crossterm",
  "directories",
- "f1-term-client",
  "f1-term-core",
+ "f1-term-signalr",
  "f1-term-tui",
  "ratatui",
  "simplelog",
  "tokio",
+ "unicode-width",
 ]
 
 [[package]]
-name = "f1-term-client"
+name = "f1-term-core"
+version = "0.1.0"
+dependencies = [
+ "chrono",
+]
+
+[[package]]
+name = "f1-term-signalr"
 version = "0.1.0"
 dependencies = [
  "chrono",
@@ -441,13 +449,6 @@ dependencies = [
  "tokio",
  "tokio-tungstenite",
  "urlencoding",
-]
-
-[[package]]
-name = "f1-term-core"
-version = "0.1.0"
-dependencies = [
- "chrono",
 ]
 
 [[package]]

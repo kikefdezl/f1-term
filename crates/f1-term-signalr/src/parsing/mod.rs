@@ -12,10 +12,12 @@ use self::{
     drivers::parse_drivers, stints::parse_stints, teams::parse_teams,
     timing_data::parse_timing_data,
 };
-use super::topic::Topic;
-use crate::signalr::parsing::{
-    race_control_messages::parse_race_control_messages, session_info::parse_session_info,
-    track_status::parse_track_status, weather_data::parse_weather_data,
+use super::{
+    parsing::{
+        race_control_messages::parse_race_control_messages, session_info::parse_session_info,
+        track_status::parse_track_status, weather_data::parse_weather_data,
+    },
+    topic::Topic,
 };
 
 pub mod drivers;
