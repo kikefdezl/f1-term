@@ -3,9 +3,9 @@ use std::sync::Arc;
 use crossterm::event::KeyCode;
 use f1_term_core::{
     driver::Driver,
-    session::Session,
     stint::{Compound, Stints},
     team::Team,
+    telemetry_state::TelemetryState,
     timing::{LiveTiming, Sector, Segment, SegmentStatus},
 };
 use ratatui::{
@@ -18,7 +18,8 @@ use ratatui::{
 
 use super::{Action, Component};
 
-const SEGMENTS: &str = "▰"; // other options: ▮ ▰ ● ⬤
+const SEGMENTS: &str = "▰ "; // other options: ▮ ▰  ● ⬤
+const SEGMENT_WIDTH: u16 = 2; // The render with of the character above
 
 const COLOR_OVERALL_FASTEST: Color = Color::from_u32(0xB11DFB); // #B11DFB
 const COLOR_PERSONAL_FASTEST: Color = Color::from_u32(0x33D176); // #33D176
@@ -134,9 +135,9 @@ impl TimingTable {
         self.state.select(Some(i));
     }
 
-    fn update_data(&mut self, session: &Arc<Session>) {
+    fn update_data(&mut self, state: &Arc<TelemetryState>) {
         let mut tds = Vec::new();
-        for participant in session.leaderboard() {
+        for participant in state.leaderboard() {
             let args = TimingTableDataArgs {
                 driver: participant.driver,
                 team: participant.team,
@@ -167,9 +168,9 @@ impl Component for TimingTable {
                 }
                 _ => {}
             },
-            Action::SessionUpdate(ref session) => {
-                if !session.drivers.is_empty() && !session.teams.is_empty() {
-                    self.update_data(session);
+            Action::StateUpdate(ref state) => {
+                if !state.drivers.is_empty() && !state.teams.is_empty() {
+                    self.update_data(state);
                     return Ok(Some(Action::Render));
                 }
             }
@@ -195,9 +196,9 @@ impl Component for TimingTable {
                 .expect("Should always fit in u16")
         };
 
-        let s1_segments = segment_len(0);
-        let s2_segments = segment_len(1);
-        let s3_segments = segment_len(2);
+        let s1_segments = segment_len(0) * SEGMENT_WIDTH;
+        let s2_segments = segment_len(1) * SEGMENT_WIDTH;
+        let s3_segments = segment_len(2) * SEGMENT_WIDTH;
 
         let t = RatatuiTable::new(
             rows,

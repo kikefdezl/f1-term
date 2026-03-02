@@ -31,47 +31,47 @@ pub struct WindDirection {
 impl WindDirection {
     pub fn to_direction(&self) -> Direction {
         if self.value <= 22.5 || self.value >= 337.5 {
-            Direction::N
+            Direction::North
         } else if self.value <= 67.5 {
-            Direction::NE
+            Direction::NorthEast
         } else if self.value <= 112.5 {
-            Direction::E
+            Direction::East
         } else if self.value <= 157.5 {
-            Direction::SE
+            Direction::SouthEast
         } else if self.value <= 202.5 {
-            Direction::S
+            Direction::South
         } else if self.value <= 247.5 {
-            Direction::SW
+            Direction::SouthWest
         } else if self.value <= 292.5 {
-            Direction::W
+            Direction::West
         } else {
-            Direction::NW
+            Direction::NorthWest
         }
     }
 }
 
 pub enum Direction {
-    N,
-    NE,
-    E,
-    SE,
-    S,
-    SW,
-    W,
-    NW,
+    North,
+    NorthEast,
+    East,
+    SouthEast,
+    South,
+    SouthWest,
+    West,
+    NorthWest,
 }
 
 impl Display for Direction {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Self::N => write!(f, "N"),
-            Self::NE => write!(f, "NE"),
-            Self::E => write!(f, "E"),
-            Self::SE => write!(f, "SE"),
-            Self::S => write!(f, "S"),
-            Self::SW => write!(f, "SW"),
-            Self::W => write!(f, "W"),
-            Self::NW => write!(f, "NW"),
+            Self::North => write!(f, "N"),
+            Self::NorthEast => write!(f, "NE"),
+            Self::East => write!(f, "E"),
+            Self::SouthEast => write!(f, "SE"),
+            Self::South => write!(f, "S"),
+            Self::SouthWest => write!(f, "SW"),
+            Self::West => write!(f, "W"),
+            Self::NorthWest => write!(f, "NW"),
         }
     }
 }

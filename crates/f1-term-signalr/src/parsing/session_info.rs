@@ -1,8 +1,9 @@
 use std::convert::TryFrom;
 
 use chrono::{DateTime, FixedOffset, NaiveDateTime, Utc};
-use f1_term_core::session_info::{
-    ArchiveStatus, Circuit, Country, Meeting, SessionInfo, SessionStatus, SessionType,
+use f1_term_core::{
+    circuit::Circuit,
+    session_info::{ArchiveStatus, Country, Meeting, SessionInfo, SessionStatus, SessionType},
 };
 use serde::Deserialize;
 use serde_json::Value;
@@ -150,6 +151,7 @@ impl TryFrom<CircuitPayload> for Circuit {
         Ok(Circuit {
             key: value.Key,
             short_name: value.ShortName,
+            layout: None,
         })
     }
 }

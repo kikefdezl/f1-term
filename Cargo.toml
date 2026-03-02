@@ -4,15 +4,17 @@ version = "0.1.0"
 edition = "2024"
 
 [workspace]
-members = ["crates/f1-term-core", "crates/f1-term-client", "crates/f1-term-tui"]
+members = ["crates/f1-term-core", "crates/f1-term-multiviewer", "crates/f1-term-signalr", "crates/f1-term-tui"]
 
 [dependencies]
 crossterm = "0.29.0"
 directories = "6.0.0"
-f1-term-client = { version = "0.1.0", path = "crates/f1-term-client" }
+f1-term-signalr = { version = "0.1.0", path = "crates/f1-term-signalr" }
 f1-term-core = { version = "0.1.0", path = "crates/f1-term-core" }
 f1-term-tui = { version = "0.1.0", path = "crates/f1-term-tui" }
 ratatui = "0.30.0"
 simplelog = "0.12.2"
 tokio = { version = "1.49.0", features = ["full"] }
+unicode-width = "0.2.2"
+f1-term-multiviewer = { version = "0.1.0", path = "crates/f1-term-multiviewer" }
 

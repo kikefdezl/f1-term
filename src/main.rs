@@ -1,8 +1,9 @@
 use std::fs::File;
 
 use directories::ProjectDirs;
-use f1_term_client::signalr::client::SignalRF1Client;
-use f1_term_core::client::F1Client;
+use f1_term_core::telemetry_engine::TelemetryEngine;
+use f1_term_multiviewer::MultiviewerClient;
+use f1_term_signalr::client::SignalRF1Client;
 use f1_term_tui::app::App;
 use simplelog::{Config, LevelFilter, WriteLogger};
 
@@ -27,12 +28,21 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         File::create(&log_path).unwrap(),
     );
 
-    let mut client = SignalRF1Client::new();
-    client.connect().await?;
+    let telemetry_provider = SignalRF1Client::new();
+    let circuit_provider = MultiviewerClient::new();
+
+    let mut engine = TelemetryEngine::new(telemetry_provider, circuit_provider);
+    engine.connect().await?;
+
+    let state = engine.get_state();
+
+    tokio::spawn(async move {
+        engine.run().await;
+    });
 
     let mut terminal = ratatui::init();
 
-    let mut app = App::new(client);
+    let mut app = App::new(state);
     let res = app.run(&mut terminal).await;
 
     ratatui::restore();
