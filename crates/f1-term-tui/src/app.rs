@@ -14,7 +14,7 @@ use crate::{
     pages::{ActivePage, dashboard::DashboardPage},
 };
 
-const REFRESH_RATE_MILLIS: u64 = 200;
+const REFRESH_RATE_MILLIS: u64 = 333;
 
 pub struct App {
     state: Arc<RwLock<TelemetryState>>,
