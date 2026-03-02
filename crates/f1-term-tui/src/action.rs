@@ -1,4 +1,4 @@
-use std::sync::Arc;
+use std::sync::{Arc, RwLock};
 
 use f1_term_core::telemetry_state::TelemetryState;
 
@@ -10,7 +10,7 @@ pub enum Action {
     Render,
     Resize(u16, u16),
     KeyPress(crossterm::event::KeyEvent),
-    StateUpdate(Arc<TelemetryState>),
+    StateUpdate(Arc<RwLock<TelemetryState>>),
     Navigate(ActivePage),
     Quit,
 }

@@ -84,7 +84,7 @@ impl TryFrom<RaceControlMessagePayload> for RaceControlMessage {
 pub fn parse_race_control_messages(val: &Value) -> Result<Vec<RaceControlMessage>> {
     match val {
         Value::Object(_) => {
-            let payload: RaceControlMessagesPayload = serde_json::from_value(val.clone())?;
+            let payload: RaceControlMessagesPayload = RaceControlMessagesPayload::deserialize(val)?;
             payload
                 .Messages
                 .into_iter()

@@ -20,7 +20,8 @@ pub struct MessageLog {
 
 impl Component for MessageLog {
     fn update(&mut self, action: Action) -> Result<Option<Action>, Box<dyn std::error::Error>> {
-        if let Action::StateUpdate(ref state) = action {
+        if let Action::StateUpdate(ref state_lock) = action {
+            let state = state_lock.read().unwrap();
             let new_len = state.race_control_messages.len();
             let old_len = self.messages.len();
 

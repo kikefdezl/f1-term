@@ -50,18 +50,18 @@ impl App {
                 _ = render_interval.tick() => {
                     action_tx.send(Action::Tick)?;
 
-                    let state_clone = {
+                    let state_changed = {
                         let lock = self.state.read().unwrap();
                         if lock.update_version != last_update_version {
                             last_update_version = lock.update_version;
-                            Some(Arc::new((*lock).clone()))
+                            true
                         } else {
-                            None
+                            false
                         }
                     };
 
-                    if let Some(state) = state_clone {
-                        action_tx.send(Action::StateUpdate(state))?;
+                    if state_changed {
+                        action_tx.send(Action::StateUpdate(Arc::clone(&self.state)))?;
                     }
                 }
 

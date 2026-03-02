@@ -66,7 +66,7 @@ pub fn parse_stints(val: &Value) -> Result<HashMap<DriverNumber, Stints>> {
                 };
                 let driver_number = DriverNumber { value: number };
 
-                match serde_json::from_value::<DriverStintsPayload>(attrs.clone()) {
+                match DriverStintsPayload::deserialize(attrs) {
                     Ok(payload) => {
                         let driver_stints: Stints = payload
                             .Stints

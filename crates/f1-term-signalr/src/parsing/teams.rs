@@ -36,7 +36,7 @@ pub fn parse_teams(val: &Value) -> Result<HashMap<TeamName, Team>> {
             for (_, attrs) in map.iter() {
                 // Medical and safety cars don't have a team, so those fail to parse.
                 // We just ignore them.
-                match serde_json::from_value::<TeamPayload>(attrs.clone()) {
+                match TeamPayload::deserialize(attrs) {
                     Ok(payload) => match Team::try_from(payload) {
                         Ok(t) => {
                             teams.insert(t.name.clone(), t);

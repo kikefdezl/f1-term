@@ -130,7 +130,7 @@ impl TelemetryProvider for SignalRF1Client {
                         // 1. Initial State (the 'R' field from Subscribe)
                         if let Some(r) = json.get("R") {
                             debug!("Applying initial state (R field)");
-                            self.canonical_state = r.clone();
+                            self.canonical_state.clone_from(r);
                             if let Some(obj) = self.canonical_state.as_object() {
                                 updated_topics.extend(obj.keys().cloned());
                             }
@@ -201,12 +201,52 @@ fn merge_patch(a: &mut serde_json::Value, b: &serde_json::Value) {
                 if v.is_null() {
                     a_obj.remove(k);
                 } else {
-                    merge_patch(a_obj.entry(k.clone()).or_insert(Value::Null), v);
+                    if !a_obj.contains_key(k) {
+                        a_obj.insert(k.clone(), Value::Null);
+                    }
+                    merge_patch(a_obj.get_mut(k).unwrap(), v);
                 }
             }
         }
         (a_val, b_val) => {
-            *a_val = b_val.clone();
+            a_val.clone_from(b_val);
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use serde_json::json;
+
+    use super::*;
+
+    #[test]
+    fn test_merge_patch_basic() {
+        let mut a = json!({
+            "existing": "old",
+            "nested": { "child": "value", "child2": "value2"},
+            "array": [1, 2],
+            "to_remove": "bye"
+        });
+
+        let b = json!({
+            "existing": "new",
+            "new_key": 42,
+            "nested": { "child": "new", "child3": "value3" },
+            "array": [3, 4],
+            "to_remove": null
+        });
+
+        merge_patch(&mut a, &b);
+
+        assert_eq!(
+            a,
+            json!({
+                "existing": "new",
+                "new_key": 42,
+                "nested": { "child": "new", "child2": "value2" , "child3": "value3"},
+                "array": [3, 4]
+            })
+        );
     }
 }

@@ -64,7 +64,7 @@ pub fn parse_drivers(val: &Value) -> Result<HashMap<DriverNumber, Driver>> {
 
                 // Medical and safety cars don't have all fields, so those fail to parse.
                 // We just ignore them too.
-                match serde_json::from_value::<DriverPayload>(attrs.clone()) {
+                match DriverPayload::deserialize(attrs) {
                     Ok(payload) => match Driver::try_from(payload) {
                         Ok(d) => {
                             drivers.insert(driver_number, d);

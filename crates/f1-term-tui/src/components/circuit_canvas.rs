@@ -17,11 +17,11 @@ pub struct CircuitCanvas {
 
 impl Component for CircuitCanvas {
     fn update(&mut self, action: Action) -> Result<Option<Action>, Box<dyn Error>> {
-        if let Action::StateUpdate(state) = &action {
-            self.layout = state
-                .info
-                .as_ref()
-                .and_then(|info| info.meeting.circuit.layout.clone());
+        if let Action::StateUpdate(state_lock) = &action {
+            let state = state_lock.read().unwrap();
+            if let Some(info) = state.info.as_ref() {
+                self.layout.clone_from(&info.meeting.circuit.layout);
+            }
         }
         Ok(None)
     }

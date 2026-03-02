@@ -185,7 +185,7 @@ pub fn parse_timing_data(val: &Value) -> Result<HashMap<DriverNumber, LiveTiming
                     Err(_) => continue,
                 };
                 let driver_number = DriverNumber { value: number };
-                match serde_json::from_value::<LiveTimingPayload>(attrs.clone()) {
+                match LiveTimingPayload::deserialize(attrs) {
                     Ok(payload) => match LiveTiming::try_from(payload) {
                         Ok(lt) => {
                             timing_data.insert(driver_number, lt);

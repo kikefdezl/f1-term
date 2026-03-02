@@ -1,5 +1,3 @@
-use std::sync::Arc;
-
 use crossterm::event::KeyCode;
 use f1_term_core::{
     driver::Driver,
@@ -25,6 +23,7 @@ const COLOR_OVERALL_FASTEST: Color = Color::from_u32(0xB11DFB); // #B11DFB
 const COLOR_PERSONAL_FASTEST: Color = Color::from_u32(0x33D176); // #33D176
 const COLOR_SLOWER: Color = Color::Yellow;
 
+#[derive(Default)]
 pub struct TimingTableData {
     driver_tla: String,
     driver_number: String,
@@ -47,39 +46,51 @@ pub struct TimingTableDataArgs<'a> {
     pub stints: Option<&'a Stints>,
 }
 
-impl From<&TimingTableDataArgs<'_>> for TimingTableData {
-    fn from(args: &'_ TimingTableDataArgs) -> Self {
-        TimingTableData {
-            driver_tla: args.driver.tla.clone(),
-            driver_number: args.driver.number.value.to_string(),
-            team_color: Color::from_u32(args.team.color.u32),
-            tire_compound: args
-                .stints
-                .and_then(|s| s.last().map(|stint| stint.compound.clone())),
-            tire_laps: args
-                .stints
-                .and_then(|s| s.last().map(|stint| stint.total_laps)),
-            best_lap_time: args.live_timing.and_then(|lt| lt.best_lap_time.clone()),
-            last_lap_time: args.live_timing.and_then(|lt| lt.last_lap.time.clone()),
-            last_lap_overall_fastest: args
-                .live_timing
-                .map(|lt| lt.last_lap.overall_fastest)
-                .unwrap_or(false),
-            last_lap_personal_fastest: args
-                .live_timing
-                .map(|lt| lt.last_lap.personal_fastest)
-                .unwrap_or(false),
-            sectors: args
-                .live_timing
-                .map(|lt| lt.last_lap.sectors.clone())
-                .unwrap_or_default(),
-            time_diff_to_fastest: args
+impl TimingTableData {
+    fn update_from(&mut self, args: &TimingTableDataArgs<'_>) {
+        self.driver_tla.clone_from(&args.driver.tla);
+        self.driver_number = args.driver.number.value.to_string();
+        self.team_color = Color::from_u32(args.team.color.u32);
+
+        let last_stint = args.stints.and_then(|s| s.last());
+        if let Some(stint) = last_stint {
+            self.tire_compound = Some(stint.compound.clone());
+            self.tire_laps = Some(stint.total_laps);
+        } else {
+            self.tire_compound = None;
+            self.tire_laps = None;
+        }
+
+        self.best_lap_time
+            .clone_from(&args.live_timing.and_then(|lt| lt.best_lap_time.clone()));
+        self.last_lap_time
+            .clone_from(&args.live_timing.and_then(|lt| lt.last_lap.time.clone()));
+
+        self.last_lap_overall_fastest = args
+            .live_timing
+            .map(|lt| lt.last_lap.overall_fastest)
+            .unwrap_or(false);
+        self.last_lap_personal_fastest = args
+            .live_timing
+            .map(|lt| lt.last_lap.personal_fastest)
+            .unwrap_or(false);
+
+        if let Some(lt) = args.live_timing {
+            self.sectors.clone_from(&lt.last_lap.sectors);
+        } else {
+            self.sectors.clear();
+        }
+
+        self.time_diff_to_fastest.clone_from(
+            &args
                 .live_timing
                 .and_then(|lt| lt.time_diff_to_fastest.clone()),
-            time_diff_to_position_ahead: args
+        );
+        self.time_diff_to_position_ahead.clone_from(
+            &args
                 .live_timing
                 .and_then(|lt| lt.time_diff_to_position_ahead.clone()),
-        }
+        );
     }
 }
 
@@ -135,18 +146,25 @@ impl TimingTable {
         self.state.select(Some(i));
     }
 
-    fn update_data(&mut self, state: &Arc<TelemetryState>) {
-        let mut tds = Vec::new();
-        for participant in state.leaderboard() {
+    fn update_data(&mut self, state: &TelemetryState) {
+        let leaderboard = state.leaderboard();
+
+        if self.items.len() < leaderboard.len() {
+            self.items
+                .resize_with(leaderboard.len(), TimingTableData::default);
+        } else {
+            self.items.truncate(leaderboard.len());
+        }
+
+        for (i, participant) in leaderboard.into_iter().enumerate() {
             let args = TimingTableDataArgs {
                 driver: participant.driver,
                 team: participant.team,
                 live_timing: participant.timing,
                 stints: participant.stints,
             };
-            tds.push(TimingTableData::from(&args));
+            self.items[i].update_from(&args);
         }
-        self.items = tds;
     }
 }
 
@@ -168,9 +186,10 @@ impl Component for TimingTable {
                 }
                 _ => {}
             },
-            Action::StateUpdate(ref state) => {
+            Action::StateUpdate(ref state_lock) => {
+                let state = state_lock.read().unwrap();
                 if !state.drivers.is_empty() && !state.teams.is_empty() {
-                    self.update_data(state);
+                    self.update_data(&state);
                     return Ok(Some(Action::Render));
                 }
             }

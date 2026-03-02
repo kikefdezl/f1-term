@@ -1,5 +1,3 @@
-use std::sync::Arc;
-
 use f1_term_core::{telemetry_state::TelemetryState, track_status::TrackStatus, weather::Weather};
 use ratatui::{
     Frame,
@@ -24,8 +22,9 @@ pub struct TitleBar {
 
 impl Component for TitleBar {
     fn update(&mut self, action: Action) -> Result<Option<Action>, Box<dyn std::error::Error>> {
-        if let Action::StateUpdate(ref state) = action {
-            let updated = self.update_data(state);
+        if let Action::StateUpdate(ref state_lock) = action {
+            let state = state_lock.read().unwrap();
+            let updated = self.update_data(&state);
             if updated {
                 return Ok(Some(Action::Render));
             }
@@ -145,11 +144,12 @@ impl TitleBar {
             format!("{}%  ", self.weather.humidity).into(),
         ])
     }
-    fn update_data(&mut self, state: &Arc<TelemetryState>) -> bool {
+    fn update_data(&mut self, state: &TelemetryState) -> bool {
         let mut updated = false;
         if let Some(info) = &state.info {
             if self.session_official_name != info.meeting.official_name {
-                self.session_official_name = info.meeting.official_name.clone();
+                self.session_official_name
+                    .clone_from(&info.meeting.official_name);
                 updated = true;
             }
             if self.session_type != info.type_.to_string() {
@@ -157,26 +157,28 @@ impl TitleBar {
                 updated = true;
             }
             if self.session_name != info.name {
-                self.session_name = info.name.clone();
+                self.session_name.clone_from(&info.name);
                 updated = true;
             }
             if self.session_circuit_name != info.meeting.circuit.short_name {
-                self.session_circuit_name = info.meeting.circuit.short_name.clone();
+                self.session_circuit_name
+                    .clone_from(&info.meeting.circuit.short_name);
                 updated = true;
             }
             if self.session_country_name != info.meeting.country.name {
-                self.session_country_name = info.meeting.country.name.clone();
+                self.session_country_name
+                    .clone_from(&info.meeting.country.name);
                 updated = true;
             }
         }
         if let Some(sw) = &state.weather
             && self.weather != *sw
         {
-            self.weather = sw.clone();
+            self.weather.clone_from(sw);
             updated = true;
         }
         if self.track_status != state.track_status {
-            self.track_status = state.track_status.clone();
+            self.track_status.clone_from(&state.track_status);
             updated = true;
         }
         updated

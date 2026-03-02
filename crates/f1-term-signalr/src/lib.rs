@@ -1,4 +1,3 @@
 pub mod client;
-
-mod parsing;
-mod topic;
+pub mod parsing;
+pub mod topic;

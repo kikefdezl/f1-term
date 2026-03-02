@@ -158,7 +158,7 @@ impl TryFrom<CircuitPayload> for Circuit {
 
 pub fn parse_session_info(val: &Value) -> Result<SessionInfo> {
     match val {
-        Value::Object(_) => match serde_json::from_value::<SessionInfoPayload>(val.clone()) {
+        Value::Object(_) => match SessionInfoPayload::deserialize(val) {
             Ok(sip) => SessionInfo::try_from(sip),
             Err(_) => Err("Failed to parse SeesionInfoPayload".into()),
         },

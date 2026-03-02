@@ -23,6 +23,6 @@ impl TryFrom<TrackStatusPayload> for TrackStatus {
 }
 
 pub fn parse_track_status(val: &Value) -> Result<TrackStatus> {
-    let payload: TrackStatusPayload = serde_json::from_value(val.clone())?;
+    let payload: TrackStatusPayload = TrackStatusPayload::deserialize(val)?;
     TrackStatus::try_from(payload)
 }

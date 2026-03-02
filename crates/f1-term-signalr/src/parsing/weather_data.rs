@@ -36,7 +36,7 @@ impl TryFrom<WeatherDataPayload> for Weather {
     }
 }
 pub fn parse_weather_data(val: &Value) -> Result<Weather> {
-    let payload: WeatherDataPayload = serde_json::from_value(val.clone())?;
+    let payload: WeatherDataPayload = WeatherDataPayload::deserialize(val)?;
     Weather::try_from(payload)
 }
 
