@@ -1,9 +1,9 @@
 use std::convert::TryFrom;
 
 use chrono::{DateTime, FixedOffset, NaiveDateTime, Utc};
-use f1_term_core::circuit::Circuit;
-use f1_term_core::session_info::{
-    ArchiveStatus, Country, Meeting, SessionInfo, SessionStatus, SessionType,
+use f1_term_core::{
+    circuit::Circuit,
+    session_info::{ArchiveStatus, Country, Meeting, SessionInfo, SessionStatus, SessionType},
 };
 use serde::Deserialize;
 use serde_json::Value;

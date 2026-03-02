@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use f1_term_core::session::Session;
+use f1_term_core::telemetry_state::TelemetryState;
 
 use crate::pages::ActivePage;
 
@@ -10,7 +10,7 @@ pub enum Action {
     Render,
     Resize(u16, u16),
     KeyPress(crossterm::event::KeyEvent),
-    SessionUpdate(Arc<Session>),
+    StateUpdate(Arc<TelemetryState>),
     Navigate(ActivePage),
     Quit,
 }
@@ -22,7 +22,7 @@ impl Action {
             Action::Render => true,
             Action::Resize(_, _) => true,
             Action::KeyPress(_) => false,
-            Action::SessionUpdate(_) => true,
+            Action::StateUpdate(_) => true,
             Action::Navigate(_) => true,
             Action::Quit => false,
         }

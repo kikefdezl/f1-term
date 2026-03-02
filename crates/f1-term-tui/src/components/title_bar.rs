@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use f1_term_core::{session::Session, track_status::TrackStatus, weather::Weather};
+use f1_term_core::{telemetry_state::TelemetryState, track_status::TrackStatus, weather::Weather};
 use ratatui::{
     Frame,
     layout::{Alignment, Constraint, Layout, Rect},
@@ -24,8 +24,8 @@ pub struct TitleBar {
 
 impl Component for TitleBar {
     fn update(&mut self, action: Action) -> Result<Option<Action>, Box<dyn std::error::Error>> {
-        if let Action::SessionUpdate(ref session) = action {
-            let updated = self.update_data(session);
+        if let Action::StateUpdate(ref state) = action {
+            let updated = self.update_data(state);
             if updated {
                 return Ok(Some(Action::Render));
             }
@@ -145,36 +145,38 @@ impl TitleBar {
             format!("{}%  ", self.weather.humidity).into(),
         ])
     }
-    fn update_data(&mut self, session: &Arc<Session>) -> bool {
+    fn update_data(&mut self, state: &Arc<TelemetryState>) -> bool {
         let mut updated = false;
-        if self.session_official_name != session.info.meeting.official_name {
-            self.session_official_name = session.info.meeting.official_name.clone();
-            updated = true;
+        if let Some(info) = &state.info {
+            if self.session_official_name != info.meeting.official_name {
+                self.session_official_name = info.meeting.official_name.clone();
+                updated = true;
+            }
+            if self.session_type != info.type_.to_string() {
+                self.session_type = info.type_.to_string();
+                updated = true;
+            }
+            if self.session_name != info.name {
+                self.session_name = info.name.clone();
+                updated = true;
+            }
+            if self.session_circuit_name != info.meeting.circuit.short_name {
+                self.session_circuit_name = info.meeting.circuit.short_name.clone();
+                updated = true;
+            }
+            if self.session_country_name != info.meeting.country.name {
+                self.session_country_name = info.meeting.country.name.clone();
+                updated = true;
+            }
         }
-        if self.session_type != session.info.type_.to_string() {
-            self.session_type = session.info.type_.to_string();
-            updated = true;
-        }
-        if self.session_name != session.info.name {
-            self.session_name = session.info.name.clone();
-            updated = true;
-        }
-        if self.session_circuit_name != session.info.meeting.circuit.short_name {
-            self.session_circuit_name = session.info.meeting.circuit.short_name.clone();
-            updated = true;
-        }
-        if self.session_country_name != session.info.meeting.country.name {
-            self.session_country_name = session.info.meeting.country.name.clone();
-            updated = true;
-        }
-        if let Some(sw) = &session.weather
+        if let Some(sw) = &state.weather
             && self.weather != *sw
         {
             self.weather = sw.clone();
             updated = true;
         }
-        if self.track_status != session.track_status {
-            self.track_status = session.track_status.clone();
+        if self.track_status != state.track_status {
+            self.track_status = state.track_status.clone();
             updated = true;
         }
         updated

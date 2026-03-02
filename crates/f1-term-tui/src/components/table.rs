@@ -3,9 +3,9 @@ use std::sync::Arc;
 use crossterm::event::KeyCode;
 use f1_term_core::{
     driver::Driver,
-    session::Session,
     stint::{Compound, Stints},
     team::Team,
+    telemetry_state::TelemetryState,
     timing::{LiveTiming, Sector, Segment, SegmentStatus},
 };
 use ratatui::{
@@ -135,9 +135,9 @@ impl TimingTable {
         self.state.select(Some(i));
     }
 
-    fn update_data(&mut self, session: &Arc<Session>) {
+    fn update_data(&mut self, state: &Arc<TelemetryState>) {
         let mut tds = Vec::new();
-        for participant in session.leaderboard() {
+        for participant in state.leaderboard() {
             let args = TimingTableDataArgs {
                 driver: participant.driver,
                 team: participant.team,
@@ -168,9 +168,9 @@ impl Component for TimingTable {
                 }
                 _ => {}
             },
-            Action::SessionUpdate(ref session) => {
-                if !session.drivers.is_empty() && !session.teams.is_empty() {
-                    self.update_data(session);
+            Action::StateUpdate(ref state) => {
+                if !state.drivers.is_empty() && !state.teams.is_empty() {
+                    self.update_data(state);
                     return Ok(Some(Action::Render));
                 }
             }

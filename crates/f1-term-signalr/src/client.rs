@@ -1,4 +1,4 @@
-use f1_term_core::client::{F1Client, TelemetryEvent};
+use f1_term_core::telemetry_provider::{TelemetryProvider, TelemetryUpdate};
 use futures_util::{
     SinkExt, StreamExt,
     stream::{SplitSink, SplitStream},
@@ -67,7 +67,7 @@ struct NegotiateResponse {
     connection_token: String,
 }
 
-impl F1Client for SignalRF1Client {
+impl TelemetryProvider for SignalRF1Client {
     async fn connect(&mut self) -> Result<(), Box<dyn std::error::Error>> {
         info!("=== Negotiating connection ===");
 
@@ -117,21 +117,23 @@ impl F1Client for SignalRF1Client {
         Ok(())
     }
 
-    async fn next_event(&mut self) -> Option<TelemetryEvent> {
+    async fn next_updates(&mut self) -> Option<Vec<TelemetryUpdate>> {
         let reader = self.reader.as_mut()?;
 
         loop {
             match reader.next().await? {
                 Ok(Message::Text(text)) => {
                     debug!("Received SignalR Text Message. Length: {}", text.len());
-                    let mut updated = false;
+                    let mut updated_topics = Vec::new();
 
                     if let Ok(json) = serde_json::from_str::<serde_json::Value>(&text) {
                         // 1. Initial State (the 'R' field from Subscribe)
                         if let Some(r) = json.get("R") {
                             debug!("Applying initial state (R field)");
                             self.canonical_state = r.clone();
-                            updated = true;
+                            if let Some(obj) = self.canonical_state.as_object() {
+                                updated_topics.extend(obj.keys().cloned());
+                            }
                         }
 
                         // 2. Partial Updates (the 'M' array of messages)
@@ -155,24 +157,18 @@ impl F1Client for SignalRF1Client {
                                         .entry(topic.to_string())
                                         .or_insert_with(|| json!({}));
                                     merge_patch(topic_entry, delta);
-                                    updated = true;
+                                    if !updated_topics.contains(&topic.to_string()) {
+                                        updated_topics.push(topic.to_string());
+                                    }
                                 }
                             }
                         }
                     }
 
-                    if updated {
-                        if let Some(event) = parse_message(&self.canonical_state) {
-                            match &event {
-                                TelemetryEvent::SessionUpdate(_) => {
-                                    info!("Parsed SessionUpdate Telemetry Snapshot")
-                                }
-                                TelemetryEvent::Empty => debug!("Parsed Empty Telemetry Event"),
-                            }
-                            return Some(event);
-                        } else {
-                            debug!("Failed to parse canonical state into snapshot");
-                        }
+                    if !updated_topics.is_empty() {
+                        let updates = parse_message(&self.canonical_state, &updated_topics);
+                        info!("Parsed {} delta updates", updates.len());
+                        return Some(updates);
                     }
                 }
                 Ok(Message::Close(_)) => {

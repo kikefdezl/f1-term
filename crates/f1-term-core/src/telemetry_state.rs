@@ -10,9 +10,9 @@ use super::{
 };
 use crate::{race_control_message::RaceControlMessage, session_info::SessionInfo};
 
-#[derive(Debug)]
-pub struct Session {
-    pub info: SessionInfo,
+#[derive(Debug, Default, Clone)]
+pub struct TelemetryState {
+    pub info: Option<SessionInfo>,
     pub teams: HashMap<TeamName, Team>,
     pub drivers: HashMap<DriverNumber, Driver>,
     pub timing_data: HashMap<DriverNumber, LiveTiming>,
@@ -30,7 +30,7 @@ pub struct ParticipantContext<'a> {
     pub stints: Option<&'a Stints>,
 }
 
-impl Session {
+impl TelemetryState {
     /// Returns the active grid joined together and ordered by their live timing position.
     /// If timing data is missing, falls back to their natural grid line order.
     pub fn leaderboard(&self) -> Vec<ParticipantContext<'_>> {

@@ -5,7 +5,7 @@ pub struct DriverNumber {
     pub value: u8,
 }
 
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub struct Driver {
     pub number: DriverNumber,
     pub team_name: TeamName,

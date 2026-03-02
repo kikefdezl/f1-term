@@ -20,12 +20,12 @@ pub struct MessageLog {
 
 impl Component for MessageLog {
     fn update(&mut self, action: Action) -> Result<Option<Action>, Box<dyn std::error::Error>> {
-        if let Action::SessionUpdate(ref session) = action {
-            let new_len = session.race_control_messages.len();
+        if let Action::StateUpdate(ref state) = action {
+            let new_len = state.race_control_messages.len();
             let old_len = self.messages.len();
 
             if new_len > 0 && new_len != old_len {
-                self.messages.clone_from(&session.race_control_messages);
+                self.messages.clone_from(&state.race_control_messages);
                 return Ok(Some(Action::Render));
             }
         }

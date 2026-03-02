@@ -1,7 +1,10 @@
-use std::time::Duration;
+use std::{
+    sync::{Arc, RwLock},
+    time::Duration,
+};
 
 use crossterm::event::{self, Event as CrosstermEvent, KeyCode};
-use f1_term_core::client::{F1Client, TelemetryEvent};
+use f1_term_core::telemetry_state::TelemetryState;
 use ratatui::{DefaultTerminal, Frame};
 use tokio::{sync::mpsc, time::interval};
 
@@ -13,17 +16,17 @@ use crate::{
 
 const REFRESH_RATE_MILLIS: u64 = 200;
 
-pub struct App<C: F1Client> {
-    client: C,
+pub struct App {
+    state: Arc<RwLock<TelemetryState>>,
     active_page: ActivePage,
     live_timing_page: DashboardPage,
     exit: bool,
 }
 
-impl<C: F1Client> App<C> {
-    pub fn new(client: C) -> Self {
+impl App {
+    pub fn new(state: Arc<RwLock<TelemetryState>>) -> Self {
         Self {
-            client,
+            state,
             active_page: ActivePage::default(),
             live_timing_page: DashboardPage::default(),
             exit: false,
@@ -42,14 +45,14 @@ impl<C: F1Client> App<C> {
 
         while !self.exit {
             tokio::select! {
-                update = self.client.next_event() => {
-                    if let Some(TelemetryEvent::SessionUpdate(fs)) = update {
-                        action_tx.send(Action::SessionUpdate(fs))?;
-                    }
-                }
-
                 _ = render_interval.tick() => {
                     action_tx.send(Action::Tick)?;
+
+                    let state_clone = {
+                        let lock = self.state.read().unwrap();
+                        Arc::new((*lock).clone())
+                    };
+                    action_tx.send(Action::StateUpdate(state_clone))?;
                 }
 
                 Some(action) = action_rx.recv() => {

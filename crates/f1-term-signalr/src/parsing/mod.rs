@@ -1,12 +1,11 @@
-use std::{collections::HashMap, sync::Arc};
+use std::collections::HashMap;
 
 use f1_term_core::{
-    client::TelemetryEvent,
     driver::{Driver, DriverNumber},
-    session::Session,
     team::{Team, TeamName},
+    telemetry_provider::TelemetryUpdate,
 };
-use log::{debug, error, info};
+use log::info;
 
 use self::{
     drivers::parse_drivers, stints::parse_stints, teams::parse_teams,
@@ -31,73 +30,49 @@ pub mod weather_data;
 
 type Result<T> = std::result::Result<T, Box<dyn std::error::Error>>;
 
-pub fn parse_message(state: &serde_json::Value) -> Option<TelemetryEvent> {
-    if let Some(obj) = state.as_object() {
-        let keys: Vec<&str> = obj.keys().map(|k| k.as_str()).collect();
-        debug!("Canonical state contains topics: {:?}", keys);
-    } else {
-        debug!("Canonical state is not an object: {:?}", state);
+pub fn parse_message(state: &serde_json::Value, updated_topics: &[String]) -> Vec<TelemetryUpdate> {
+    let mut events = Vec::new();
+
+    for topic_str in updated_topics {
+        if let Some(topic_data) = state.get(topic_str) {
+            if topic_str == &Topic::DriverList.to_string() {
+                let drivers: HashMap<DriverNumber, Driver> =
+                    parse_drivers(topic_data).unwrap_or_default();
+                let teams: HashMap<TeamName, Team> = parse_teams(topic_data).unwrap_or_default();
+                events.push(TelemetryUpdate::DriverList(drivers, teams));
+            } else if topic_str == &Topic::SessionInfo.to_string() {
+                if let Ok(info) = parse_session_info(topic_data) {
+                    events.push(TelemetryUpdate::SessionInfo(Box::new(info)));
+                }
+            } else if topic_str == &Topic::TimingData.to_string() {
+                if let Ok(timing_data) = parse_timing_data(topic_data) {
+                    events.push(TelemetryUpdate::TimingData(timing_data));
+                } else {
+                    info!("Failed to parse timing data");
+                }
+            } else if topic_str == &Topic::TimingAppData.to_string() {
+                if let Ok(stints) = parse_stints(topic_data) {
+                    events.push(TelemetryUpdate::Stints(stints));
+                } else {
+                    info!("Failed to parse stints");
+                }
+            } else if topic_str == &Topic::TrackStatus.to_string() {
+                if let Ok(track_status) = parse_track_status(topic_data) {
+                    events.push(TelemetryUpdate::TrackStatus(track_status));
+                }
+            } else if topic_str == &Topic::RaceControlMessages.to_string() {
+                if let Ok(race_control_messages) = parse_race_control_messages(topic_data) {
+                    events.push(TelemetryUpdate::RaceControlMessages(race_control_messages));
+                } else {
+                    info!("Failed to parse race control messages");
+                }
+            } else if topic_str == &Topic::WeatherData.to_string()
+                && let Ok(weather) = parse_weather_data(topic_data)
+            {
+                events.push(TelemetryUpdate::Weather(weather));
+            }
+        }
     }
 
-    let (drivers, teams) = match state.get(Topic::DriverList.to_string()) {
-        None => (HashMap::new(), HashMap::new()),
-        Some(dl) => {
-            let drivers: HashMap<DriverNumber, Driver> = parse_drivers(dl).unwrap_or_default();
-            let teams: HashMap<TeamName, Team> = parse_teams(dl).ok().unwrap_or_default();
-            (drivers, teams)
-        }
-    };
-
-    let info = match state.get(Topic::SessionInfo.to_string()) {
-        None => {
-            error!("No message from the SessionInfo topic!");
-            return None;
-        }
-        Some(si) => parse_session_info(si).ok()?,
-    };
-
-    let timing_data = match state.get(Topic::TimingData.to_string()) {
-        None => HashMap::new(),
-        Some(td) => parse_timing_data(td).unwrap_or_else(|e| {
-            info!("Failed to parse timing data: {}", e);
-            HashMap::new()
-        }),
-    };
-
-    let stints = match state.get(Topic::TimingAppData.to_string()) {
-        None => HashMap::new(),
-        Some(td) => parse_stints(td).unwrap_or_else(|e| {
-            info!("Failed to parse stints: {}", e);
-            HashMap::new()
-        }),
-    };
-
-    let track_status = state
-        .get(Topic::TrackStatus.to_string())
-        .and_then(|ts| parse_track_status(ts).ok());
-
-    let race_control_messages = match state.get(Topic::RaceControlMessages.to_string()) {
-        None => Vec::new(),
-        Some(rcm) => parse_race_control_messages(rcm).unwrap_or_else(|e| {
-            info!("Failed to parse race control messages: {}", e);
-            Vec::new()
-        }),
-    };
-
-    let weather = state
-        .get(Topic::WeatherData.to_string())
-        .and_then(|wd| parse_weather_data(wd).ok());
-
-    let session = Session {
-        info,
-        drivers,
-        teams,
-        timing_data,
-        stints,
-        track_status,
-        race_control_messages,
-        weather,
-    };
-
-    Some(TelemetryEvent::SessionUpdate(Arc::new(session)))
+    events
 }

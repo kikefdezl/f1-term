@@ -1,12 +1,13 @@
 pub mod circuit;
-pub mod client;
 pub mod driver;
 pub mod flag;
 pub mod race_control_message;
-pub mod session;
 pub mod session_info;
 pub mod stint;
 pub mod team;
+pub mod telemetry_engine;
+pub mod telemetry_provider;
+pub mod telemetry_state;
 pub mod timing;
 pub mod track_status;
 pub mod weather;
