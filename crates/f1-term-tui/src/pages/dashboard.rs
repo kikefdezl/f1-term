@@ -5,7 +5,10 @@ use ratatui::{
 
 use crate::{
     action::Action,
-    components::{Component, message_log::MessageLog, table::TimingTable, title_bar::TitleBar},
+    components::{
+        Component, circuit_canvas::CircuitCanvas, message_log::MessageLog,
+        timing_table::TimingTable, title_bar::TitleBar,
+    },
 };
 
 #[derive(Default)]
@@ -13,6 +16,7 @@ pub struct DashboardPage {
     title_bar: TitleBar,
     table: TimingTable,
     message_log: MessageLog,
+    circuit_canvas: CircuitCanvas,
 }
 
 impl Component for DashboardPage {
@@ -30,7 +34,10 @@ impl Component for DashboardPage {
         if let Some(Action::Render) = self.table.update(action.clone())? {
             should_render = true;
         }
-        if let Some(Action::Render) = self.message_log.update(action)? {
+        if let Some(Action::Render) = self.message_log.update(action.clone())? {
+            should_render = true;
+        }
+        if let Some(Action::Render) = self.circuit_canvas.update(action)? {
             should_render = true;
         }
 
@@ -42,13 +49,17 @@ impl Component for DashboardPage {
     }
 
     fn draw(&mut self, frame: &mut Frame, area: Rect) -> Result<(), Box<dyn std::error::Error>> {
-        let top_bottom = Layout::vertical([Constraint::Length(3), Constraint::Min(0)]).split(area);
-        let left_right =
-            Layout::horizontal([Constraint::Min(0), Constraint::Length(45)]).split(top_bottom[1]);
+        let [title, rest] =
+            Layout::vertical([Constraint::Length(3), Constraint::Min(0)]).areas(area);
+        let [table, right] =
+            Layout::horizontal([Constraint::Min(0), Constraint::Length(45)]).areas(rest);
+        let [canvas, messages] =
+            Layout::vertical([Constraint::Percentage(50), Constraint::Percentage(50)]).areas(right);
 
-        self.title_bar.draw(frame, top_bottom[0])?;
-        self.table.draw(frame, left_right[0])?;
-        self.message_log.draw(frame, left_right[1])?;
+        self.title_bar.draw(frame, title)?;
+        self.table.draw(frame, table)?;
+        self.message_log.draw(frame, messages)?;
+        self.circuit_canvas.draw(frame, canvas)?;
 
         Ok(())
     }

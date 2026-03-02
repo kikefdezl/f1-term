@@ -35,54 +35,38 @@ impl<T: TelemetryProvider, C: CircuitLayoutProvider> TelemetryEngine<T, C> {
 
     pub async fn run(&mut self) {
         while let Some(updates) = self.telemetry_provider.next_updates().await {
-            for update in updates {
-                match update {
-                    TelemetryUpdate::SessionInfo(info) => {
-                        let circuit_key = info.meeting.circuit.key;
+            let mut fetched_layout = None;
+            for update in &updates {
+                if let TelemetryUpdate::SessionInfo(info) = update {
+                    let circuit_key = info.meeting.circuit.key;
+                    if circuit_key != self._cached_circuit_key {
                         let year = info.start_date.year() as u32;
-
-                        {
-                            let mut state_lock = self.state.write().unwrap();
-                            state_lock.info = Some(*info);
-                        }
-
-                        if circuit_key != self._cached_circuit_key
-                            && let Ok(layout) = self.circuit_provider.fetch(circuit_key, year).await
-                        {
-                            let mut state_lock = self.state.write().unwrap();
-                            if let Some(info_mut) = &mut state_lock.info {
-                                info_mut.meeting.circuit.layout = Some(layout);
-                            }
-                            self._cached_circuit_key = circuit_key;
+                        if let Ok(layout) = self.circuit_provider.fetch(circuit_key, year).await {
+                            fetched_layout = Some((circuit_key, layout));
                         }
                     }
-                    TelemetryUpdate::DriverList(drivers, teams) => {
-                        let mut state_lock = self.state.write().unwrap();
-                        state_lock.drivers = drivers;
-                        state_lock.teams = teams;
-                    }
-                    TelemetryUpdate::TimingData(timing_data) => {
-                        let mut state_lock = self.state.write().unwrap();
-                        state_lock.timing_data = timing_data;
-                    }
-                    TelemetryUpdate::Stints(stints) => {
-                        let mut state_lock = self.state.write().unwrap();
-                        state_lock.stints = stints;
-                    }
-                    TelemetryUpdate::TrackStatus(track_status) => {
-                        let mut state_lock = self.state.write().unwrap();
-                        state_lock.track_status = Some(track_status);
-                    }
-                    TelemetryUpdate::RaceControlMessages(messages) => {
-                        let mut state_lock = self.state.write().unwrap();
-                        state_lock.race_control_messages = messages;
-                    }
-                    TelemetryUpdate::Weather(weather) => {
-                        let mut state_lock = self.state.write().unwrap();
-                        state_lock.weather = Some(weather);
-                    }
-                    TelemetryUpdate::Empty => {}
                 }
+            }
+
+            let mut state_lock = self.state.write().unwrap();
+            let mut state_changed = false;
+
+            for update in updates {
+                if state_lock.apply(update) {
+                    state_changed = true;
+                }
+            }
+
+            if let Some((circuit_key, layout)) = fetched_layout {
+                if let Some(info_mut) = &mut state_lock.info {
+                    info_mut.meeting.circuit.layout = Some(layout);
+                }
+                self._cached_circuit_key = circuit_key;
+                state_changed = true;
+            }
+
+            if state_changed {
+                state_lock.update_version += 1;
             }
         }
     }

@@ -507,6 +507,7 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "chrono",
+ "log",
 ]
 
 [[package]]
@@ -544,6 +545,7 @@ version = "0.1.0"
 dependencies = [
  "crossterm",
  "f1-term-core",
+ "log",
  "ratatui",
  "tokio",
 ]

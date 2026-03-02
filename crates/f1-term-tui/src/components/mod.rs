@@ -2,8 +2,9 @@ use ratatui::{Frame, layout::Rect};
 
 use crate::action::Action;
 
+pub mod circuit_canvas;
 pub mod message_log;
-pub mod table;
+pub mod timing_table;
 pub mod title_bar;
 
 pub trait Component {

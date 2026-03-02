@@ -43,6 +43,8 @@ impl App {
 
         self.live_timing_page.init()?;
 
+        let mut last_update_version = u64::MAX;
+
         while !self.exit {
             tokio::select! {
                 _ = render_interval.tick() => {
@@ -50,9 +52,17 @@ impl App {
 
                     let state_clone = {
                         let lock = self.state.read().unwrap();
-                        Arc::new((*lock).clone())
+                        if lock.update_version != last_update_version {
+                            last_update_version = lock.update_version;
+                            Some(Arc::new((*lock).clone()))
+                        } else {
+                            None
+                        }
                     };
-                    action_tx.send(Action::StateUpdate(state_clone))?;
+
+                    if let Some(state) = state_clone {
+                        action_tx.send(Action::StateUpdate(state))?;
+                    }
                 }
 
                 Some(action) = action_rx.recv() => {

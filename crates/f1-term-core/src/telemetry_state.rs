@@ -8,10 +8,14 @@ use super::{
     track_status::TrackStatus,
     weather::Weather,
 };
-use crate::{race_control_message::RaceControlMessage, session_info::SessionInfo};
+use crate::{
+    race_control_message::RaceControlMessage, session_info::SessionInfo,
+    telemetry_provider::TelemetryUpdate,
+};
 
 #[derive(Debug, Default, Clone)]
 pub struct TelemetryState {
+    pub update_version: u64,
     pub info: Option<SessionInfo>,
     pub teams: HashMap<TeamName, Team>,
     pub drivers: HashMap<DriverNumber, Driver>,
@@ -31,8 +35,6 @@ pub struct ParticipantContext<'a> {
 }
 
 impl TelemetryState {
-    /// Returns the active grid joined together and ordered by their live timing position.
-    /// If timing data is missing, falls back to their natural grid line order.
     pub fn leaderboard(&self) -> Vec<ParticipantContext<'_>> {
         let mut contexts = Vec::with_capacity(self.drivers.len());
 
@@ -65,5 +67,45 @@ impl TelemetryState {
         });
 
         contexts
+    }
+
+    pub fn apply(&mut self, update: TelemetryUpdate) -> bool {
+        match update {
+            TelemetryUpdate::SessionInfo(mut info) => {
+                if let Some(mut old_info) = self.info.take()
+                    && old_info.meeting.circuit.key == info.meeting.circuit.key
+                {
+                    info.meeting.circuit.layout = old_info.meeting.circuit.layout.take();
+                }
+                self.info = Some(*info);
+                true
+            }
+            TelemetryUpdate::DriverList(drivers, teams) => {
+                self.drivers = drivers;
+                self.teams = teams;
+                true
+            }
+            TelemetryUpdate::TimingData(timing_data) => {
+                self.timing_data = timing_data;
+                true
+            }
+            TelemetryUpdate::Stints(stints) => {
+                self.stints = stints;
+                true
+            }
+            TelemetryUpdate::TrackStatus(track_status) => {
+                self.track_status = Some(track_status);
+                true
+            }
+            TelemetryUpdate::RaceControlMessages(messages) => {
+                self.race_control_messages = messages;
+                true
+            }
+            TelemetryUpdate::Weather(weather) => {
+                self.weather = Some(weather);
+                true
+            }
+            TelemetryUpdate::Empty => false,
+        }
     }
 }
