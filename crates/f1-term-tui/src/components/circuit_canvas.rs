@@ -55,12 +55,13 @@ impl Component for CircuitCanvas {
 
 fn segments_from_layout(layout: &CircuitLayout) -> Vec<Line> {
     let mut lines = Vec::new();
-    for i in 0..layout.x.len().saturating_sub(1) {
+    let (x_rot, y_rot) = layout.rotated_points();
+    for i in 0..x_rot.len().saturating_sub(1) {
         lines.push(Line::new(
-            layout.x[i] as f64,
-            layout.y[i] as f64,
-            layout.x[i + 1] as f64,
-            layout.y[i + 1] as f64,
+            x_rot[i],
+            y_rot[i],
+            x_rot[i + 1],
+            y_rot[i + 1],
             Color::White,
         ));
     }

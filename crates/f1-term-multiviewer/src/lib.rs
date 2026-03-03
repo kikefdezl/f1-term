@@ -104,6 +104,7 @@ impl CircuitLayoutProvider for MultiviewerClient {
             Ok(CircuitLayout {
                 x: response.x,
                 y: response.y,
+                rotation: response.rotation,
             })
         }
     }

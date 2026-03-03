@@ -11,33 +11,52 @@ pub struct Circuit {
 pub struct CircuitLayout {
     pub x: Vec<i32>,
     pub y: Vec<i32>,
+    pub rotation: f64,
 }
 
 impl CircuitLayout {
+    pub fn rotated_points(&self) -> (Vec<f64>, Vec<f64>) {
+        let angle_rad = self.rotation.to_radians();
+        let cos_a = angle_rad.cos();
+        let sin_a = angle_rad.sin();
+
+        let mut x_rot = Vec::with_capacity(self.x.len());
+        let mut y_rot = Vec::with_capacity(self.y.len());
+
+        for i in 0..self.x.len() {
+            let x = self.x[i] as f64;
+            let y = self.y[i] as f64;
+            x_rot.push(x * cos_a - y * sin_a);
+            y_rot.push(x * sin_a + y * cos_a);
+        }
+        (x_rot, y_rot)
+    }
+
     pub fn bounds(&self) -> Bounds {
-        let (mut x_min, mut y_min) = (i32::MAX, i32::MAX);
-        let (mut x_max, mut y_max) = (i32::MIN, i32::MIN);
-        for x in &self.x {
-            if *x > x_max {
-                x_max = *x;
+        let (x_rot, y_rot) = self.rotated_points();
+        let (mut x_min, mut y_min) = (f64::MAX, f64::MAX);
+        let (mut x_max, mut y_max) = (f64::MIN, f64::MIN);
+        for &x in &x_rot {
+            if x > x_max {
+                x_max = x;
             }
-            if *x < x_min {
-                x_min = *x;
+            if x < x_min {
+                x_min = x;
             }
         }
-        for y in &self.y {
-            if *y > y_max {
-                y_max = *y;
+        for &y in &y_rot {
+            if y > y_max {
+                y_max = y;
             }
-            if *y < y_min {
-                y_min = *y;
+            if y < y_min {
+                y_min = y;
             }
         }
         Bounds {
-            x_min,
-            y_min,
-            x_max,
-            y_max,
+            x_min: x_min.floor() as i32,
+            y_min: y_min.floor() as i32,
+            x_max: x_max.ceil() as i32,
+            y_max: y_max.ceil() as i32,
         }
     }
 }
@@ -55,4 +74,40 @@ pub trait CircuitLayoutProvider {
         circuit_key: u32,
         year: u32,
     ) -> impl Future<Output = anyhow::Result<CircuitLayout>> + Send;
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_rotated_points() {
+        let layout = CircuitLayout {
+            x: vec![100, 0, -100, 0],
+            y: vec![0, 100, 0, -100],
+            rotation: 90.0,
+        };
+
+        let (x_rot, y_rot) = layout.rotated_points();
+
+        assert_eq!(x_rot.len(), 4);
+        assert_eq!(y_rot.len(), 4);
+
+        // 90 degrees rotation (counter-clockwise)
+        // (100, 0) -> (0, 100)
+        assert!((x_rot[0] - 0.0).abs() < 1e-6);
+        assert!((y_rot[0] - 100.0).abs() < 1e-6);
+
+        // (0, 100) -> (-100, 0)
+        assert!((x_rot[1] - (-100.0)).abs() < 1e-6);
+        assert!((y_rot[1] - 0.0).abs() < 1e-6);
+
+        // (-100, 0) -> (0, -100)
+        assert!((x_rot[2] - 0.0).abs() < 1e-6);
+        assert!((y_rot[2] - (-100.0)).abs() < 1e-6);
+
+        // (0, -100) -> (100, 0)
+        assert!((x_rot[3] - 100.0).abs() < 1e-6);
+        assert!((y_rot[3] - 0.0).abs() < 1e-6);
+    }
 }
