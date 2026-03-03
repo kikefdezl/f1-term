@@ -8,7 +8,8 @@ use f1_term_core::{
 use log::info;
 
 use self::{
-    drivers::parse_drivers, stints::parse_stints, teams::parse_teams,
+    driver_list::{parse_drivers, parse_teams},
+    stints::parse_stints,
     timing_data::parse_timing_data,
 };
 use super::{
@@ -19,11 +20,10 @@ use super::{
     topic::Topic,
 };
 
-pub mod drivers;
+pub mod driver_list;
 pub mod race_control_messages;
 pub mod session_info;
 pub mod stints;
-pub mod teams;
 pub mod timing_data;
 pub mod track_status;
 pub mod weather_data;

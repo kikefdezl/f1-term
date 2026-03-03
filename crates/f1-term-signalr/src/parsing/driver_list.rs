@@ -2,9 +2,9 @@ use std::collections::HashMap;
 
 use f1_term_core::{
     driver::{Driver, DriverNumber},
-    team::TeamName,
+    team::{Team, TeamColor, TeamName},
 };
-use log::info;
+use log::{info, warn};
 use serde::Deserialize;
 use serde_json::Value;
 
@@ -24,6 +24,7 @@ struct DriverPayload {
     Tla: String,
     TeamName: String,
     Reference: String,
+    TeamColour: String,
 }
 
 impl TryFrom<DriverPayload> for Driver {
@@ -55,10 +56,15 @@ pub fn parse_drivers(val: &Value) -> Result<HashMap<DriverNumber, Driver>> {
     match val {
         Value::Object(map) => {
             for (num, attrs) in map.iter() {
+                if num == "_kf" {
+                    continue;
+                }
                 let number: u8 = match num.parse() {
                     Ok(n) => n,
-                    // Some non-grid cars have non-digits or numbers above 255. Ignore.
-                    Err(_) => continue,
+                    Err(_) => {
+                        warn!("Failed to parse number for car {num}");
+                        continue;
+                    }
                 };
                 let driver_number = DriverNumber { value: number };
 
@@ -82,6 +88,51 @@ pub fn parse_drivers(val: &Value) -> Result<HashMap<DriverNumber, Driver>> {
         _ => return Err("Drivers value is not a JSON object".into()),
     }
     Ok(drivers)
+}
+
+impl TryFrom<DriverPayload> for Team {
+    type Error = Box<dyn std::error::Error>;
+
+    fn try_from(payload: DriverPayload) -> Result<Self> {
+        Ok(Team {
+            name: TeamName {
+                value: payload.TeamName,
+            },
+            color: TeamColor {
+                u32: u32::from_str_radix(&payload.TeamColour, 16)?,
+            },
+        })
+    }
+}
+
+pub fn parse_teams(val: &Value) -> Result<HashMap<TeamName, Team>> {
+    let mut teams: HashMap<TeamName, Team> = HashMap::new();
+    match val {
+        Value::Object(map) => {
+            for (k, attrs) in map.iter() {
+                if k == "_kf" {
+                    continue;
+                }
+                // Medical and safety cars don't have a team, so those fail to parse.
+                // We just ignore them.
+                match DriverPayload::deserialize(attrs) {
+                    Ok(payload) => match Team::try_from(payload) {
+                        Ok(t) => {
+                            teams.insert(t.name.clone(), t);
+                        }
+                        Err(e) => {
+                            info!("Failed to convert driver payload: {}", e);
+                        }
+                    },
+                    Err(e) => {
+                        info!("Failed to parse team payload: {}", e);
+                    }
+                }
+            }
+        }
+        _ => return Err("Drivers value is not a JSON object".into()),
+    }
+    Ok(teams)
 }
 
 #[cfg(test)]
@@ -147,5 +198,39 @@ mod tests {
         let val = json!("invalid");
         let result = parse_drivers(&val);
         assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_parse_teams() {
+        let json = json!({
+            "1": {
+                "TeamName": "Red Bull Racing",
+                "TeamColour": "3671C6"
+            },
+            "2": {
+                "TeamName": "Ferrari",
+                "TeamColour": "F91536"
+            },
+            "invalid": {
+                "NotATeam": "Something"
+            }
+        });
+
+        let teams = parse_teams(&json).unwrap();
+        assert_eq!(teams.len(), 2);
+
+        let rb = teams
+            .get(&TeamName {
+                value: "Red Bull Racing".to_string(),
+            })
+            .unwrap();
+        assert_eq!(rb.color.u32, 0x3671C6);
+
+        let ferrari = teams
+            .get(&TeamName {
+                value: "Ferrari".to_string(),
+            })
+            .unwrap();
+        assert_eq!(ferrari.color.u32, 0xF91536);
     }
 }

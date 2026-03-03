@@ -4,7 +4,7 @@ use f1_term_core::{
     driver::DriverNumber,
     stint::{Compound, Stint, Stints},
 };
-use log::info;
+use log::warn;
 use serde::Deserialize;
 use serde_json::Value;
 
@@ -62,7 +62,10 @@ pub fn parse_stints(val: &Value) -> Result<HashMap<DriverNumber, Stints>> {
             for (num, attrs) in l {
                 let number: u8 = match num.parse() {
                     Ok(n) => n,
-                    Err(_) => continue,
+                    Err(_) => {
+                        warn!("Failed to parse stint line {num}");
+                        continue;
+                    }
                 };
                 let driver_number = DriverNumber { value: number };
 
@@ -74,7 +77,7 @@ pub fn parse_stints(val: &Value) -> Result<HashMap<DriverNumber, Stints>> {
                             .filter_map(|s| match Stint::try_from(s) {
                                 Ok(stint) => Some(stint),
                                 Err(e) => {
-                                    info!("Failed to parse stint for driver {}: {}", num, e);
+                                    warn!("Failed to parse stint for driver {}: {}", num, e);
                                     None
                                 }
                             })
@@ -82,7 +85,7 @@ pub fn parse_stints(val: &Value) -> Result<HashMap<DriverNumber, Stints>> {
                         stints_map.insert(driver_number, driver_stints);
                     }
                     Err(e) => {
-                        info!("Failed to parse stints payload for driver {}: {}", num, e);
+                        warn!("Failed to parse stints payload for driver {}: {}", num, e);
                     }
                 }
             }

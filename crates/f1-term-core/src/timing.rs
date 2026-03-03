@@ -35,7 +35,7 @@ pub struct Sector {
     pub stopped: bool,
     /// value is None if driver is on their next lap
     pub value: Option<String>,
-    pub previous_value: String,
+    pub previous_value: Option<String>,
 }
 
 #[derive(Debug, Default, Clone, PartialEq)]
@@ -50,6 +50,7 @@ pub enum SegmentStatus {
     Normal,
     OverallFastest,
     PersonalFastest,
+    Aborted,
     InPit,
 }
 

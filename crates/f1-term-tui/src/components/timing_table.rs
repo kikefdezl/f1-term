@@ -365,7 +365,10 @@ impl TimingTable {
     fn sector(sector: &Sector) -> Cell<'_> {
         let value = match &sector.value {
             Some(v) => v,
-            None => sector.previous_value.as_str(),
+            None => match &sector.previous_value {
+                Some(pv) => pv.as_str(),
+                None => "",
+            },
         };
 
         let color = if sector.value.is_none() {
@@ -390,6 +393,7 @@ impl TimingTable {
                     SegmentStatus::InPit => Color::Blue,
                     SegmentStatus::OverallFastest => COLOR_OVERALL_FASTEST,
                     SegmentStatus::PersonalFastest => COLOR_PERSONAL_FASTEST,
+                    SegmentStatus::Aborted => Color::Red,
                     SegmentStatus::Normal => COLOR_SLOWER,
                 };
                 Span::styled(SEGMENTS, Style::default().fg(color))

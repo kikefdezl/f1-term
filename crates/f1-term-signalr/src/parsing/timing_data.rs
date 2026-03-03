@@ -40,7 +40,7 @@ struct SectorPayload {
     Status: u32,
     Stopped: bool,
     Value: String,
-    PreviousValue: String,
+    PreviousValue: Option<String>,
 }
 
 #[derive(Deserialize, Debug)]
@@ -83,8 +83,10 @@ struct LiveTimingPayload {
 impl From<SegmentPayload> for Segment {
     fn from(p: SegmentPayload) -> Self {
         let status = match p.Status {
+            0 => SegmentStatus::None,
             2048 => SegmentStatus::Normal,
             2049 => SegmentStatus::PersonalFastest,
+            2052 => SegmentStatus::Aborted,
             2064 => SegmentStatus::InPit,
             other => {
                 warn!("Unknown SegmentStatus value {}!", other);
@@ -182,7 +184,10 @@ pub fn parse_timing_data(val: &Value) -> Result<HashMap<DriverNumber, LiveTiming
             for (num, attrs) in map.iter() {
                 let number: u8 = match num.parse() {
                     Ok(n) => n,
-                    Err(_) => continue,
+                    Err(_) => {
+                        warn!("Failed to parse timing data line {num}");
+                        continue;
+                    }
                 };
                 let driver_number = DriverNumber { value: number };
                 match LiveTimingPayload::deserialize(attrs) {
