@@ -200,11 +200,10 @@ fn merge_patch(a: &mut serde_json::Value, b: &serde_json::Value) {
             for (k, v) in b_obj {
                 if v.is_null() {
                     a_obj.remove(k);
+                } else if let Some(target) = a_obj.get_mut(k) {
+                    merge_patch(target, v);
                 } else {
-                    if !a_obj.contains_key(k) {
-                        a_obj.insert(k.clone(), Value::Null);
-                    }
-                    merge_patch(a_obj.get_mut(k).unwrap(), v);
+                    a_obj.insert(k.clone(), v.clone());
                 }
             }
         }

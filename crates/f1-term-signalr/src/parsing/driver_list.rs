@@ -141,35 +141,45 @@ mod tests {
 
     use super::*;
 
+    fn driver_1() -> serde_json::Value {
+        json!({
+            "RacingNumber": "1",
+            "FirstName": "Max",
+            "LastName": "Verstappen",
+            "FullName": "Max VERSTAPPEN",
+            "BroadcastName": "M VERSTAPPEN",
+            "HeadshotUrl": "https://example.com/max.png",
+            "Line": 1,
+            "PublicIdRight": "something",
+            "Tla": "VER",
+            "TeamName": "Red Bull Racing",
+            "Reference": "MAXVER01",
+            "TeamColour": "3671C6"
+        })
+    }
+
+    fn driver_2() -> serde_json::Value {
+        json!({
+            "RacingNumber": "16",
+            "FirstName": "Charles",
+            "LastName": "Leclerc",
+            "FullName": "Charles LECLERC",
+            "BroadcastName": "C LECLERC",
+            "HeadshotUrl": "https://example.com/charles.png",
+            "Line": 2,
+            "PublicIdRight": "something_else",
+            "Tla": "LEC",
+            "TeamName": "Ferrari",
+            "Reference": "CHALEC01",
+            "TeamColour": "F91536"
+        })
+    }
+
     #[test]
     fn test_parse_drivers() {
         let val = json!({
-            "1": {
-                "RacingNumber": "1",
-                "FirstName": "Max",
-                "LastName": "Verstappen",
-                "FullName": "Max VERSTAPPEN",
-                "BroadcastName": "M VERSTAPPEN",
-                "HeadshotUrl": "https://example.com/max.png",
-                "Line": 1,
-                "PublicIdRight": "something",
-                "Tla": "VER",
-                "TeamName": "Red Bull Racing",
-                "Reference": "MAXVER01"
-            },
-            "16": {
-                "RacingNumber": "16",
-                "FirstName": "Charles",
-                "LastName": "Leclerc",
-                "FullName": "Charles LECLERC",
-                "BroadcastName": "C LECLERC",
-                "HeadshotUrl": "https://example.com/charles.png",
-                "Line": 2,
-                "PublicIdRight": "something_else",
-                "Tla": "LEC",
-                "TeamName": "Ferrari",
-                "Reference": "CHALEC01"
-            },
+            "1": driver_1(),
+            "16": driver_2(),
             "SC": {
                 "RacingNumber": "SC",
                 "SomeOtherField": "Medical Car"
@@ -203,14 +213,8 @@ mod tests {
     #[test]
     fn test_parse_teams() {
         let json = json!({
-            "1": {
-                "TeamName": "Red Bull Racing",
-                "TeamColour": "3671C6"
-            },
-            "2": {
-                "TeamName": "Ferrari",
-                "TeamColour": "F91536"
-            },
+            "1": driver_1(),
+            "16": driver_2(),
             "invalid": {
                 "NotATeam": "Something"
             }
