@@ -3,8 +3,9 @@ use std::{
     time::Duration,
 };
 
-use crossterm::event::{self, Event as CrosstermEvent, KeyCode};
+use crossterm::event::{Event as CrosstermEvent, EventStream, KeyCode};
 use f1_term_core::telemetry_state::TelemetryState;
+use futures::StreamExt;
 use ratatui::{DefaultTerminal, Frame};
 use tokio::{sync::mpsc, time::interval};
 
@@ -45,6 +46,8 @@ impl App {
 
         let mut last_update_version = u64::MAX;
 
+        let mut cs_event_stream = EventStream::new();
+
         while !self.exit {
             tokio::select! {
                 _ = render_interval.tick() => {
@@ -65,26 +68,26 @@ impl App {
                     }
                 }
 
+                Some(Ok(event)) = cs_event_stream.next() => {
+                    match event {
+                        CrosstermEvent::Key(key) => action_tx.send(Action::KeyPress(key))?,
+                        CrosstermEvent::Resize(w, h) => action_tx.send(Action::Resize(w, h))?,
+                        _ => {}
+                    }
+                }
+
                 Some(action) = action_rx.recv() => {
                     if let Some(new_action) = self.update(action.clone())? {
                         action_tx.send(new_action)?;
                     }
 
-                    if action.should_rerender() {
+                    if action.should_trigger_render() {
                         terminal.draw(|frame| self.render(frame).unwrap())?;
                     }
 
                     if self.exit {
                         break;
                     }
-                }
-            }
-
-            if event::poll(Duration::from_millis(0))? {
-                match event::read()? {
-                    CrosstermEvent::Key(key) => action_tx.send(Action::KeyPress(key))?,
-                    CrosstermEvent::Resize(w, h) => action_tx.send(Action::Resize(w, h))?,
-                    _ => {}
                 }
             }
         }

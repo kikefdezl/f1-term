@@ -4,8 +4,9 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
-crossterm = "0.29.0"
+crossterm = { version = "0.29.0", features = ["event-stream"] }
 f1-term-core = { path = "../f1-term-core/" }
+futures = "0.3.32"
 log = "0.4.29"
 ratatui = "0.30.0"
 tokio = { version = "1.49.0", features = ["full"] }
