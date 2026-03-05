@@ -10,8 +10,9 @@ use serde_json::Value;
 
 use super::Result;
 
-#[derive(Deserialize, Debug)]
+#[derive(Deserialize, Debug, Default)]
 #[allow(non_snake_case)]
+#[serde(default)]
 struct StintPayload {
     Compound: String,
     LapFlags: u8,
@@ -21,8 +22,9 @@ struct StintPayload {
     TyresNotChanged: String,
 }
 
-#[derive(Deserialize, Debug)]
+#[derive(Deserialize, Debug, Default)]
 #[allow(non_snake_case)]
+#[serde(default)]
 struct DriverStintsPayload {
     Stints: Vec<StintPayload>,
 }
@@ -46,7 +48,7 @@ impl TryFrom<StintPayload> for Stint {
             new: payload.New == "true",
             start_laps: payload.StartLaps,
             total_laps: payload.TotalLaps,
-            tires_not_changed: payload.TyresNotChanged.parse().expect("Should be a number"),
+            tires_not_changed: payload.TyresNotChanged.parse().unwrap_or(0),
         })
     }
 }
@@ -145,5 +147,37 @@ mod tests {
         assert!(!stints[1].new);
         assert_eq!(stints[1].start_laps, 3);
         assert_eq!(stints[1].total_laps, 25);
+    }
+
+    #[test]
+    fn test_stints_missing_fields() {
+        let raw_payload = json!({
+            "Lines": {
+                "44": {
+                    "Stints": [
+                        {
+                            "Compound": "SOFT",
+                            "New": "true",
+                            "StartLaps": 0,
+                            "TotalLaps": 5
+                        }
+                    ]
+                }
+            }
+        });
+
+        let result = parse_stints(&raw_payload);
+        assert!(
+            result.is_ok(),
+            "Failed to parse stints missing optional fields: {:?}",
+            result.err()
+        );
+
+        let map = result.unwrap();
+        let stints = map.get(&DriverNumber { value: 44 }).unwrap();
+
+        assert_eq!(stints.len(), 1);
+        assert_eq!(stints[0].tires_not_changed, 0); // Defaults to 0
+        assert_eq!(stints[0].lap_flags, 0); // Defaults to 0
     }
 }

@@ -12,12 +12,14 @@ use super::Result;
 
 #[derive(Deserialize, Debug, Default)]
 #[allow(non_snake_case)]
+#[serde(default)]
 struct BestLapTimePayload {
     Value: String,
 }
 
 #[derive(Deserialize, Debug, Default)]
 #[allow(non_snake_case)]
+#[serde(default)]
 struct LastLapTimePayload {
     OverallFastest: bool,
     PersonalFastest: bool,
@@ -25,14 +27,16 @@ struct LastLapTimePayload {
     Value: String,
 }
 
-#[derive(Deserialize, Debug)]
+#[derive(Deserialize, Debug, Default)]
 #[allow(non_snake_case)]
+#[serde(default)]
 struct SegmentPayload {
     Status: u32,
 }
 
-#[derive(Deserialize, Debug)]
+#[derive(Deserialize, Debug, Default)]
 #[allow(non_snake_case)]
+#[serde(default)]
 struct SectorPayload {
     OverallFastest: bool,
     PersonalFastest: bool,
@@ -43,8 +47,9 @@ struct SectorPayload {
     PreviousValue: Option<String>,
 }
 
-#[derive(Deserialize, Debug)]
+#[derive(Deserialize, Debug, Default)]
 #[allow(non_snake_case)]
+#[serde(default)]
 struct SpeedPayload {
     OverallFastest: bool,
     PersonalFastest: bool,
@@ -52,8 +57,9 @@ struct SpeedPayload {
     Value: String,
 }
 
-#[derive(Deserialize, Debug)]
+#[derive(Deserialize, Debug, Default)]
 #[allow(non_snake_case)]
+#[serde(default)]
 struct SpeedsPayload {
     FL: SpeedPayload,
     I1: SpeedPayload,
@@ -61,8 +67,9 @@ struct SpeedsPayload {
     ST: SpeedPayload,
 }
 
-#[derive(Deserialize, Debug)]
+#[derive(Deserialize, Debug, Default)]
 #[allow(non_snake_case)]
+#[serde(default)]
 struct LiveTimingPayload {
     RacingNumber: String,
     BestLapTime: BestLapTimePayload,
@@ -279,5 +286,44 @@ mod tests {
         assert!(timing.last_lap.sectors[0].personal_fastest);
 
         assert_eq!(timing.last_lap.speeds.fl.value, "320");
+    }
+
+    #[test]
+    fn test_timing_data_missing_fields() {
+        let raw_payload = json!({
+            "Lines": {
+                "44": {
+                    "RacingNumber": "44",
+                    "Position": "1",
+                    "InPit": false,
+                    "PitOut": false,
+                    "Retired": false,
+                    "Status": 0,
+                    "Stopped": false,
+                    "ShowPosition": true,
+                    "Sectors": [],
+                    "Speeds": {
+                        "FL": { "Status": 0 },
+                        "I1": { "Status": 0 },
+                        "I2": { "Status": 0 },
+                        "ST": { "Status": 0 }
+                    }
+                }
+            }
+        });
+
+        let result = parse_timing_data(&raw_payload);
+        assert!(
+            result.is_ok(),
+            "Failed to parse payload missing optional fields: {:?}",
+            result.err()
+        );
+
+        let map = result.unwrap();
+        let driver_timing = map.get(&DriverNumber { value: 44 }).unwrap();
+
+        assert_eq!(driver_timing.best_lap_time, None);
+        assert_eq!(driver_timing.last_lap.time, None);
+        assert_eq!(driver_timing.time_diff_to_fastest, None);
     }
 }
