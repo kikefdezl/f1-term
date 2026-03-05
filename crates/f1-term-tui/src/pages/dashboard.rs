@@ -59,7 +59,6 @@ impl Component for DashboardPage {
             // height = (width / 3) tends to produce a 1:1 ratio to not distort the circuit
             Constraint::Length(right.width / 3),
             Constraint::Fill(1),
-
         ])
         .areas(right);
 

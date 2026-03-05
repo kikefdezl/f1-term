@@ -73,7 +73,8 @@ pub struct Bounds {
     pub x_max: i32,
     pub y_max: i32,
 }
-pub trait CircuitLayoutProvider {
+
+pub trait CircuitLayoutProvider: Send + Sync {
     fn fetch(
         &self,
         circuit_key: u32,

@@ -1,7 +1,8 @@
+use std::future::Future;
+
 use f1_term_core::circuit::{CircuitLayout, CircuitLayoutProvider, Coord, Corner};
 use reqwest::Client;
 use serde::Deserialize;
-use std::future::Future;
 
 #[derive(Debug, Clone)]
 pub struct MultiviewerClient {
