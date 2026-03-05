@@ -9,9 +9,15 @@ pub struct Circuit {
 
 #[derive(Debug, Default, Clone)]
 pub struct CircuitLayout {
-    pub x: Vec<i32>,
-    pub y: Vec<i32>,
+    pub coords: Vec<Coord>,
     pub rotation: f64,
+    pub corners: Vec<Corner>,
+}
+
+#[derive(Debug, Default, Clone)]
+pub struct Coord {
+    pub x: f64,
+    pub y: f64,
 }
 
 impl CircuitLayout {
@@ -20,12 +26,12 @@ impl CircuitLayout {
         let cos_a = angle_rad.cos();
         let sin_a = angle_rad.sin();
 
-        let mut x_rot = Vec::with_capacity(self.x.len());
-        let mut y_rot = Vec::with_capacity(self.y.len());
+        let mut x_rot = Vec::with_capacity(self.coords.len());
+        let mut y_rot = Vec::with_capacity(self.coords.len());
 
-        for i in 0..self.x.len() {
-            let x = self.x[i] as f64;
-            let y = self.y[i] as f64;
+        for i in 0..self.coords.len() {
+            let x = self.coords[i].x;
+            let y = self.coords[i].y;
             x_rot.push(x * cos_a - y * sin_a);
             y_rot.push(x * sin_a + y * cos_a);
         }
@@ -76,6 +82,12 @@ pub trait CircuitLayoutProvider {
     ) -> impl Future<Output = anyhow::Result<CircuitLayout>> + Send;
 }
 
+#[derive(Clone, Debug)]
+pub struct Corner {
+    pub num: u8,
+    pub coord: Coord,
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -83,9 +95,14 @@ mod tests {
     #[test]
     fn test_rotated_points() {
         let layout = CircuitLayout {
-            x: vec![100, 0, -100, 0],
-            y: vec![0, 100, 0, -100],
+            coords: vec![
+                Coord { x: 100.0, y: 0.0 },
+                Coord { x: 0.0, y: 100.0 },
+                Coord { x: -100.0, y: 0.0 },
+                Coord { x: 0.0, y: -100.0 },
+            ],
             rotation: 90.0,
+            corners: Vec::new(),
         };
 
         let (x_rot, y_rot) = layout.rotated_points();

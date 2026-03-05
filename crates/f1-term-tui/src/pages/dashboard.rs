@@ -51,15 +51,22 @@ impl Component for DashboardPage {
     fn draw(&mut self, frame: &mut Frame, area: Rect) -> Result<(), Box<dyn std::error::Error>> {
         let [title, rest] =
             Layout::vertical([Constraint::Length(3), Constraint::Min(0)]).areas(area);
+
         let [table, right] =
-            Layout::horizontal([Constraint::Min(0), Constraint::Length(45)]).areas(rest);
-        let [canvas, messages] =
-            Layout::vertical([Constraint::Percentage(50), Constraint::Percentage(50)]).areas(right);
+            Layout::horizontal([Constraint::Fill(1), Constraint::Percentage(25)]).areas(rest);
+
+        let [circuit_canvas, messages] = Layout::vertical([
+            // height = (width / 3) tends to produce a 1:1 ratio to not distort the circuit
+            Constraint::Length(right.width / 3),
+            Constraint::Fill(1),
+
+        ])
+        .areas(right);
 
         self.title_bar.draw(frame, title)?;
         self.table.draw(frame, table)?;
         self.message_log.draw(frame, messages)?;
-        self.circuit_canvas.draw(frame, canvas)?;
+        self.circuit_canvas.draw(frame, circuit_canvas)?;
 
         Ok(())
     }

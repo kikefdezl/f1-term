@@ -2,7 +2,7 @@ use std::fs::File;
 
 use directories::ProjectDirs;
 use f1_term_core::telemetry_engine::TelemetryEngine;
-use f1_term_multiviewer::MultiviewerClient;
+use f1_term_multiviewer::client::MultiviewerClient;
 use f1_term_signalr::client::SignalRF1Client;
 use f1_term_tui::app::App;
 use simplelog::{Config, LevelFilter, WriteLogger};
