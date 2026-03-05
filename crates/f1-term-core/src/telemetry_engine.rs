@@ -3,7 +3,7 @@ use std::sync::{Arc, RwLock};
 use chrono::Datelike;
 
 use super::{
-    circuit::CircuitLayoutProvider,
+    circuit::{CircuitLayout, CircuitLayoutProvider},
     telemetry_provider::{TelemetryProvider, TelemetryUpdate},
     telemetry_state::TelemetryState,
 };
@@ -35,18 +35,7 @@ impl<T: TelemetryProvider, C: CircuitLayoutProvider> TelemetryEngine<T, C> {
 
     pub async fn run(&mut self) {
         while let Some(updates) = self.telemetry_provider.next_updates().await {
-            let mut fetched_layout = None;
-            for update in &updates {
-                if let TelemetryUpdate::SessionInfo(info) = update {
-                    let circuit_key = info.meeting.circuit.key;
-                    if circuit_key != self._cached_circuit_key {
-                        let year = info.start_date.year() as u32;
-                        if let Ok(layout) = self.circuit_provider.fetch(circuit_key, year).await {
-                            fetched_layout = Some((circuit_key, layout));
-                        }
-                    }
-                }
-            }
+            let fetched_layout = self.update_circuit_layout(&updates).await;
 
             let mut state_lock = self.state.write().unwrap();
             let mut state_changed = false;
@@ -57,11 +46,10 @@ impl<T: TelemetryProvider, C: CircuitLayoutProvider> TelemetryEngine<T, C> {
                 }
             }
 
-            if let Some((circuit_key, layout)) = fetched_layout {
+            if let Some(layout) = fetched_layout {
                 if let Some(info_mut) = &mut state_lock.info {
                     info_mut.meeting.circuit.layout = Some(layout);
                 }
-                self._cached_circuit_key = circuit_key;
                 state_changed = true;
             }
 
@@ -69,5 +57,36 @@ impl<T: TelemetryProvider, C: CircuitLayoutProvider> TelemetryEngine<T, C> {
                 state_lock.update_version += 1;
             }
         }
+    }
+
+    /// A hook to fetch the CircuitLayout from the circuit provider after the telemetry
+    /// provider has fetched the circuit key.
+    /// Only updates and returns a CircuitLayout if the circuit key returned by the
+    /// telemetry provider has changed (to avoid pinging the circuit layout provider on every
+    /// update).
+    /// Returns None if no change.
+    async fn update_circuit_layout(
+        &mut self,
+        updates: &[TelemetryUpdate],
+    ) -> Option<CircuitLayout> {
+        let mut fetched_layout = None;
+        for update in updates {
+            if let TelemetryUpdate::SessionInfo(info) = update {
+                let circuit_key = info.meeting.circuit.key;
+                if circuit_key != self._cached_circuit_key {
+                    self._cached_circuit_key = circuit_key;
+                    let year = info.start_date.year() as u32;
+                    match self.circuit_provider.fetch(circuit_key, year).await {
+                        Ok(layout) => fetched_layout = Some(layout),
+                        Err(e) => log::warn!(
+                            "Failed to fetch circuit layout for key {}: {}",
+                            circuit_key,
+                            e
+                        ),
+                    }
+                }
+            }
+        }
+        fetched_layout
     }
 }
