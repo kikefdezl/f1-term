@@ -30,7 +30,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         File::create(&log_path).unwrap(),
     );
 
-    let telemetry_provider = SignalRF1Client::new().with_log_dir(log_dir.to_string_lossy().into_owned());
+    let telemetry_provider =
+        SignalRF1Client::new().with_log_dir(log_dir.to_string_lossy().into_owned());
     let circuit_provider = MultiviewerClient::new();
 
     let mut engine = TelemetryEngine::new(telemetry_provider, circuit_provider);

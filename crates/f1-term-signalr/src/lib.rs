@@ -1,3 +1,4 @@
 pub mod client;
-pub mod parsing;
-pub mod topic;
+mod merge_patch;
+mod parsing;
+mod topic;

@@ -1,6 +1,8 @@
-use std::fs::{self, OpenOptions};
-use std::io::Write;
-use std::time::{SystemTime, UNIX_EPOCH};
+use std::{
+    fs::{self, OpenOptions},
+    io::Write,
+    time::{SystemTime, UNIX_EPOCH},
+};
 
 use f1_term_core::telemetry_provider::{TelemetryProvider, TelemetryUpdate};
 use futures_util::{
@@ -17,7 +19,7 @@ use tokio_tungstenite::{
     tungstenite::{Message, client::IntoClientRequest},
 };
 
-use super::{parsing::parse_message, topic::Topic};
+use super::{merge_patch::merge_patch, parsing::parse_message, topic::Topic};
 
 const URL: &str = "livetiming.formula1.com/signalr";
 const HUB: &str = "Streaming";
@@ -47,81 +49,6 @@ impl Default for SignalRF1Client {
 impl SignalRF1Client {
     pub fn new() -> SignalRF1Client {
         SignalRF1Client::default()
-    }
-
-    pub fn with_log_dir(mut self, log_dir: String) -> Self {
-        self.log_dir = Some(log_dir);
-        self
-    }
-
-    fn log_topic_update(&self, topic: &str, payload: &serde_json::Value) {
-        let base_log_dir = match &self.log_dir {
-            Some(dir) => dir,
-            None => return,
-        };
-
-        // Extract the session path (e.g. "2024/2024-03-02_Bahrain_Grand_Prix/...")
-        let session_path = self
-            .canonical_state
-            .get("SessionInfo")
-            .and_then(|info| info.get("Path"))
-            .and_then(|path| path.as_str())
-            .unwrap_or("unknown_session");
-
-        let final_log_dir = format!(
-            "{}/{}",
-            base_log_dir.trim_end_matches('/'),
-            session_path.trim_start_matches('/')
-        );
-
-        if let Err(e) = fs::create_dir_all(&final_log_dir) {
-            error!("Failed to create log directory {}: {}", final_log_dir, e);
-            return;
-        }
-
-        let timestamp = SystemTime::now()
-            .duration_since(UNIX_EPOCH)
-            .unwrap()
-            .as_millis();
-
-        let filename = format!("{}/{}.log", final_log_dir.trim_end_matches('/'), topic);
-
-        let mut file = match OpenOptions::new().create(true).append(true).open(&filename) {
-            Ok(f) => f,
-            Err(e) => {
-                error!("Failed to open log file {}: {}", filename, e);
-                return;
-            }
-        };
-
-        let payload_str = match serde_json::to_string(payload) {
-            Ok(s) => s,
-            Err(e) => {
-                error!("Failed to serialize payload for {}: {}", topic, e);
-                return;
-            }
-        };
-
-        if let Err(e) = writeln!(file, "[{}]: {}", timestamp, payload_str) {
-            error!("Failed to write to {}: {}", filename, e);
-        }
-    }
-
-    pub async fn subscribe(&mut self) -> Result<(), Box<dyn std::error::Error>> {
-        match &mut self.writer {
-            None => return Err("Client not connected".into()),
-            Some(w) => {
-                let subscribe_msg = json!({
-                    "H": HUB,
-                    "M": "Subscribe",
-                    "A": [self.topics.iter().map(|t| t.to_string()).collect::<Vec<String>>()],
-                    "I": 1
-                });
-                w.send(Message::Text(subscribe_msg.to_string().into()))
-                    .await?
-            }
-        }
-        Ok(())
     }
 }
 
@@ -265,105 +192,79 @@ impl TelemetryProvider for SignalRF1Client {
     }
 }
 
-// Deep JSON merge patch (RFC 7386)
-fn merge_patch(a: &mut serde_json::Value, b: &serde_json::Value) {
-    use serde_json::Value;
-
-    match (a, b) {
-        (Value::Object(a_obj), Value::Object(b_obj)) => {
-            for (k, v) in b_obj {
-                if v.is_null() {
-                    a_obj.remove(k);
-                } else if let Some(target) = a_obj.get_mut(k) {
-                    merge_patch(target, v);
-                } else {
-                    a_obj.insert(k.clone(), v.clone());
-                }
-            }
-        }
-        (Value::Array(a_arr), Value::Object(b_obj))
-            if b_obj.keys().all(|k| k.parse::<usize>().is_ok()) && !b_obj.is_empty() =>
-        {
-            // The F1 API deviates from RFC 7386 by sending delta updates for arrays as objects
-            // where the keys are string numerical indices (e.g. "Sectors": {"0": {"Value": "..."}}).
-            // This ensures we update the specific indices in our array instead of replacing it.
-            for (k, v) in b_obj {
-                if let Ok(idx) = k.parse::<usize>() {
-                    if idx >= a_arr.len() {
-                        a_arr.resize(idx + 1, Value::Null);
-                    }
-                    merge_patch(&mut a_arr[idx], v);
-                }
-            }
-        }
-        (a_val, b_val) => {
-            a_val.clone_from(b_val);
-        }
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use serde_json::json;
-
-    use super::*;
-
-    #[test]
-    fn test_merge_patch_basic() {
-        let mut a = json!({
-            "existing": "old",
-            "nested": { "child": "value", "child2": "value2"},
-            "array": [1, 2],
-            "to_remove": "bye"
-        });
-
-        let b = json!({
-            "existing": "new",
-            "new_key": 42,
-            "nested": { "child": "new", "child3": "value3" },
-            "array": [3, 4],
-            "to_remove": null
-        });
-
-        merge_patch(&mut a, &b);
-
-        assert_eq!(
-            a,
-            json!({
-                "existing": "new",
-                "new_key": 42,
-                "nested": { "child": "new", "child2": "value2" , "child3": "value3"},
-                "array": [3, 4]
-            })
-        );
+impl SignalRF1Client {
+    pub fn with_log_dir(mut self, log_dir: String) -> Self {
+        self.log_dir = Some(log_dir);
+        self
     }
 
-    #[test]
-    fn test_merge_patch_array_numeric_keys() {
-        // The F1 SignalR API sends some initial payloads as arrays (like Sectors or Stints)
-        // but sends updates as JSON objects, where the object keys are the stringified
-        // numerical indices.
-        // We must ensure the merge_patch properly maps these object keys back into the
-        // existing JSON array indices rather than overwriting the entire array.
-        let mut a = json!([
-            {"Value": "1"},
-            {"Value": "2"}
-        ]);
+    fn log_topic_update(&self, topic: &str, payload: &serde_json::Value) {
+        let base_log_dir = match &self.log_dir {
+            Some(dir) => dir,
+            None => return,
+        };
 
-        let b = json!({
-            "1": {"Value": "3"},
-            "2": {"Value": "4"}
-        });
+        // Extract the session path (e.g. "2024/2024-03-02_Bahrain_Grand_Prix/...")
+        let session_path = self
+            .canonical_state
+            .get("SessionInfo")
+            .and_then(|info| info.get("Path"))
+            .and_then(|path| path.as_str())
+            .unwrap_or("unknown_session");
 
-        merge_patch(&mut a, &b);
-
-        assert_eq!(
-            a,
-            json!([
-                {"Value": "1"},
-                {"Value": "3"},
-                {"Value": "4"}
-            ])
+        let final_log_dir = format!(
+            "{}/{}",
+            base_log_dir.trim_end_matches('/'),
+            session_path.trim_start_matches('/')
         );
+
+        if let Err(e) = fs::create_dir_all(&final_log_dir) {
+            error!("Failed to create log directory {}: {}", final_log_dir, e);
+            return;
+        }
+
+        let timestamp = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap()
+            .as_millis();
+
+        let filename = format!("{}/{}.log", final_log_dir.trim_end_matches('/'), topic);
+
+        let mut file = match OpenOptions::new().create(true).append(true).open(&filename) {
+            Ok(f) => f,
+            Err(e) => {
+                error!("Failed to open log file {}: {}", filename, e);
+                return;
+            }
+        };
+
+        let payload_str = match serde_json::to_string(payload) {
+            Ok(s) => s,
+            Err(e) => {
+                error!("Failed to serialize payload for {}: {}", topic, e);
+                return;
+            }
+        };
+
+        if let Err(e) = writeln!(file, "[{}]: {}", timestamp, payload_str) {
+            error!("Failed to write to {}: {}", filename, e);
+        }
+    }
+
+    pub async fn subscribe(&mut self) -> Result<(), Box<dyn std::error::Error>> {
+        match &mut self.writer {
+            None => return Err("Client not connected".into()),
+            Some(w) => {
+                let subscribe_msg = json!({
+                    "H": HUB,
+                    "M": "Subscribe",
+                    "A": [self.topics.iter().map(|t| t.to_string()).collect::<Vec<String>>()],
+                    "I": 1
+                });
+                w.send(Message::Text(subscribe_msg.to_string().into()))
+                    .await?
+            }
+        }
+        Ok(())
     }
 }
