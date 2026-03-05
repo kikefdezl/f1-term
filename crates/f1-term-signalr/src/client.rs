@@ -1,3 +1,7 @@
+use std::fs::{self, OpenOptions};
+use std::io::Write;
+use std::time::{SystemTime, UNIX_EPOCH};
+
 use f1_term_core::telemetry_provider::{TelemetryProvider, TelemetryUpdate};
 use futures_util::{
     SinkExt, StreamExt,
@@ -25,6 +29,7 @@ pub struct SignalRF1Client {
     writer: Option<SplitSink<TcpWebSocketStream, Message>>,
     topics: Vec<Topic>,
     canonical_state: serde_json::Value,
+    log_dir: Option<String>,
 }
 
 impl Default for SignalRF1Client {
@@ -34,6 +39,7 @@ impl Default for SignalRF1Client {
             writer: None,
             topics: Topic::all(),
             canonical_state: json!({}),
+            log_dir: None,
         }
     }
 }
@@ -41,6 +47,64 @@ impl Default for SignalRF1Client {
 impl SignalRF1Client {
     pub fn new() -> SignalRF1Client {
         SignalRF1Client::default()
+    }
+
+    pub fn with_log_dir(mut self, log_dir: String) -> Self {
+        self.log_dir = Some(log_dir);
+        self
+    }
+
+    fn log_topic_update(&self, topic: &str, payload: &serde_json::Value) {
+        let base_log_dir = match &self.log_dir {
+            Some(dir) => dir,
+            None => return,
+        };
+
+        // Extract the session path (e.g. "2024/2024-03-02_Bahrain_Grand_Prix/...")
+        let session_path = self
+            .canonical_state
+            .get("SessionInfo")
+            .and_then(|info| info.get("Path"))
+            .and_then(|path| path.as_str())
+            .unwrap_or("unknown_session");
+
+        let final_log_dir = format!(
+            "{}/{}",
+            base_log_dir.trim_end_matches('/'),
+            session_path.trim_start_matches('/')
+        );
+
+        if let Err(e) = fs::create_dir_all(&final_log_dir) {
+            error!("Failed to create log directory {}: {}", final_log_dir, e);
+            return;
+        }
+
+        let timestamp = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap()
+            .as_millis();
+
+        let filename = format!("{}/{}.log", final_log_dir.trim_end_matches('/'), topic);
+
+        let mut file = match OpenOptions::new().create(true).append(true).open(&filename) {
+            Ok(f) => f,
+            Err(e) => {
+                error!("Failed to open log file {}: {}", filename, e);
+                return;
+            }
+        };
+
+        let payload_str = match serde_json::to_string(payload) {
+            Ok(s) => s,
+            Err(e) => {
+                error!("Failed to serialize payload for {}: {}", topic, e);
+                return;
+            }
+        };
+
+        if let Err(e) = writeln!(file, "[{}]: {}", timestamp, payload_str) {
+            error!("Failed to write to {}: {}", filename, e);
+        }
     }
 
     pub async fn subscribe(&mut self) -> Result<(), Box<dyn std::error::Error>> {
@@ -118,10 +182,13 @@ impl TelemetryProvider for SignalRF1Client {
     }
 
     async fn next_updates(&mut self) -> Option<Vec<TelemetryUpdate>> {
-        let reader = self.reader.as_mut()?;
-
         loop {
-            match reader.next().await? {
+            let msg = {
+                let reader = self.reader.as_mut()?;
+                reader.next().await?
+            };
+
+            match msg {
                 Ok(Message::Text(text)) => {
                     debug!("Received SignalR Text Message. Length: {}", text.len());
                     let mut updated_topics = Vec::new();
@@ -131,8 +198,12 @@ impl TelemetryProvider for SignalRF1Client {
                         if let Some(r) = json.get("R") {
                             debug!("Applying initial state (R field)");
                             self.canonical_state.clone_from(r);
+
                             if let Some(obj) = self.canonical_state.as_object() {
                                 updated_topics.extend(obj.keys().cloned());
+                                for (k, v) in obj {
+                                    self.log_topic_update(k, v);
+                                }
                             }
                         }
 
@@ -150,13 +221,16 @@ impl TelemetryProvider for SignalRF1Client {
                                     if !self.canonical_state.is_object() {
                                         self.canonical_state = json!({});
                                     }
+
                                     let canonical_obj =
                                         self.canonical_state.as_object_mut().unwrap();
-
                                     let topic_entry = canonical_obj
                                         .entry(topic.to_string())
                                         .or_insert_with(|| json!({}));
                                     merge_patch(topic_entry, delta);
+
+                                    self.log_topic_update(topic, delta);
+
                                     if !updated_topics.contains(&topic.to_string()) {
                                         updated_topics.push(topic.to_string());
                                     }

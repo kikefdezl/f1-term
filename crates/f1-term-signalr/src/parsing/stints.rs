@@ -177,7 +177,7 @@ mod tests {
         let stints = map.get(&DriverNumber { value: 44 }).unwrap();
 
         assert_eq!(stints.len(), 1);
-        assert_eq!(stints[0].tires_not_changed, 0); // Defaults to 0
-        assert_eq!(stints[0].lap_flags, 0); // Defaults to 0
+        assert_eq!(stints[0].tires_not_changed, 0);
+        assert_eq!(stints[0].lap_flags, 0);
     }
 }

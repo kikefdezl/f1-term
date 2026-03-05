@@ -12,15 +12,17 @@ const LOGFILE: &str = "f1-term.log";
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let log_path = if let Some(proj_dirs) = ProjectDirs::from("", "", APP) {
+    let log_dir = if let Some(proj_dirs) = ProjectDirs::from("", "", APP) {
         let dir = proj_dirs
             .state_dir()
             .unwrap_or_else(|| proj_dirs.data_local_dir());
         std::fs::create_dir_all(dir).unwrap();
-        dir.join(LOGFILE)
+        dir.to_path_buf()
     } else {
-        std::path::PathBuf::from(LOGFILE)
+        std::env::current_dir().unwrap_or_else(|_| std::path::PathBuf::from("."))
     };
+
+    let log_path = log_dir.join(LOGFILE);
 
     let _ = WriteLogger::init(
         LevelFilter::Debug,
@@ -28,7 +30,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         File::create(&log_path).unwrap(),
     );
 
-    let telemetry_provider = SignalRF1Client::new();
+    let telemetry_provider = SignalRF1Client::new().with_log_dir(log_dir.to_string_lossy().into_owned());
     let circuit_provider = MultiviewerClient::new();
 
     let mut engine = TelemetryEngine::new(telemetry_provider, circuit_provider);
