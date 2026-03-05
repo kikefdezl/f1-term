@@ -75,3 +75,72 @@ impl Display for Direction {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_wind_to_direction() {
+        assert_eq!(WindDirection { value: 0.0 }.to_direction().to_string(), "N");
+        assert_eq!(
+            WindDirection { value: 10.0 }.to_direction().to_string(),
+            "N"
+        );
+        assert_eq!(
+            WindDirection { value: 22.5 }.to_direction().to_string(),
+            "N"
+        );
+
+        assert_eq!(
+            WindDirection { value: 22.6 }.to_direction().to_string(),
+            "NE"
+        );
+        assert_eq!(
+            WindDirection { value: 45.0 }.to_direction().to_string(),
+            "NE"
+        );
+        assert_eq!(
+            WindDirection { value: 67.5 }.to_direction().to_string(),
+            "NE"
+        );
+
+        assert_eq!(
+            WindDirection { value: 90.0 }.to_direction().to_string(),
+            "E"
+        );
+        assert_eq!(
+            WindDirection { value: 135.0 }.to_direction().to_string(),
+            "SE"
+        );
+        assert_eq!(
+            WindDirection { value: 180.0 }.to_direction().to_string(),
+            "S"
+        );
+        assert_eq!(
+            WindDirection { value: 225.0 }.to_direction().to_string(),
+            "SW"
+        );
+        assert_eq!(
+            WindDirection { value: 270.0 }.to_direction().to_string(),
+            "W"
+        );
+        assert_eq!(
+            WindDirection { value: 315.0 }.to_direction().to_string(),
+            "NW"
+        );
+
+        assert_eq!(
+            WindDirection { value: 337.5 }.to_direction().to_string(),
+            "N"
+        );
+        assert_eq!(
+            WindDirection { value: 350.0 }.to_direction().to_string(),
+            "N"
+        );
+        assert_eq!(
+            WindDirection { value: 360.0 }.to_direction().to_string(),
+            "N"
+        );
+    }
+}
