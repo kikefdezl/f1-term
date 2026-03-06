@@ -48,9 +48,14 @@ impl Component for MessageLog {
                             FlagColor::Green | FlagColor::Clear => Color::Green,
                             FlagColor::Yellow | FlagColor::DoubleYellow => Color::Yellow,
                             FlagColor::Red => Color::Red,
+                            FlagColor::Chequered => Color::White,
                         };
                         (Span::styled("  ", Style::default().fg(c)), c)
                     }
+                    MessageCategory::SafetyCar => (
+                        Span::styled(" ⟨SC⟩ ", Style::default().fg(Color::Yellow).bold()),
+                        Color::Yellow,
+                    ),
                     MessageCategory::Other => (
                         Span::styled(" 󰋼 ", Style::default().fg(Color::Blue)),
                         Color::White,

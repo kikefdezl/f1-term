@@ -10,6 +10,7 @@ pub enum FlagColor {
     Yellow,
     DoubleYellow,
     Red,
+    Chequered,
     Clear,
 }
 

@@ -43,6 +43,7 @@ impl TryFrom<RaceControlMessagePayload> for RaceControlMessage {
                     "DOUBLE YELLOW" => FlagColor::DoubleYellow,
                     "RED" => FlagColor::Red,
                     "CLEAR" => FlagColor::Clear,
+                    "CHEQUERED" => FlagColor::Chequered,
                     _ => return Err(format!("Unknown flag color: {}", color_str).into()),
                 };
 
@@ -58,6 +59,7 @@ impl TryFrom<RaceControlMessagePayload> for RaceControlMessage {
 
                 MessageCategory::Flag(Flag { color, scope })
             }
+            "SafetyCar" => MessageCategory::SafetyCar,
             "Other" => {
                 // Some messages containing flag information don't come categorized as "Flag".
                 // We parse them here if they contain flag specific keywords to properly colorize the UI.

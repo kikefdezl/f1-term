@@ -93,7 +93,7 @@ impl TitleBar {
 
         let status_color = if track_status_text.contains("Clear") {
             Color::Green
-        } else if track_status_text.contains("Yellow") {
+        } else if track_status_text.contains("Yellow") || track_status_text.contains("SC") {
             Color::Yellow
         } else if track_status_text.contains("Red") {
             Color::Red

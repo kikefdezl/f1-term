@@ -33,6 +33,7 @@ impl TryFrom<SessionInfoPayload> for SessionInfo {
     fn try_from(value: SessionInfoPayload) -> Result<Self> {
         let session_status = match value.SessionStatus.as_str() {
             "Started" => SessionStatus::Started,
+            "Finished" => SessionStatus::Started,
             "Finalised" => SessionStatus::Finalised,
             _ => return Err(format!("Unknown SessionStatus: {}", value.SessionStatus).into()),
         };

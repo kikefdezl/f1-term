@@ -12,5 +12,6 @@ pub struct RaceControlMessage {
 #[derive(Debug, Clone, PartialEq)]
 pub enum MessageCategory {
     Flag(Flag),
+    SafetyCar,
     Other,
 }
