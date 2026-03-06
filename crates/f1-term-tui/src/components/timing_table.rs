@@ -1,3 +1,5 @@
+use std::fmt::Display;
+
 use crossterm::event::KeyCode;
 use f1_term_core::{
     driver::Driver,
@@ -113,6 +115,16 @@ impl GapMode {
     }
 }
 
+impl Display for GapMode {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            GapMode::ToFastest => write!(f, "Gap")?,
+            GapMode::ToPositionAhead => write!(f, "Int")?,
+        };
+        Ok(())
+    }
+}
+
 #[derive(Default)]
 pub struct TimingTable {
     items: Vec<TimingTableData>,
@@ -215,7 +227,7 @@ impl Component for TimingTable {
         }
 
         let rows = TimingTable::rows(&self.items, self.gap_mode);
-        let header = TimingTable::header();
+        let header = self.header();
 
         let segment_len = |sector: usize| -> u16 {
             self.items
@@ -259,7 +271,7 @@ impl Component for TimingTable {
 }
 
 impl TimingTable {
-    fn header() -> Row<'static> {
+    fn header(&self) -> Row<'static> {
         Row::new(vec![
             Cell::from("  #"),
             Cell::from("Drv"),
@@ -267,7 +279,7 @@ impl TimingTable {
             Cell::from("Tire"),
             Cell::from("Pit"),
             Cell::from("Best Lap"),
-            Cell::from("Gap"),
+            Cell::from(self.gap_mode.to_string()),
             Cell::from("Last Lap"),
             Cell::from("S1"),
             Cell::from(""),

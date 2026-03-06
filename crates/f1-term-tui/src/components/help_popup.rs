@@ -1,0 +1,90 @@
+use crossterm::event::KeyCode;
+use ratatui::{
+    Frame,
+    layout::{Alignment, Constraint, Flex, Layout, Rect},
+    style::{Color, Modifier, Style},
+    text::{Line, Span},
+    widgets::{Block, Borders, Clear, Paragraph},
+};
+
+use crate::{action::Action, components::Component};
+
+#[derive(Default)]
+pub struct HelpPopup {
+    pub visible: bool,
+}
+
+impl Component for HelpPopup {
+    fn update(&mut self, action: Action) -> Result<Option<Action>, Box<dyn std::error::Error>> {
+        if let Action::KeyPress(key) = action {
+            match key.code {
+                KeyCode::Char('h') => {
+                    self.visible = !self.visible;
+                    return Ok(Some(Action::Render));
+                }
+                KeyCode::Esc => {
+                    if self.visible {
+                        self.visible = false;
+                        return Ok(Some(Action::Render));
+                    }
+                }
+                _ => {}
+            }
+        }
+        Ok(None)
+    }
+
+    fn draw(&mut self, frame: &mut Frame, area: Rect) -> Result<(), Box<dyn std::error::Error>> {
+        if !self.visible {
+            return Ok(());
+        }
+
+        let shortcuts = [
+            ("Q", "Quit"),
+            ("H", "Toggle Help"),
+            ("G", "Toggle Gap/Int"),
+            ("N", "Toggle Corner Numbers"),
+            // TODO: These are not useful for anything yet
+            // ("↑/↓", "Select Driver (in Timing Table)"),
+            // ("Esc", "Deselect / Close Help"),
+        ];
+
+        let mut lines = vec![];
+        for (key, desc) in shortcuts {
+            lines.push(Line::from(vec![
+                Span::styled(
+                    format!("{:>5} ", key),
+                    Style::default()
+                        .fg(Color::LightRed)
+                        .add_modifier(Modifier::BOLD),
+                ),
+                Span::styled("- ", Style::default().fg(Color::DarkGray)),
+                Span::styled(desc.to_string(), Style::default().fg(Color::White)),
+            ]));
+        }
+
+        let popup_width = 45;
+        let popup_height = shortcuts.len() as u16 + 2;
+
+        let [center_area] = Layout::horizontal([Constraint::Length(popup_width)])
+            .flex(Flex::Center)
+            .areas(area);
+
+        let [popup_area] = Layout::vertical([Constraint::Length(popup_height)])
+            .flex(Flex::Center)
+            .areas(center_area);
+
+        let block = Block::default()
+            .title(" Help / Shortcuts ")
+            .title_alignment(Alignment::Center)
+            .borders(Borders::ALL)
+            .border_style(Style::default().fg(Color::LightMagenta));
+
+        let p = Paragraph::new(lines).block(block);
+
+        frame.render_widget(Clear, popup_area);
+        frame.render_widget(p, popup_area);
+
+        Ok(())
+    }
+}

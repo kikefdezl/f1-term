@@ -7,8 +7,6 @@ use f1_term_core::{
 };
 use log::error;
 
-use crate::parsing::lap_count::parse_lap_count;
-
 use self::{
     driver_list::{parse_drivers, parse_teams},
     stints::parse_stints,
@@ -16,8 +14,9 @@ use self::{
 };
 use super::{
     parsing::{
-        race_control_messages::parse_race_control_messages, session_info::parse_session_info,
-        track_status::parse_track_status, weather_data::parse_weather_data,
+        lap_count::parse_lap_count, race_control_messages::parse_race_control_messages,
+        session_info::parse_session_info, track_status::parse_track_status,
+        weather_data::parse_weather_data,
     },
     topic::Topic,
 };

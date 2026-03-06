@@ -1,7 +1,7 @@
 pub mod circuit;
 pub mod driver;
-pub mod laps;
 pub mod flag;
+pub mod laps;
 pub mod race_control_message;
 pub mod session_info;
 pub mod stint;

@@ -3,6 +3,7 @@ use ratatui::{Frame, layout::Rect};
 use crate::action::Action;
 
 pub mod circuit_canvas;
+pub mod help_popup;
 pub mod message_log;
 pub mod timing_table;
 pub mod title_bar;

@@ -204,7 +204,7 @@ impl SignalRF1Client {
             None => return,
         };
 
-        // Extract the session path (e.g. "2024/2024-03-02_Bahrain_Grand_Prix/...")
+        // (e.g. "2024/2024-03-02_Bahrain_Grand_Prix/...")
         let session_path = self
             .canonical_state
             .get("SessionInfo")

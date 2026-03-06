@@ -6,7 +6,7 @@ use ratatui::{
 use crate::{
     action::Action,
     components::{
-        Component, circuit_canvas::CircuitCanvas, message_log::MessageLog,
+        Component, circuit_canvas::CircuitCanvas, help_popup::HelpPopup, message_log::MessageLog,
         timing_table::TimingTable, title_bar::TitleBar,
     },
 };
@@ -17,6 +17,7 @@ pub struct DashboardPage {
     table: TimingTable,
     message_log: MessageLog,
     circuit_canvas: CircuitCanvas,
+    help_popup: HelpPopup,
 }
 
 impl Component for DashboardPage {
@@ -37,7 +38,10 @@ impl Component for DashboardPage {
         if let Some(Action::Render) = self.message_log.update(action.clone())? {
             should_render = true;
         }
-        if let Some(Action::Render) = self.circuit_canvas.update(action)? {
+        if let Some(Action::Render) = self.circuit_canvas.update(action.clone())? {
+            should_render = true;
+        }
+        if let Some(Action::Render) = self.help_popup.update(action)? {
             should_render = true;
         }
 
@@ -52,7 +56,7 @@ impl Component for DashboardPage {
         let [title, table, bottom] = Layout::vertical([
             Constraint::Length(3),
             Constraint::Length(23), // number of drivers + 1
-            Constraint::Min(0),
+            Constraint::Fill(0),
         ])
         .areas(area);
 
@@ -67,6 +71,7 @@ impl Component for DashboardPage {
         self.table.draw(frame, table)?;
         self.message_log.draw(frame, messages)?;
         self.circuit_canvas.draw(frame, circuit_canvas)?;
+        self.help_popup.draw(frame, area)?;
 
         Ok(())
     }

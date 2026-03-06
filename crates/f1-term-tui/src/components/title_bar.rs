@@ -1,6 +1,7 @@
 use chrono::{DateTime, Datelike, Utc};
-use f1_term_core::laps::Laps;
-use f1_term_core::{telemetry_state::TelemetryState, track_status::TrackStatus, weather::Weather};
+use f1_term_core::{
+    laps::Laps, telemetry_state::TelemetryState, track_status::TrackStatus, weather::Weather,
+};
 use ratatui::{
     Frame,
     layout::{Alignment, Constraint, Layout, Rect},
@@ -115,6 +116,8 @@ impl TitleBar {
         };
 
         Line::from(vec![
+            Span::styled(" <H> ", Style::default().fg(Color::LightRed).bold()),
+            Span::styled("Help  |  ", Style::default().dim()),
             Span::styled("[ ", Style::default().dim()),
             Span::styled("STATUS: ", Style::default()),
             Span::styled(
