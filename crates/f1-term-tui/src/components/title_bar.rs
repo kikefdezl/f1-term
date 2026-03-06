@@ -11,7 +11,6 @@ use super::{Action, Component};
 
 #[derive(Default)]
 pub struct TitleBar {
-    pub session_type: String,
     pub session_name: String,
     pub session_official_name: String,
     pub session_circuit_name: String,
@@ -81,7 +80,7 @@ impl TitleBar {
         Line::from(vec![
             Span::raw("  "),
             Span::styled(&self.session_official_name, Style::default().bold()),
-            Span::raw(format!(" | {} - {} ", self.session_type, self.session_name)).dim(),
+            Span::raw(format!(" | {} ", self.session_name)).dim(),
         ])
     }
 
@@ -150,10 +149,6 @@ impl TitleBar {
             if self.session_official_name != info.meeting.official_name {
                 self.session_official_name
                     .clone_from(&info.meeting.official_name);
-                updated = true;
-            }
-            if self.session_type != info.type_.to_string() {
-                self.session_type = info.type_.to_string();
                 updated = true;
             }
             if self.session_name != info.name {
