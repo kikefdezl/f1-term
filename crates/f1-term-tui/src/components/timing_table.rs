@@ -30,6 +30,7 @@ pub struct TimingTableData {
     team_color: Color,
     tire_compound: Option<Compound>,
     tire_laps: Option<u8>,
+    in_pit: bool,
     best_lap_time: Option<String>,
     last_lap_time: Option<String>,
     last_lap_overall_fastest: bool,
@@ -60,6 +61,8 @@ impl TimingTableData {
             self.tire_compound = None;
             self.tire_laps = None;
         }
+
+        self.in_pit = args.live_timing.map(|lt| lt.in_pit).unwrap_or(false);
 
         self.best_lap_time
             .clone_from(&args.live_timing.and_then(|lt| lt.best_lap_time.clone()));
@@ -234,15 +237,16 @@ impl Component for TimingTable {
                 Constraint::Length(4),           // driver
                 Constraint::Length(3),           // num
                 Constraint::Length(7),           // tire
+                Constraint::Length(4),           // pit
                 Constraint::Length(10),          // best lap
                 Constraint::Length(8),           // gap
-                Constraint::Length(10),          // last lap
-                Constraint::Length(8),           // s1
-                Constraint::Length(8),           // s2
-                Constraint::Length(8),           // s3
+                Constraint::Length(11),          // last lap
                 Constraint::Length(s1_segments), // s1 segments
+                Constraint::Length(9),           // s1
                 Constraint::Length(s2_segments), // s2 segments
+                Constraint::Length(9),           // s2
                 Constraint::Length(s3_segments), // s3 segments
+                Constraint::Length(9),           // s3
             ],
         )
         .header(header)
@@ -261,15 +265,16 @@ impl TimingTable {
             Cell::from("Drv"),
             Cell::from("Num"),
             Cell::from("Tire"),
+            Cell::from("Pit"),
             Cell::from("Best Lap"),
             Cell::from("Gap"),
             Cell::from("Last Lap"),
             Cell::from("S1"),
+            Cell::from(""),
             Cell::from("S2"),
+            Cell::from(""),
             Cell::from("S3"),
-            Cell::from("S1 μ"),
-            Cell::from("S2 μ"),
-            Cell::from("S3 μ"),
+            Cell::from(""),
         ])
     }
     fn rows(items: &[TimingTableData], gap_mode: GapMode) -> Vec<Row<'_>> {
@@ -293,6 +298,11 @@ impl TimingTable {
                             .style(Style::default().fg(color))
                     }
                     _ => Cell::from(""),
+                };
+
+                let pit_cell = match data.in_pit {
+                    true => Cell::from("Pit").style(Style::default().fg(Color::Blue)),
+                    false => Cell::from(""),
                 };
 
                 let best_lap = match &data.best_lap_time {
@@ -355,15 +365,16 @@ impl TimingTable {
                     ),
                     Cell::from(data.driver_number.as_str()),
                     tire_cell,
+                    pit_cell,
                     Cell::from(best_lap),
                     Cell::from(time_diff),
                     Cell::from(last_lap).style(last_lap_style),
-                    s1,
-                    s2,
-                    s3,
                     s1_segments,
+                    s1,
                     s2_segments,
+                    s2,
                     s3_segments,
+                    s3,
                 ])
             })
             .collect();
