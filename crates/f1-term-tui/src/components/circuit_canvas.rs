@@ -52,6 +52,7 @@ impl Component for CircuitCanvas {
             return Ok(());
         }
 
+        let bounds = pad_bounds_to_area(&self.bounds, area);
         let canvas = Canvas::default()
             .marker(ratatui::symbols::Marker::Braille)
             .paint(|ctx| {
@@ -64,8 +65,8 @@ impl Component for CircuitCanvas {
                     }
                 }
             })
-            .x_bounds([self.bounds.x_min as f64, self.bounds.x_max as f64])
-            .y_bounds([self.bounds.y_min as f64, self.bounds.y_max as f64]);
+            .x_bounds([bounds.x_min as f64, bounds.x_max as f64])
+            .y_bounds([bounds.y_min as f64, bounds.y_max as f64]);
 
         frame.render_widget(canvas, area);
         Ok(())
@@ -89,5 +90,119 @@ fn segments_from_layout(layout: &CircuitLayout) -> Vec<Line> {
 impl CircuitCanvas {
     fn toggle_show_curve_numbers(&mut self) {
         self.show_corners = !self.show_corners
+    }
+}
+
+/// Ratatui canvas widgets stretches the content to fit the area, so we add
+/// some padding to the bounds to make sure the circuit has the same shape
+/// as the real layout with minimal distortion.
+fn pad_bounds_to_area(bounds: &Bounds, area: Rect) -> Bounds {
+    // Terminal cells are usually a 1:2 aspect ratio
+    // We need to account for this to avoid distortion.
+    let grid_width = area.width as f32 * 1.0;
+    let grid_height = area.height as f32 * 2.0;
+
+    let width = (bounds.x_max - bounds.x_min) as f32;
+    let height = (bounds.y_max - bounds.y_min) as f32;
+
+    let scale_x = grid_width / width;
+    let scale_y = grid_height / height;
+
+    if scale_x < scale_y {
+        // Circuit is horizontal, pad the height
+        let new_height = grid_height / scale_x;
+        let buffer_y = (new_height - height) / 2.0;
+        Bounds {
+            x_min: bounds.x_min,
+            y_min: (bounds.y_min as f32 - buffer_y).round() as i32,
+            x_max: bounds.x_max,
+            y_max: (bounds.y_max as f32 + buffer_y).round() as i32,
+        }
+    } else {
+        // Circuit is vertical, Pad the width
+        let new_width = grid_width / scale_y;
+        let buffer_x = (new_width - width) / 2.0;
+        Bounds {
+            x_min: (bounds.x_min as f32 - buffer_x).round() as i32,
+            y_min: bounds.y_min,
+            x_max: (bounds.x_max as f32 + buffer_x).round() as i32,
+            y_max: bounds.y_max,
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_pad_bounds_to_area_no_padding_needed() {
+        // Grid is 100x100 dots (50 * 2, 25 * 4), matching bounds 100x100
+        let bounds = Bounds {
+            x_min: 0,
+            y_min: 0,
+            x_max: 100,
+            y_max: 100,
+        };
+        let area = Rect {
+            x: 0,
+            y: 0,
+            width: 50,
+            height: 25,
+        };
+        let padded = pad_bounds_to_area(&bounds, area);
+
+        assert_eq!(padded.x_min, 0);
+        assert_eq!(padded.x_max, 100);
+        assert_eq!(padded.y_min, 0);
+        assert_eq!(padded.y_max, 100);
+    }
+
+    #[test]
+    fn test_pad_bounds_to_area_widen_horizontally() {
+        // Grid is 200x100 dots (100 * 2, 25 * 4), meaning area is wider.
+        // We need to expand bounds X to cover 200.
+        let bounds = Bounds {
+            x_min: 0,
+            y_min: 0,
+            x_max: 100,
+            y_max: 100,
+        };
+        let area = Rect {
+            x: 0,
+            y: 0,
+            width: 100,
+            height: 25,
+        };
+        let padded = pad_bounds_to_area(&bounds, area);
+
+        assert_eq!(padded.x_min, -50);
+        assert_eq!(padded.x_max, 150);
+        assert_eq!(padded.y_min, 0);
+        assert_eq!(padded.y_max, 100);
+    }
+
+    #[test]
+    fn test_pad_bounds_to_area_widen_vertically() {
+        // Grid is 100x200 dots (50 * 2, 50 * 4), meaning area is taller.
+        // We need to expand bounds Y to cover 200.
+        let bounds = Bounds {
+            x_min: 0,
+            y_min: 0,
+            x_max: 100,
+            y_max: 100,
+        };
+        let area = Rect {
+            x: 0,
+            y: 0,
+            width: 50,
+            height: 50,
+        };
+        let padded = pad_bounds_to_area(&bounds, area);
+
+        assert_eq!(padded.x_min, 0);
+        assert_eq!(padded.x_max, 100);
+        assert_eq!(padded.y_min, -50);
+        assert_eq!(padded.y_max, 150);
     }
 }

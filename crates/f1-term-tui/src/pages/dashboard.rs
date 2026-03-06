@@ -61,8 +61,8 @@ impl Component for DashboardPage {
         .areas(area);
 
         let [circuit_canvas, messages] = Layout::horizontal([
-            // width = (height / 3) tends to produce a 1:1 ratio to not distort the circuit
-            Constraint::Length(bottom.height * 3),
+            // width = 4 x height produces a nice ratio
+            Constraint::Length(bottom.height * 4),
             Constraint::Fill(1),
         ])
         .areas(bottom);
