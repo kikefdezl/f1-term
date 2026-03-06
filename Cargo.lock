@@ -545,6 +545,7 @@ dependencies = [
 name = "f1-term-tui"
 version = "0.1.0"
 dependencies = [
+ "chrono",
  "crossterm",
  "f1-term-core",
  "futures",

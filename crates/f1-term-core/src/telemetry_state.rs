@@ -2,6 +2,7 @@ use std::collections::HashMap;
 
 use super::{
     driver::{Driver, DriverNumber},
+    laps::Laps,
     stint::Stints,
     team::{Team, TeamName},
     timing::LiveTiming,
@@ -24,6 +25,7 @@ pub struct TelemetryState {
     pub track_status: Option<TrackStatus>,
     pub race_control_messages: Vec<RaceControlMessage>,
     pub weather: Option<Weather>,
+    pub laps: Option<Laps>,
 }
 
 #[derive(Debug)]
@@ -103,6 +105,10 @@ impl TelemetryState {
             }
             TelemetryUpdate::Weather(weather) => {
                 self.weather = Some(weather);
+                true
+            }
+            TelemetryUpdate::Laps(laps) => {
+                self.laps = Some(laps);
                 true
             }
             TelemetryUpdate::Empty => false,

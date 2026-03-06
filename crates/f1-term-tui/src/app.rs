@@ -104,12 +104,11 @@ impl App {
                 self.active_page = *page;
                 return Ok(Some(Action::Render));
             }
-            Action::KeyPress(key) => match key.code {
-                KeyCode::Char('q') | KeyCode::Esc => {
+            Action::KeyPress(key) => {
+                if let KeyCode::Char('q') = key.code {
                     return Ok(Some(Action::Quit));
                 }
-                _ => {}
-            },
+            }
             _ => {}
         }
 

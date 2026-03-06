@@ -146,6 +146,10 @@ impl TimingTable {
         self.state.select(Some(i));
     }
 
+    pub fn deselect(&mut self) {
+        self.state.select(None);
+    }
+
     fn update_data(&mut self, state: &TelemetryState) {
         let leaderboard = state.leaderboard();
 
@@ -182,6 +186,10 @@ impl Component for TimingTable {
                 }
                 KeyCode::Char('g') => {
                     self.gap_mode.toggle();
+                    return Ok(Some(Action::Render));
+                }
+                KeyCode::Esc => {
+                    self.deselect();
                     return Ok(Some(Action::Render));
                 }
                 _ => {}

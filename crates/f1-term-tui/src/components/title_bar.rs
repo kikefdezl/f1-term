@@ -1,3 +1,5 @@
+use chrono::{DateTime, Datelike, Utc};
+use f1_term_core::laps::Laps;
 use f1_term_core::{telemetry_state::TelemetryState, track_status::TrackStatus, weather::Weather};
 use ratatui::{
     Frame,
@@ -11,22 +13,23 @@ use super::{Action, Component};
 
 #[derive(Default)]
 pub struct TitleBar {
+    pub grand_prix_name: String,
     pub session_name: String,
-    pub session_official_name: String,
-    pub session_circuit_name: String,
-    pub session_country_name: String,
+    pub circuit_name: String,
+    pub country_name: String,
+    pub start_date: Option<DateTime<Utc>>,
+    pub end_date: Option<DateTime<Utc>>,
     pub weather: Weather,
     pub track_status: Option<TrackStatus>,
+    pub laps: Option<Laps>,
 }
 
 impl Component for TitleBar {
     fn update(&mut self, action: Action) -> Result<Option<Action>, Box<dyn std::error::Error>> {
         if let Action::StateUpdate(ref state_lock) = action {
             let state = state_lock.read().unwrap();
-            let updated = self.update_data(&state);
-            if updated {
-                return Ok(Some(Action::Render));
-            }
+            self.update_data(&state);
+            return Ok(Some(Action::Render)); // render every time to update the time remaining
         }
         Ok(None)
     }
@@ -44,7 +47,7 @@ impl Component for TitleBar {
 
         let title_line = self.title_line();
         let status_line = self.status_line();
-        let location_line = self.location_line();
+        let location_line = self.location_time_line();
         let weather_line = self.weather_line();
 
         let row1_layout = Layout::horizontal([
@@ -79,8 +82,19 @@ impl TitleBar {
     fn title_line(&self) -> Line<'_> {
         Line::from(vec![
             Span::raw("  "),
-            Span::styled(&self.session_official_name, Style::default().bold()),
-            Span::raw(format!(" | {} ", self.session_name)).dim(),
+            Span::styled(
+                format!(
+                    "{} {}",
+                    &self.grand_prix_name,
+                    self.start_date
+                        .map(|d| d.year().to_string())
+                        .unwrap_or("".to_string())
+                ),
+                Style::default().bold(),
+            ),
+            Span::raw(format!("  |  {} ", self.session_name))
+                .dim()
+                .gray(),
         ])
     }
 
@@ -111,14 +125,35 @@ impl TitleBar {
         ])
     }
 
-    fn location_line(&self) -> Line<'_> {
+    fn location_time_line(&self) -> Line<'_> {
+        let time_or_laps = match &self.laps {
+            Some(l) => format!("{}/{}", l.current, l.total),
+            // fallback to countdown if laps not there
+            None => match self.end_date {
+                Some(end_date) => {
+                    let now = Utc::now();
+                    if end_date > now {
+                        let duration = end_date - now;
+                        let hours = duration.num_hours();
+                        let minutes = duration.num_minutes() % 60;
+                        let seconds = duration.num_seconds() % 60;
+                        format!("{:02}:{:02}:{:02}", hours, minutes, seconds)
+                    } else {
+                        "00:00:00".to_string()
+                    }
+                }
+                None => {
+                    log::error!("No end date to parse");
+                    "".to_string()
+                }
+            },
+        };
+
         Line::from(vec![
             Span::raw("  "),
-            Span::styled(&self.session_circuit_name, Style::default().bold()),
-            Span::styled(
-                format!(" ({}) ", self.session_country_name),
-                Style::default().dim(),
-            ),
+            Span::styled(&self.circuit_name, Style::default().bold()),
+            Span::styled(format!(" ({})", self.country_name), Style::default().dim()),
+            Span::raw(format!("  |  {} ", time_or_laps)).gray().dim(),
         ])
     }
 
@@ -143,39 +178,27 @@ impl TitleBar {
             format!("{}%  ", self.weather.humidity).into(),
         ])
     }
-    fn update_data(&mut self, state: &TelemetryState) -> bool {
-        let mut updated = false;
+
+    fn update_data(&mut self, state: &TelemetryState) {
         if let Some(info) = &state.info {
-            if self.session_official_name != info.meeting.official_name {
-                self.session_official_name
-                    .clone_from(&info.meeting.official_name);
-                updated = true;
-            }
-            if self.session_name != info.name {
-                self.session_name.clone_from(&info.name);
-                updated = true;
-            }
-            if self.session_circuit_name != info.meeting.circuit.short_name {
-                self.session_circuit_name
-                    .clone_from(&info.meeting.circuit.short_name);
-                updated = true;
-            }
-            if self.session_country_name != info.meeting.country.name {
-                self.session_country_name
-                    .clone_from(&info.meeting.country.name);
-                updated = true;
-            }
+            self.grand_prix_name.clone_from(&info.meeting.name);
+            self.session_name.clone_from(&info.name);
+            self.circuit_name
+                .clone_from(&info.meeting.circuit.short_name);
+            self.country_name.clone_from(&info.meeting.country.name);
+            self.start_date = Some(info.start_date);
+            self.end_date = Some(info.end_date);
         }
         if let Some(sw) = &state.weather
             && self.weather != *sw
         {
             self.weather.clone_from(sw);
-            updated = true;
         }
         if self.track_status != state.track_status {
             self.track_status.clone_from(&state.track_status);
-            updated = true;
+        };
+        if state.laps.is_some() {
+            self.laps.clone_from(&state.laps);
         }
-        updated
     }
 }

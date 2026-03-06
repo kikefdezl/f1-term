@@ -2,6 +2,7 @@ use std::{collections::HashMap, future::Future};
 
 use crate::{
     driver::{Driver, DriverNumber},
+    laps::Laps,
     race_control_message::RaceControlMessage,
     session_info::SessionInfo,
     stint::Stints,
@@ -20,6 +21,7 @@ pub enum TelemetryUpdate {
     TrackStatus(TrackStatus),
     RaceControlMessages(Vec<RaceControlMessage>),
     Weather(Weather),
+    Laps(Laps),
     Empty,
 }
 

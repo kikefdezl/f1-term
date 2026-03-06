@@ -7,6 +7,8 @@ use f1_term_core::{
 };
 use log::error;
 
+use crate::parsing::lap_count::parse_lap_count;
+
 use self::{
     driver_list::{parse_drivers, parse_teams},
     stints::parse_stints,
@@ -21,6 +23,7 @@ use super::{
 };
 
 pub mod driver_list;
+pub mod lap_count;
 pub mod race_control_messages;
 pub mod session_info;
 pub mod stints;
@@ -70,6 +73,11 @@ pub fn parse_message(state: &serde_json::Value, updated_topics: &[String]) -> Ve
             } else if topic_str == &Topic::WeatherData.to_string() {
                 match parse_weather_data(topic_data) {
                     Ok(weather) => events.push(TelemetryUpdate::Weather(weather)),
+                    Err(e) => error!("{}", e),
+                }
+            } else if topic_str == &Topic::LapCount.to_string() {
+                match parse_lap_count(topic_data) {
+                    Ok(laps) => events.push(TelemetryUpdate::Laps(laps)),
                     Err(e) => error!("{}", e),
                 }
             }

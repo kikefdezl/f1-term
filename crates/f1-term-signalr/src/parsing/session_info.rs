@@ -50,6 +50,8 @@ impl TryFrom<SessionInfoPayload> for SessionInfo {
 
         let session_type = match value.Type.as_str() {
             "Practice" => SessionType::Practice,
+            "Qualifying" => SessionType::Qualifying,
+            "Race" => SessionType::Race,
             _ => return Err(format!("Unknown SessionType: {}", value.Type).into()),
         };
 

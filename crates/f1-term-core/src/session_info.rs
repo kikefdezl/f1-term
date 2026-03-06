@@ -53,12 +53,16 @@ pub enum ArchiveStatus {
 #[derive(Debug, Clone)]
 pub enum SessionType {
     Practice,
+    Qualifying,
+    Race,
 }
 
 impl Display for SessionType {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Self::Practice => write!(f, "Practice"),
+            Self::Qualifying => write!(f, "Qualifying"),
+            Self::Race => write!(f, "Race"),
         }
     }
 }
