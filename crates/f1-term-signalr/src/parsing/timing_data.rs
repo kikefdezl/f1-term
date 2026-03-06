@@ -93,6 +93,7 @@ impl From<SegmentPayload> for Segment {
             0 => SegmentStatus::None,
             2048 => SegmentStatus::Normal,
             2049 => SegmentStatus::PersonalFastest,
+            2051 => SegmentStatus::OverallFastest,
             2052 => SegmentStatus::Aborted,
             2064 => SegmentStatus::InPit,
             other => {

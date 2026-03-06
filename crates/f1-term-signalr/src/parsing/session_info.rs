@@ -32,11 +32,13 @@ impl TryFrom<SessionInfoPayload> for SessionInfo {
 
     fn try_from(value: SessionInfoPayload) -> Result<Self> {
         let session_status = match value.SessionStatus.as_str() {
+            "Started" => SessionStatus::Started,
             "Finalised" => SessionStatus::Finalised,
             _ => return Err(format!("Unknown SessionStatus: {}", value.SessionStatus).into()),
         };
 
         let archive_status = match value.ArchiveStatus.Status.as_str() {
+            "Generating" => ArchiveStatus::Generating,
             "Complete" => ArchiveStatus::Complete,
             _ => {
                 return Err(
@@ -160,7 +162,7 @@ pub fn parse_session_info(val: &Value) -> Result<SessionInfo> {
     match val {
         Value::Object(_) => match SessionInfoPayload::deserialize(val) {
             Ok(sip) => SessionInfo::try_from(sip),
-            Err(_) => Err("Failed to parse SeesionInfoPayload".into()),
+            Err(_) => Err("Failed to parse SessionInfoPayload".into()),
         },
         _ => Err("SessionInfo value is not a JSON object".into()),
     }

@@ -5,7 +5,7 @@ use f1_term_core::{
     team::{Team, TeamName},
     telemetry_provider::TelemetryUpdate,
 };
-use log::info;
+use log::error;
 
 use self::{
     driver_list::{parse_drivers, parse_teams},
@@ -41,35 +41,37 @@ pub fn parse_message(state: &serde_json::Value, updated_topics: &[String]) -> Ve
                 let teams: HashMap<TeamName, Team> = parse_teams(topic_data).unwrap_or_default();
                 events.push(TelemetryUpdate::DriverList(drivers, teams));
             } else if topic_str == &Topic::SessionInfo.to_string() {
-                if let Ok(info) = parse_session_info(topic_data) {
-                    events.push(TelemetryUpdate::SessionInfo(Box::new(info)));
+                match parse_session_info(topic_data) {
+                    Ok(info) => events.push(TelemetryUpdate::SessionInfo(Box::new(info))),
+                    Err(e) => error!("{}", e),
                 }
             } else if topic_str == &Topic::TimingData.to_string() {
-                if let Ok(timing_data) = parse_timing_data(topic_data) {
-                    events.push(TelemetryUpdate::TimingData(timing_data));
-                } else {
-                    info!("Failed to parse timing data");
+                match parse_timing_data(topic_data) {
+                    Ok(timing_data) => events.push(TelemetryUpdate::TimingData(timing_data)),
+                    Err(e) => error!("{}", e),
                 }
             } else if topic_str == &Topic::TimingAppData.to_string() {
-                if let Ok(stints) = parse_stints(topic_data) {
-                    events.push(TelemetryUpdate::Stints(stints));
-                } else {
-                    info!("Failed to parse stints");
+                match parse_stints(topic_data) {
+                    Ok(stints) => events.push(TelemetryUpdate::Stints(stints)),
+                    Err(e) => error!("{}", e),
                 }
             } else if topic_str == &Topic::TrackStatus.to_string() {
-                if let Ok(track_status) = parse_track_status(topic_data) {
-                    events.push(TelemetryUpdate::TrackStatus(track_status));
+                match parse_track_status(topic_data) {
+                    Ok(track_status) => events.push(TelemetryUpdate::TrackStatus(track_status)),
+                    Err(e) => error!("{}", e),
                 }
             } else if topic_str == &Topic::RaceControlMessages.to_string() {
-                if let Ok(race_control_messages) = parse_race_control_messages(topic_data) {
-                    events.push(TelemetryUpdate::RaceControlMessages(race_control_messages));
-                } else {
-                    info!("Failed to parse race control messages");
+                match parse_race_control_messages(topic_data) {
+                    Ok(race_control_messages) => {
+                        events.push(TelemetryUpdate::RaceControlMessages(race_control_messages))
+                    }
+                    Err(e) => error!("{}", e),
                 }
-            } else if topic_str == &Topic::WeatherData.to_string()
-                && let Ok(weather) = parse_weather_data(topic_data)
-            {
-                events.push(TelemetryUpdate::Weather(weather));
+            } else if topic_str == &Topic::WeatherData.to_string() {
+                match parse_weather_data(topic_data) {
+                    Ok(weather) => events.push(TelemetryUpdate::Weather(weather)),
+                    Err(e) => error!("{}", e),
+                }
             }
         }
     }

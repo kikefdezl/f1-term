@@ -39,11 +39,13 @@ pub struct Country {
 
 #[derive(Debug, Clone)]
 pub enum SessionStatus {
+    Started,
     Finalised,
 }
 
 #[derive(Debug, Clone)]
 pub enum ArchiveStatus {
+    Generating,
     Complete,
 }
 
