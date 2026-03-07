@@ -11,7 +11,7 @@ pub struct SessionInfo {
     pub archive_status: ArchiveStatus,
     pub key: u32,
     pub type_: SessionType,
-    pub number: u8,
+    pub number: Option<u8>,
     pub name: String,
     pub start_date: DateTime<Utc>,
     pub end_date: DateTime<Utc>,

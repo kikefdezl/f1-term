@@ -17,13 +17,10 @@ use ratatui::{
 };
 
 use super::{Action, Component};
-
-const SEGMENTS: &str = "▰ "; // other options: ▮ ▰  ● ⬤
-const SEGMENT_WIDTH: u16 = 2; // The render with of the character above
-
-const COLOR_OVERALL_FASTEST: Color = Color::from_u32(0xB11DFB); // #B11DFB
-const COLOR_PERSONAL_FASTEST: Color = Color::from_u32(0x33D176); // #33D176
-const COLOR_SLOWER: Color = Color::Yellow;
+use crate::constants::{
+    COLOR_ABORTED, COLOR_IN_PIT, COLOR_OVERALL_FASTEST, COLOR_PERSONAL_FASTEST, COLOR_SLOWER,
+    SEGMENT_WIDTH, SEGMENTS,
+};
 
 #[derive(Default)]
 pub struct TimingTableData {
@@ -86,16 +83,22 @@ impl TimingTableData {
             self.sectors.clear();
         }
 
-        self.time_diff_to_fastest.clone_from(
-            &args
-                .live_timing
-                .and_then(|lt| lt.time_diff_to_fastest.clone()),
-        );
-        self.time_diff_to_position_ahead.clone_from(
-            &args
-                .live_timing
-                .and_then(|lt| lt.time_diff_to_position_ahead.clone()),
-        );
+        // if it's quali, the time diffs come from the stats and not the global
+        // so we try to use the global time diff and fallback to stats if nto
+        self.time_diff_to_fastest = args.live_timing.and_then(|lt| {
+            lt.time_diffs.to_fastest.clone().or_else(|| {
+                lt.quali_stats
+                    .as_ref()
+                    .and_then(|stats| stats.iter().rev().find_map(|s| s.to_fastest.clone()))
+            })
+        });
+        self.time_diff_to_position_ahead = args.live_timing.and_then(|lt| {
+            lt.time_diffs.to_position_ahead.clone().or_else(|| {
+                lt.quali_stats
+                    .as_ref()
+                    .and_then(|stats| stats.iter().rev().find_map(|s| s.to_position_ahead.clone()))
+            })
+        });
     }
 }
 
@@ -421,11 +424,12 @@ impl TimingTable {
             .map(|s| {
                 let color = match s.status {
                     SegmentStatus::None => Color::DarkGray,
-                    SegmentStatus::InPit => Color::Blue,
+                    SegmentStatus::InPit => COLOR_IN_PIT,
                     SegmentStatus::OverallFastest => COLOR_OVERALL_FASTEST,
                     SegmentStatus::PersonalFastest => COLOR_PERSONAL_FASTEST,
-                    SegmentStatus::Aborted => Color::Red,
+                    SegmentStatus::Aborted => COLOR_ABORTED,
                     SegmentStatus::Normal => COLOR_SLOWER,
+                    SegmentStatus::Unknown => Color::White,
                 };
                 Span::styled(SEGMENTS, Style::default().fg(color))
             })

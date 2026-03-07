@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use f1_term_core::{
     driver::DriverNumber,
-    timing::{LastLap, LiveTiming, Sector, Segment, SegmentStatus, Speed, Speeds},
+    timing::{LastLap, LiveTiming, Sector, Segment, SegmentStatus, Speed, Speeds, TimeDiffs},
 };
 use log::{info, warn};
 use serde::Deserialize;
@@ -70,7 +70,26 @@ struct SpeedsPayload {
 #[derive(Deserialize, Debug, Default)]
 #[allow(non_snake_case)]
 #[serde(default)]
-struct LiveTimingPayload {
+struct StatsPayload {
+    TimeDiffToFastest: String,
+    TimeDifftoPositionAhead: String,
+}
+
+impl From<StatsPayload> for TimeDiffs {
+    fn from(value: StatsPayload) -> Self {
+        let to_fastest = Some(value.TimeDiffToFastest).filter(|s| !s.is_empty());
+        let to_position_ahead = Some(value.TimeDifftoPositionAhead).filter(|s| !s.is_empty());
+        Self {
+            to_fastest,
+            to_position_ahead,
+        }
+    }
+}
+
+#[derive(Deserialize, Debug, Default)]
+#[allow(non_snake_case)]
+#[serde(default)]
+struct TimingDataPayload {
     RacingNumber: String,
     BestLapTime: BestLapTimePayload,
     InPit: bool,
@@ -85,6 +104,10 @@ struct LiveTimingPayload {
     Sectors: Vec<SectorPayload>,
     ShowPosition: bool,
     Speeds: SpeedsPayload,
+    Cutoff: Option<bool>,
+    KnockedOut: Option<bool>,
+    NumberOfLaps: Option<u8>,
+    Stats: Option<Vec<StatsPayload>>,
 }
 
 impl From<SegmentPayload> for Segment {
@@ -93,6 +116,7 @@ impl From<SegmentPayload> for Segment {
             0 => SegmentStatus::None,
             2048 => SegmentStatus::Normal,
             2049 => SegmentStatus::PersonalFastest,
+            2050 => SegmentStatus::Unknown,
             2051 => SegmentStatus::OverallFastest,
             2052 => SegmentStatus::Aborted,
             2064 => SegmentStatus::InPit,
@@ -142,10 +166,10 @@ impl From<SpeedsPayload> for Speeds {
     }
 }
 
-impl TryFrom<LiveTimingPayload> for LiveTiming {
+impl TryFrom<TimingDataPayload> for LiveTiming {
     type Error = Box<dyn std::error::Error>;
 
-    fn try_from(payload: LiveTimingPayload) -> Result<Self> {
+    fn try_from(payload: TimingDataPayload) -> Result<Self> {
         let driver_number = DriverNumber {
             value: payload.RacingNumber.parse()?,
         };
@@ -167,6 +191,16 @@ impl TryFrom<LiveTimingPayload> for LiveTiming {
             speeds: payload.Speeds.into(),
         };
 
+        let time_diffs = TimeDiffs {
+            to_fastest: time_diff_to_fastest,
+            to_position_ahead: time_diff_to_position_ahead,
+        };
+
+        let quali_stats = payload.Stats.map(|s| {
+            s.into_iter()
+                .map(|stat| stat.into())
+                .collect::<Vec<TimeDiffs>>()
+        });
         Ok(LiveTiming {
             driver_number,
             best_lap_time,
@@ -177,8 +211,11 @@ impl TryFrom<LiveTimingPayload> for LiveTiming {
             retired: payload.Retired,
             status: payload.Status,
             stopped: payload.Stopped,
-            time_diff_to_fastest,
-            time_diff_to_position_ahead,
+            time_diffs,
+            cutoff: payload.Cutoff,
+            knocked_out: payload.KnockedOut,
+            number_of_laps: payload.NumberOfLaps,
+            quali_stats,
         })
     }
 }
@@ -198,7 +235,7 @@ pub fn parse_timing_data(val: &Value) -> Result<HashMap<DriverNumber, LiveTiming
                     }
                 };
                 let driver_number = DriverNumber { value: number };
-                match LiveTimingPayload::deserialize(attrs) {
+                match TimingDataPayload::deserialize(attrs) {
                     Ok(payload) => match LiveTiming::try_from(payload) {
                         Ok(lt) => {
                             timing_data.insert(driver_number, lt);
@@ -208,7 +245,7 @@ pub fn parse_timing_data(val: &Value) -> Result<HashMap<DriverNumber, LiveTiming
                         }
                     },
                     Err(e) => {
-                        info!("Failed to parse live timing payload for {}: {}", num, e);
+                        info!("Failed to parse timing data payload for {}: {}", num, e);
                     }
                 }
             }
@@ -325,6 +362,6 @@ mod tests {
 
         assert_eq!(driver_timing.best_lap_time, None);
         assert_eq!(driver_timing.last_lap.time, None);
-        assert_eq!(driver_timing.time_diff_to_fastest, None);
+        assert_eq!(driver_timing.time_diffs.to_fastest, None);
     }
 }

@@ -18,7 +18,7 @@ struct SessionInfoPayload {
     ArchiveStatus: ArchiveStatusPayload,
     Key: u32,
     Type: String,
-    Number: u32,
+    Number: Option<String>,
     Name: String,
     StartDate: String,
     EndDate: String,
@@ -74,7 +74,7 @@ impl TryFrom<SessionInfoPayload> for SessionInfo {
             archive_status,
             key: value.Key,
             type_: session_type,
-            number: value.Number.try_into()?,
+            number: value.Number.map(|n| n.parse::<u8>()).transpose()?,
             name: value.Name,
             start_date: DateTime::from_naive_utc_and_offset(
                 NaiveDateTime::parse_from_str(&value.StartDate, "%Y-%m-%dT%H:%M:%S")?,
@@ -165,7 +165,7 @@ pub fn parse_session_info(val: &Value) -> Result<SessionInfo> {
     match val {
         Value::Object(_) => match SessionInfoPayload::deserialize(val) {
             Ok(sip) => SessionInfo::try_from(sip),
-            Err(_) => Err("Failed to parse SessionInfoPayload".into()),
+            Err(e) => Err(format!("Failed to parse SessionInfoPayload: {}", e).into()),
         },
         _ => Err("SessionInfo value is not a JSON object".into()),
     }

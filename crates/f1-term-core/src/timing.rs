@@ -11,8 +11,11 @@ pub struct LiveTiming {
     pub retired: bool,
     pub status: u32,
     pub stopped: bool,
-    pub time_diff_to_fastest: Option<String>,
-    pub time_diff_to_position_ahead: Option<String>,
+    pub time_diffs: TimeDiffs,
+    pub cutoff: Option<bool>,
+    pub knocked_out: Option<bool>,
+    pub number_of_laps: Option<u8>,
+    pub quali_stats: Option<Vec<TimeDiffs>>,
 }
 
 #[derive(Debug, Default, Clone, PartialEq)]
@@ -52,6 +55,7 @@ pub enum SegmentStatus {
     PersonalFastest,
     Aborted,
     InPit,
+    Unknown,
 }
 
 #[derive(Debug, Default, Clone, PartialEq)]
@@ -68,4 +72,10 @@ pub struct Speed {
     pub personal_fastest: bool,
     pub status: u32,
     pub value: String,
+}
+
+#[derive(Debug, Default, Clone, PartialEq)]
+pub struct TimeDiffs {
+    pub to_fastest: Option<String>,
+    pub to_position_ahead: Option<String>,
 }

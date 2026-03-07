@@ -71,7 +71,7 @@ impl App {
                 Some(Ok(event)) = cs_event_stream.next() => {
                     match event {
                         CrosstermEvent::Key(key) => action_tx.send(Action::KeyPress(key))?,
-                        CrosstermEvent::Resize(w, h) => action_tx.send(Action::Resize(w, h))?,
+                        CrosstermEvent::Resize(_, _) => action_tx.send(Action::Resize)?,
                         _ => {}
                     }
                 }

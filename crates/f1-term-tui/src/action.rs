@@ -8,7 +8,7 @@ use crate::pages::ActivePage;
 pub enum Action {
     Tick,
     Render,
-    Resize(u16, u16),
+    Resize,
     KeyPress(crossterm::event::KeyEvent),
     StateUpdate(Arc<RwLock<TelemetryState>>),
     Navigate(ActivePage),
@@ -20,7 +20,7 @@ impl Action {
         match self {
             Action::Tick => false,
             Action::Render => true,
-            Action::Resize(_, _) => true,
+            Action::Resize => true,
             Action::KeyPress(_) => false,
             Action::StateUpdate(_) => true,
             Action::Navigate(_) => true,

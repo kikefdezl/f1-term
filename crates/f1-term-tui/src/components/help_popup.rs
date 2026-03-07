@@ -7,7 +7,14 @@ use ratatui::{
     widgets::{Block, Borders, Clear, Paragraph},
 };
 
-use crate::{action::Action, components::Component};
+use crate::{
+    action::Action,
+    components::Component,
+    constants::{
+        COLOR_ABORTED, COLOR_IN_PIT, COLOR_OVERALL_FASTEST, COLOR_PERSONAL_FASTEST, COLOR_SLOWER,
+        SEGMENTS,
+    },
+};
 
 #[derive(Default)]
 pub struct HelpPopup {
@@ -49,11 +56,19 @@ impl Component for HelpPopup {
             // ("Esc", "Deselect / Close Help"),
         ];
 
+        let segment_helps = [
+            (COLOR_SLOWER, "Slower"),
+            (COLOR_PERSONAL_FASTEST, "Personal Fastest"),
+            (COLOR_OVERALL_FASTEST, "Overall Fastest"),
+            (COLOR_IN_PIT, "In Pit"),
+            (COLOR_ABORTED, "Aborted"),
+        ];
+
         let mut lines = vec![];
         for (key, desc) in shortcuts {
             lines.push(Line::from(vec![
                 Span::styled(
-                    format!("{:>5} ", key),
+                    format!("{:>5}  ", key),
                     Style::default()
                         .fg(Color::LightRed)
                         .add_modifier(Modifier::BOLD),
@@ -62,9 +77,20 @@ impl Component for HelpPopup {
                 Span::styled(desc.to_string(), Style::default().fg(Color::White)),
             ]));
         }
+        lines.push(Line::default());
+        for (color, desc) in segment_helps {
+            lines.push(Line::from(vec![
+                Span::styled(
+                    format!("{:>6} ", SEGMENTS.to_string()),
+                    Style::default().fg(color),
+                ),
+                Span::styled("- ", Style::default().fg(Color::DarkGray)),
+                Span::styled(desc.to_string(), Style::default().fg(Color::White)),
+            ]))
+        }
 
         let popup_width = 45;
-        let popup_height = shortcuts.len() as u16 + 2;
+        let popup_height = lines.len() as u16 + 2;
 
         let [center_area] = Layout::horizontal([Constraint::Length(popup_width)])
             .flex(Flex::Center)
