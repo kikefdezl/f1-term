@@ -185,7 +185,7 @@ impl TitleBar {
     fn update_data(&mut self, state: &TelemetryState) {
         if let Some(info) = &state.info {
             self.grand_prix_name.clone_from(&info.meeting.name);
-            self.session_name.clone_from(&info.name);
+            self.session_name.clone_from(&info.type_.to_string());
             self.circuit_name
                 .clone_from(&info.meeting.circuit.short_name);
             self.country_name.clone_from(&info.meeting.country.name);

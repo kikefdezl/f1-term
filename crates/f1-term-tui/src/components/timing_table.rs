@@ -9,17 +9,17 @@ use f1_term_core::{
     timing::{LiveTiming, Sector, Segment, SegmentStatus},
 };
 use ratatui::{
-    Frame,
     layout::{Constraint, Rect},
     style::{Color, Modifier, Style},
     text::{Line, Span},
     widgets::{Cell, Row, Table as RatatuiTable, TableState},
+    Frame,
 };
 
 use super::{Action, Component};
 use crate::constants::{
     COLOR_ABORTED, COLOR_IN_PIT, COLOR_OVERALL_FASTEST, COLOR_PERSONAL_FASTEST, COLOR_SLOWER,
-    SEGMENT_WIDTH, SEGMENTS,
+    SEGMENTS, SEGMENT_WIDTH,
 };
 
 #[derive(Default)]
@@ -167,6 +167,7 @@ impl TimingTable {
 
     fn update_data(&mut self, state: &TelemetryState) {
         let participants = state.participants();
+        let session_type = state.info.as_ref().map(|info| &info.type_);
 
         if self.items.len() < participants.len() {
             self.items
@@ -181,8 +182,8 @@ impl TimingTable {
                 team: participant.team,
                 live_timing: participant.timing,
                 stints: participant.stints,
-                time_diff_to_fastest: participant.time_diff_to_fastest(),
-                time_diff_to_position_ahead: participant.time_diff_to_position_ahead(),
+                time_diff_to_fastest: participant.time_diff_to_fastest(session_type),
+                time_diff_to_position_ahead: participant.time_diff_to_position_ahead(session_type),
             };
             self.items[i].update_from(&args);
         }

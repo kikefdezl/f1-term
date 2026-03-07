@@ -35,19 +35,18 @@ pub struct ParticipantContext<'a> {
     pub team: &'a Team,
     pub timing: Option<&'a LiveTiming>,
     pub stints: Option<&'a Stints>,
-    pub session_type: Option<&'a SessionType>,
 }
 
 impl<'a> ParticipantContext<'a> {
-    pub fn time_diff_to_fastest(&self) -> Option<String> {
+    pub fn time_diff_to_fastest(&self, session_type: Option<&SessionType>) -> Option<String> {
         self.timing.and_then(|lt| {
-            if let Some(SessionType::Qualifying(Some(phase))) = self.session_type {
+            if let Some(SessionType::Qualifying(Some(phase))) = session_type {
                 return lt
                     .quali_stats
                     .as_ref()
                     .and_then(|qs| qs.diffs.as_ref())
                     .and_then(|stats| {
-                        if stats.len() == phase.index() {
+                        if stats.len() == phase.index() + 1 {
                             stats.last().and_then(|s| s.to_fastest.clone())
                         } else {
                             None
@@ -58,15 +57,15 @@ impl<'a> ParticipantContext<'a> {
         })
     }
 
-    pub fn time_diff_to_position_ahead(&self) -> Option<String> {
+    pub fn time_diff_to_position_ahead(&self, session_type: Option<&SessionType>) -> Option<String> {
         self.timing.and_then(|lt| {
-            if let Some(SessionType::Qualifying(Some(phase))) = self.session_type {
+            if let Some(SessionType::Qualifying(Some(phase))) = session_type {
                 return lt
                     .quali_stats
                     .as_ref()
                     .and_then(|qs| qs.diffs.as_ref())
                     .and_then(|stats| {
-                        if stats.len() == phase.index() {
+                        if stats.len() == phase.index() + 1 {
                             stats.last().and_then(|s| s.to_position_ahead.clone())
                         } else {
                             None
@@ -93,7 +92,6 @@ impl TelemetryState {
                 team,
                 timing: self.timing_data.get(&driver.number),
                 stints: self.stints.get(&driver.number),
-                session_type: self.info.as_ref().map(|info| &info.type_),
             });
         }
 
