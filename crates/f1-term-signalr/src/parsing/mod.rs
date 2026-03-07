@@ -24,6 +24,7 @@ use super::{
 pub mod driver_list;
 pub mod lap_count;
 pub mod race_control_messages;
+pub mod session_data;
 pub mod session_info;
 pub mod stints;
 pub mod timing_data;
@@ -35,18 +36,34 @@ type Result<T> = std::result::Result<T, Box<dyn std::error::Error>>;
 pub fn parse_message(state: &serde_json::Value, updated_topics: &[String]) -> Vec<TelemetryUpdate> {
     let mut events = Vec::new();
 
+    let session_info_updated = updated_topics.contains(&Topic::SessionInfo.to_string());
+    let session_data_updated = updated_topics.contains(&Topic::SessionData.to_string());
+
+    if session_info_updated || session_data_updated {
+        if let Some(info_data) = state.get(&Topic::SessionInfo.to_string()) {
+            let session_data = state.get(&Topic::SessionData.to_string());
+            match parse_session_info(info_data, session_data) {
+                Ok(info) => events.push(TelemetryUpdate::SessionInfo(Box::new(info))),
+                Err(e) => error!("{}", e),
+            }
+        }
+    }
+
+    // TODO: Should actualy convert the topicstr to topic and use naative topics instead of
+    // comparing strings
     for topic_str in updated_topics {
+        if topic_str == &Topic::SessionInfo.to_string()
+            || topic_str == &Topic::SessionData.to_string()
+        {
+            continue;
+        }
+
         if let Some(topic_data) = state.get(topic_str) {
             if topic_str == &Topic::DriverList.to_string() {
                 let drivers: HashMap<DriverNumber, Driver> =
                     parse_drivers(topic_data).unwrap_or_default();
                 let teams: HashMap<TeamName, Team> = parse_teams(topic_data).unwrap_or_default();
                 events.push(TelemetryUpdate::DriverList(drivers, teams));
-            } else if topic_str == &Topic::SessionInfo.to_string() {
-                match parse_session_info(topic_data) {
-                    Ok(info) => events.push(TelemetryUpdate::SessionInfo(Box::new(info))),
-                    Err(e) => error!("{}", e),
-                }
             } else if topic_str == &Topic::TimingData.to_string() {
                 match parse_timing_data(topic_data) {
                     Ok(timing_data) => events.push(TelemetryUpdate::TimingData(timing_data)),

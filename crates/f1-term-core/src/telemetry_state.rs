@@ -10,7 +10,8 @@ use super::{
     weather::Weather,
 };
 use crate::{
-    race_control_message::RaceControlMessage, session_info::SessionInfo,
+    race_control_message::RaceControlMessage,
+    session_info::{SessionInfo, SessionType},
     telemetry_provider::TelemetryUpdate,
 };
 
@@ -28,34 +29,25 @@ pub struct TelemetryState {
     pub laps: Option<Laps>,
 }
 
-#[derive(Debug, Clone, Copy)]
-pub enum SessionType {
-    Practice,
-    Qualifying { current_phase: usize },
-    Race,
-}
-
 #[derive(Debug)]
 pub struct ParticipantContext<'a> {
     pub driver: &'a Driver,
     pub team: &'a Team,
     pub timing: Option<&'a LiveTiming>,
     pub stints: Option<&'a Stints>,
-    pub session_type: Option<SessionType>,
+    pub session_type: Option<&'a SessionType>,
 }
 
 impl<'a> ParticipantContext<'a> {
     pub fn time_diff_to_fastest(&self) -> Option<String> {
         self.timing.and_then(|lt| {
-            if let Some(SessionType::Qualifying { current_phase }) = self.session_type
-                && current_phase > 0
-            {
+            if let Some(SessionType::Qualifying(Some(phase))) = self.session_type {
                 return lt
                     .quali_stats
                     .as_ref()
                     .and_then(|qs| qs.diffs.as_ref())
                     .and_then(|stats| {
-                        if stats.len() == current_phase {
+                        if stats.len() == phase.index() {
                             stats.last().and_then(|s| s.to_fastest.clone())
                         } else {
                             None
@@ -68,15 +60,13 @@ impl<'a> ParticipantContext<'a> {
 
     pub fn time_diff_to_position_ahead(&self) -> Option<String> {
         self.timing.and_then(|lt| {
-            if let Some(SessionType::Qualifying { current_phase }) = self.session_type
-                && current_phase > 0
-            {
+            if let Some(SessionType::Qualifying(Some(phase))) = self.session_type {
                 return lt
                     .quali_stats
                     .as_ref()
                     .and_then(|qs| qs.diffs.as_ref())
                     .and_then(|stats| {
-                        if stats.len() == current_phase {
+                        if stats.len() == phase.index() {
                             stats.last().and_then(|s| s.to_position_ahead.clone())
                         } else {
                             None
@@ -92,23 +82,6 @@ impl TelemetryState {
     pub fn participants(&self) -> Vec<ParticipantContext<'_>> {
         let mut contexts = Vec::with_capacity(self.drivers.len());
 
-        let session_type = self.info.as_ref().map(|info| match info.type_ {
-            crate::session_info::SessionType::Practice => SessionType::Practice,
-            crate::session_info::SessionType::Qualifying => {
-                let current_phase = self
-                    .timing_data
-                    .values()
-                    .filter_map(|timing| {
-                        timing.quali_stats.as_ref().and_then(|qs| qs.diffs.as_ref())
-                    })
-                    .map(|stats| stats.len())
-                    .max()
-                    .unwrap_or(0);
-                SessionType::Qualifying { current_phase }
-            }
-            crate::session_info::SessionType::Race => SessionType::Race,
-        });
-
         for driver in self.drivers.values() {
             let team = self
                 .teams
@@ -120,7 +93,7 @@ impl TelemetryState {
                 team,
                 timing: self.timing_data.get(&driver.number),
                 stints: self.stints.get(&driver.number),
-                session_type,
+                session_type: self.info.as_ref().map(|info| &info.type_),
             });
         }
 
