@@ -15,7 +15,8 @@ use crate::{
 #[derive(Debug)]
 pub enum TelemetryUpdate {
     SessionInfo(Box<SessionInfo>),
-    DriverList(HashMap<DriverNumber, Driver>, HashMap<TeamName, Team>),
+    Drivers(HashMap<DriverNumber, Driver>),
+    Teams(HashMap<TeamName, Team>),
     TimingData(HashMap<DriverNumber, LiveTiming>),
     Stints(HashMap<DriverNumber, Stints>),
     TrackStatus(TrackStatus),

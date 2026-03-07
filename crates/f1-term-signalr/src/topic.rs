@@ -1,5 +1,6 @@
 use std::fmt::Display;
 
+#[derive(PartialEq)]
 pub enum Topic {
     Heartbeat,
     ExtrapolatedClock,
@@ -67,6 +68,34 @@ impl Display for Topic {
             Topic::ChampionshipPrediction => write!(f, "ChampionshipPrediction"),
             Topic::PitLaneTimeCollection => write!(f, "PitLaneTimeCollection"),
             Topic::PitStopSeries => write!(f, "PitStopSeries"),
+        }
+    }
+}
+
+impl TryFrom<&str> for Topic {
+    type Error = Box<dyn std::error::Error>;
+
+    fn try_from(value: &str) -> Result<Self, Self::Error> {
+        match value {
+            "Heartbeat" => Ok(Topic::Heartbeat),
+            "ExtrapolatedClock" => Ok(Topic::ExtrapolatedClock),
+            "TimingStats" => Ok(Topic::TimingStats),
+            "TimingAppData" => Ok(Topic::TimingAppData),
+            "WeatherData" => Ok(Topic::WeatherData),
+            "TrackStatus" => Ok(Topic::TrackStatus),
+            "DriverList" => Ok(Topic::DriverList),
+            "RaceControlMessages" => Ok(Topic::RaceControlMessages),
+            "SessionInfo" => Ok(Topic::SessionInfo),
+            "SessionData" => Ok(Topic::SessionData),
+            "LapCount" => Ok(Topic::LapCount),
+            "TimingData" => Ok(Topic::TimingData),
+            "TeamRadio" => Ok(Topic::TeamRadio),
+            "CarData.z" => Ok(Topic::CarDataZ),
+            "Position.z" => Ok(Topic::PositionZ),
+            "ChampionshipPrediction" => Ok(Topic::ChampionshipPrediction),
+            "PitLaneTimeCollection" => Ok(Topic::PitLaneTimeCollection),
+            "PitStopSeries" => Ok(Topic::PitStopSeries),
+            _ => Err(format!("Unknown topic {}", value).into()),
         }
     }
 }

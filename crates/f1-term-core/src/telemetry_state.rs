@@ -57,7 +57,10 @@ impl<'a> ParticipantContext<'a> {
         })
     }
 
-    pub fn time_diff_to_position_ahead(&self, session_type: Option<&SessionType>) -> Option<String> {
+    pub fn time_diff_to_position_ahead(
+        &self,
+        session_type: Option<&SessionType>,
+    ) -> Option<String> {
         self.timing.and_then(|lt| {
             if let Some(SessionType::Qualifying(Some(phase))) = session_type {
                 return lt
@@ -123,8 +126,11 @@ impl TelemetryState {
                 self.info = Some(*info);
                 true
             }
-            TelemetryUpdate::DriverList(drivers, teams) => {
+            TelemetryUpdate::Drivers(drivers) => {
                 self.drivers = drivers;
+                true
+            }
+            TelemetryUpdate::Teams(teams) => {
                 self.teams = teams;
                 true
             }

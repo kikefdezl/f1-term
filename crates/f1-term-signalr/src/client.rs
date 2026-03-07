@@ -118,7 +118,7 @@ impl TelemetryProvider for SignalRF1Client {
             match msg {
                 Ok(Message::Text(text)) => {
                     debug!("Received SignalR Text Message. Length: {}", text.len());
-                    let mut updated_topics = Vec::new();
+                    let mut updated_topics: Vec<Topic> = Vec::new();
 
                     if let Ok(json) = serde_json::from_str::<serde_json::Value>(&text) {
                         // 1. Initial State (the 'R' field from Subscribe)
@@ -127,7 +127,9 @@ impl TelemetryProvider for SignalRF1Client {
                             self.canonical_state.clone_from(r);
 
                             if let Some(obj) = self.canonical_state.as_object() {
-                                updated_topics.extend(obj.keys().cloned());
+                                updated_topics.extend(
+                                    obj.keys().filter_map(|k| Topic::try_from(k.as_str()).ok()),
+                                );
                                 for (k, v) in obj {
                                     self.log_topic_update(k, v);
                                 }
@@ -141,7 +143,13 @@ impl TelemetryProvider for SignalRF1Client {
                                     && let Some(args) = msg.get("A").and_then(|a| a.as_array())
                                     && args.len() >= 2
                                 {
-                                    let topic = args[0].as_str().unwrap_or("UnknownTopic");
+                                    let Ok(topic) =
+                                        Topic::try_from(args[0].as_str().unwrap_or("UnknownTopic"))
+                                    else {
+                                        warn!("Unknown topic {}", args[0]);
+                                        continue;
+                                    };
+
                                     let delta = &args[1];
                                     debug!("Applying partial update for topic: {}", topic);
 
@@ -156,10 +164,10 @@ impl TelemetryProvider for SignalRF1Client {
                                         .or_insert_with(|| json!({}));
                                     merge_patch(topic_entry, delta);
 
-                                    self.log_topic_update(topic, delta);
+                                    self.log_topic_update(&topic.to_string(), delta);
 
-                                    if !updated_topics.contains(&topic.to_string()) {
-                                        updated_topics.push(topic.to_string());
+                                    if !updated_topics.contains(&topic) {
+                                        updated_topics.push(topic);
                                     }
                                 }
                             }
