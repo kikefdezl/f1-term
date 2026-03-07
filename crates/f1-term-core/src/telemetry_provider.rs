@@ -13,20 +13,19 @@ use crate::{
 };
 
 #[derive(Debug)]
-pub enum TelemetryUpdate {
-    SessionInfo(Box<SessionInfo>),
-    Drivers(HashMap<DriverNumber, Driver>),
-    Teams(HashMap<TeamName, Team>),
-    TimingData(HashMap<DriverNumber, LiveTiming>),
-    Stints(HashMap<DriverNumber, Stints>),
-    TrackStatus(TrackStatus),
-    RaceControlMessages(Vec<RaceControlMessage>),
-    Weather(Weather),
-    Laps(Laps),
-    Empty,
+pub struct TelemetryUpdate {
+    pub session_info: Option<Box<SessionInfo>>,
+    pub drivers: Option<HashMap<DriverNumber, Driver>>,
+    pub teams: Option<HashMap<TeamName, Team>>,
+    pub timing_data: Option<HashMap<DriverNumber, LiveTiming>>,
+    pub stints: Option<HashMap<DriverNumber, Stints>>,
+    pub track_status: Option<TrackStatus>,
+    pub race_control_messages: Option<Vec<RaceControlMessage>>,
+    pub weather: Option<Weather>,
+    pub laps: Option<Laps>,
 }
 
 pub trait TelemetryProvider {
     fn connect(&mut self) -> impl Future<Output = Result<(), Box<dyn std::error::Error>>>;
-    fn next_updates(&mut self) -> impl Future<Output = Option<Vec<TelemetryUpdate>>>;
+    fn next_updates(&mut self) -> impl Future<Output = Option<TelemetryUpdate>>;
 }

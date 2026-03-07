@@ -34,21 +34,19 @@ impl<T: TelemetryProvider, C: CircuitLayoutProvider + 'static> TelemetryEngine<T
     }
 
     pub async fn run(&mut self) {
-        while let Some(updates) = self.telemetry_provider.next_updates().await {
-            self.check_and_fetch_circuit_layout(&updates);
-            self.apply_updates(updates);
+        while let Some(update) = self.telemetry_provider.next_updates().await {
+            self.check_and_fetch_circuit_layout(&update);
+            self.apply_updates(update);
         }
     }
 
-    fn check_and_fetch_circuit_layout(&mut self, updates: &[TelemetryUpdate]) {
-        for update in updates {
-            if let TelemetryUpdate::SessionInfo(info) = update {
-                let circuit_key = info.meeting.circuit.key;
-                if circuit_key != self._cached_circuit_key {
-                    self._cached_circuit_key = circuit_key;
-                    let year = info.start_date.year() as u32;
-                    self.spawn_layout_fetch(circuit_key, year);
-                }
+    fn check_and_fetch_circuit_layout(&mut self, update: &TelemetryUpdate) {
+        if let Some(info) = &update.session_info {
+            let circuit_key = info.meeting.circuit.key;
+            if circuit_key != self._cached_circuit_key {
+                self._cached_circuit_key = circuit_key;
+                let year = info.start_date.year() as u32;
+                self.spawn_layout_fetch(circuit_key, year);
             }
         }
     }
@@ -82,17 +80,10 @@ impl<T: TelemetryProvider, C: CircuitLayoutProvider + 'static> TelemetryEngine<T
         });
     }
 
-    fn apply_updates(&self, updates: Vec<TelemetryUpdate>) {
+    fn apply_updates(&self, update: TelemetryUpdate) {
         let mut state_lock = self.state.write().unwrap();
-        let mut state_changed = false;
 
-        for update in updates {
-            if state_lock.apply(update) {
-                state_changed = true;
-            }
-        }
-
-        if state_changed {
+        if state_lock.apply(update) {
             state_lock.update_version += 1;
         }
     }

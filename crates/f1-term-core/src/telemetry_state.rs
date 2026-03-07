@@ -116,49 +116,58 @@ impl TelemetryState {
     }
 
     pub fn apply(&mut self, update: TelemetryUpdate) -> bool {
-        match update {
-            TelemetryUpdate::SessionInfo(mut info) => {
-                if let Some(mut old_info) = self.info.take()
-                    && old_info.meeting.circuit.key == info.meeting.circuit.key
-                {
-                    info.meeting.circuit.layout = old_info.meeting.circuit.layout.take();
-                }
-                self.info = Some(*info);
-                true
+        let mut changed = false;
+
+        if let Some(mut info) = update.session_info {
+            if let Some(mut old_info) = self.info.take()
+                && old_info.meeting.circuit.key == info.meeting.circuit.key
+            {
+                info.meeting.circuit.layout = old_info.meeting.circuit.layout.take();
             }
-            TelemetryUpdate::Drivers(drivers) => {
-                self.drivers = drivers;
-                true
-            }
-            TelemetryUpdate::Teams(teams) => {
-                self.teams = teams;
-                true
-            }
-            TelemetryUpdate::TimingData(timing_data) => {
-                self.timing_data = timing_data;
-                true
-            }
-            TelemetryUpdate::Stints(stints) => {
-                self.stints = stints;
-                true
-            }
-            TelemetryUpdate::TrackStatus(track_status) => {
-                self.track_status = Some(track_status);
-                true
-            }
-            TelemetryUpdate::RaceControlMessages(messages) => {
-                self.race_control_messages = messages;
-                true
-            }
-            TelemetryUpdate::Weather(weather) => {
-                self.weather = Some(weather);
-                true
-            }
-            TelemetryUpdate::Laps(laps) => {
-                self.laps = Some(laps);
-                true
-            }
-            TelemetryUpdate::Empty => false,
+            self.info = Some(*info);
+            changed = true;
         }
+
+        if let Some(drivers) = update.drivers {
+            self.drivers = drivers;
+            changed = true;
+        }
+
+        if let Some(teams) = update.teams {
+            self.teams = teams;
+            changed = true;
+        }
+
+        if let Some(timing_data) = update.timing_data {
+            self.timing_data = timing_data;
+            changed = true;
+        }
+
+        if let Some(stints) = update.stints {
+            self.stints = stints;
+            changed = true;
+        }
+
+        if let Some(track_status) = update.track_status {
+            self.track_status = Some(track_status);
+            changed = true;
+        }
+
+        if let Some(messages) = update.race_control_messages {
+            self.race_control_messages = messages;
+            changed = true;
+        }
+
+        if let Some(weather) = update.weather {
+            self.weather = Some(weather);
+            changed = true;
+        }
+
+        if let Some(laps) = update.laps {
+            self.laps = Some(laps);
+            changed = true;
+        }
+
+        changed
     }
 }
