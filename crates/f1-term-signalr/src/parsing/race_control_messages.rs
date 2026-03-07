@@ -32,15 +32,9 @@ pub fn parse_raw_race_control_messages(val: &Value) -> Result<RawRaceControlMess
 
 #[cfg(test)]
 mod tests {
-    use chrono::{TimeZone, Utc};
-    use f1_term_core::{
-        flag::{Flag, FlagColor, FlagScope},
-        race_control_message::MessageCategory,
-    };
     use serde_json::json;
 
     use super::*;
-    use crate::convert::race_control_message::convert_race_control_messages;
 
     #[test]
     fn test_parse_other_message() {
@@ -56,14 +50,13 @@ mod tests {
         });
 
         let raw = parse_raw_race_control_messages(&json_data).unwrap();
-        let parsed = convert_race_control_messages(&raw.Messages).unwrap();
-        assert_eq!(parsed.len(), 1);
+        assert_eq!(raw.Messages.len(), 1);
+        assert_eq!(raw.Messages[0].Utc, "2026-02-20T06:48:12");
+        assert_eq!(raw.Messages[0].Category, "Other");
         assert_eq!(
-            parsed[0].timestamp,
-            Utc.with_ymd_and_hms(2026, 2, 20, 6, 48, 12).unwrap()
+            raw.Messages[0].Message,
+            "PINK HEAD PADDING MATERIAL MUST BE USED"
         );
-        assert_eq!(parsed[0].category, MessageCategory::Other);
-        assert_eq!(parsed[0].message, "PINK HEAD PADDING MATERIAL MUST BE USED");
     }
 
     #[test]
@@ -82,20 +75,12 @@ mod tests {
         });
 
         let raw = parse_raw_race_control_messages(&json_data).unwrap();
-        let parsed = convert_race_control_messages(&raw.Messages).unwrap();
-        assert_eq!(parsed.len(), 1);
-        assert_eq!(
-            parsed[0].timestamp,
-            Utc.with_ymd_and_hms(2026, 2, 20, 7, 0, 0).unwrap()
-        );
-        assert_eq!(
-            parsed[0].category,
-            MessageCategory::Flag(Flag {
-                color: FlagColor::Green,
-                scope: FlagScope::Track,
-            })
-        );
-        assert_eq!(parsed[0].message, "GREEN LIGHT - PIT EXIT OPEN");
+        assert_eq!(raw.Messages.len(), 1);
+        assert_eq!(raw.Messages[0].Utc, "2026-02-20T07:00:00");
+        assert_eq!(raw.Messages[0].Category, "Flag");
+        assert_eq!(raw.Messages[0].Flag.as_deref(), Some("GREEN"));
+        assert_eq!(raw.Messages[0].Scope.as_deref(), Some("Track"));
+        assert_eq!(raw.Messages[0].Message, "GREEN LIGHT - PIT EXIT OPEN");
     }
 
     #[test]
@@ -115,20 +100,13 @@ mod tests {
         });
 
         let raw = parse_raw_race_control_messages(&json_data).unwrap();
-        let parsed = convert_race_control_messages(&raw.Messages).unwrap();
-        assert_eq!(parsed.len(), 1);
-        assert_eq!(
-            parsed[0].timestamp,
-            Utc.with_ymd_and_hms(2026, 2, 20, 9, 11, 3).unwrap()
-        );
-        assert_eq!(
-            parsed[0].category,
-            MessageCategory::Flag(Flag {
-                color: FlagColor::Yellow,
-                scope: FlagScope::Sector(11),
-            })
-        );
-        assert_eq!(parsed[0].message, "YELLOW IN TRACK SECTOR 11");
+        assert_eq!(raw.Messages.len(), 1);
+        assert_eq!(raw.Messages[0].Utc, "2026-02-20T09:11:03");
+        assert_eq!(raw.Messages[0].Category, "Flag");
+        assert_eq!(raw.Messages[0].Flag.as_deref(), Some("YELLOW"));
+        assert_eq!(raw.Messages[0].Scope.as_deref(), Some("Sector"));
+        assert_eq!(raw.Messages[0].Sector, Some(11));
+        assert_eq!(raw.Messages[0].Message, "YELLOW IN TRACK SECTOR 11");
     }
 
     #[test]
@@ -145,20 +123,10 @@ mod tests {
         });
 
         let raw = parse_raw_race_control_messages(&json_data).unwrap();
-        let parsed = convert_race_control_messages(&raw.Messages).unwrap();
-        assert_eq!(parsed.len(), 1);
-        assert_eq!(
-            parsed[0].timestamp,
-            Utc.with_ymd_and_hms(2026, 2, 20, 9, 11, 25).unwrap()
-        );
-        assert_eq!(
-            parsed[0].category,
-            MessageCategory::Flag(Flag {
-                color: FlagColor::Red,
-                scope: FlagScope::Track,
-            })
-        );
-        assert_eq!(parsed[0].message, "RED FLAG - RACE SUSPENDED");
+        assert_eq!(raw.Messages.len(), 1);
+        assert_eq!(raw.Messages[0].Utc, "2026-02-20T09:11:25");
+        assert_eq!(raw.Messages[0].Category, "Other");
+        assert_eq!(raw.Messages[0].Message, "RED FLAG - RACE SUSPENDED");
     }
 
     #[test]
@@ -178,20 +146,13 @@ mod tests {
         });
 
         let raw = parse_raw_race_control_messages(&json_data).unwrap();
-        let parsed = convert_race_control_messages(&raw.Messages).unwrap();
-        assert_eq!(parsed.len(), 1);
-        assert_eq!(
-            parsed[0].timestamp,
-            Utc.with_ymd_and_hms(2026, 2, 20, 11, 1, 46).unwrap()
-        );
-        assert_eq!(
-            parsed[0].category,
-            MessageCategory::Flag(Flag {
-                color: FlagColor::DoubleYellow,
-                scope: FlagScope::Sector(2),
-            })
-        );
-        assert_eq!(parsed[0].message, "DOUBLE YELLOW IN TRACK SECTOR 2");
+        assert_eq!(raw.Messages.len(), 1);
+        assert_eq!(raw.Messages[0].Utc, "2026-02-20T11:01:46");
+        assert_eq!(raw.Messages[0].Category, "Flag");
+        assert_eq!(raw.Messages[0].Flag.as_deref(), Some("DOUBLE YELLOW"));
+        assert_eq!(raw.Messages[0].Scope.as_deref(), Some("Sector"));
+        assert_eq!(raw.Messages[0].Sector, Some(2));
+        assert_eq!(raw.Messages[0].Message, "DOUBLE YELLOW IN TRACK SECTOR 2");
     }
 
     #[test]
@@ -210,19 +171,11 @@ mod tests {
         });
 
         let raw = parse_raw_race_control_messages(&json_data).unwrap();
-        let parsed = convert_race_control_messages(&raw.Messages).unwrap();
-        assert_eq!(parsed.len(), 1);
-        assert_eq!(
-            parsed[0].timestamp,
-            Utc.with_ymd_and_hms(2026, 2, 20, 9, 13, 18).unwrap()
-        );
-        assert_eq!(
-            parsed[0].category,
-            MessageCategory::Flag(Flag {
-                color: FlagColor::Clear,
-                scope: FlagScope::Track,
-            })
-        );
-        assert_eq!(parsed[0].message, "TRACK CLEAR");
+        assert_eq!(raw.Messages.len(), 1);
+        assert_eq!(raw.Messages[0].Utc, "2026-02-20T09:13:18");
+        assert_eq!(raw.Messages[0].Category, "Flag");
+        assert_eq!(raw.Messages[0].Flag.as_deref(), Some("CLEAR"));
+        assert_eq!(raw.Messages[0].Scope.as_deref(), Some("Track"));
+        assert_eq!(raw.Messages[0].Message, "TRACK CLEAR");
     }
 }

@@ -25,3 +25,31 @@ impl TryFrom<&RawWeatherData> for Weather {
 pub fn convert_weather_data(raw: &RawWeatherData) -> Result<Weather, Box<dyn std::error::Error>> {
     Weather::try_from(raw)
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_convert_weather_data() {
+        let raw = RawWeatherData {
+            AirTemp: "23.5".to_string(),
+            Humidity: "34.3".to_string(),
+            Pressure: "1018.2".to_string(),
+            Rainfall: "0".to_string(),
+            TrackTemp: "25.8".to_string(),
+            WindDirection: "353".to_string(),
+            WindSpeed: "2.0".to_string(),
+        };
+
+        let result = convert_weather_data(&raw).expect("Failed to convert weather data");
+
+        assert_eq!(result.air_temperature, 23.5);
+        assert_eq!(result.humidity, 34.3);
+        assert_eq!(result.pressure, 1018.2);
+        assert_eq!(result.rainfall, 0.0);
+        assert_eq!(result.track_temperature, 25.8);
+        assert_eq!(result.wind.direction.value, 353.0);
+        assert_eq!(result.wind.speed, 2.0);
+    }
+}

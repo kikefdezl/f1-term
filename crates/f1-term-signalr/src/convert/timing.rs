@@ -179,3 +179,132 @@ pub fn convert_timing_data(
 
     timing_data
 }
+
+#[cfg(test)]
+mod tests {
+    use f1_term_core::driver::DriverNumber;
+
+    use super::*;
+    use crate::parsing::timing_data::{
+        RawBestLapTime, RawLastLapTime, RawSector, RawSegment, RawSpeed, RawSpeeds, RawTimingData,
+    };
+
+    #[test]
+    fn test_convert_timing_data() {
+        let mut raw = HashMap::new();
+        raw.insert(
+            "1".to_string(),
+            RawTimingData {
+                RacingNumber: "1".to_string(),
+                BestLapTime: RawBestLapTime {
+                    Value: "1:23.456".to_string(),
+                },
+                InPit: false,
+                PitOut: false,
+                LastLapTime: RawLastLapTime {
+                    OverallFastest: false,
+                    PersonalFastest: true,
+                    Status: 0,
+                    Value: "1:24.000".to_string(),
+                },
+                Position: "1".to_string(),
+                Retired: false,
+                Status: 0,
+                Stopped: false,
+                TimeDiffToFastest: "".to_string(),
+                TimeDiffToPositionAhead: "".to_string(),
+                Sectors: vec![RawSector {
+                    OverallFastest: false,
+                    PersonalFastest: true,
+                    Segments: vec![RawSegment { Status: 0 }],
+                    Status: 0,
+                    Stopped: false,
+                    Value: "25.1".to_string(),
+                    PreviousValue: Some("25.6".to_string()),
+                }],
+                ShowPosition: true,
+                Speeds: RawSpeeds {
+                    FL: RawSpeed {
+                        OverallFastest: false,
+                        PersonalFastest: false,
+                        Status: 0,
+                        Value: "320".to_string(),
+                    },
+                    I1: RawSpeed::default(),
+                    I2: RawSpeed::default(),
+                    ST: RawSpeed::default(),
+                },
+                Cutoff: None,
+                KnockedOut: None,
+                NumberOfLaps: None,
+                NumberOfPitStops: None,
+                Stats: None,
+            },
+        );
+
+        let data = convert_timing_data(&raw);
+        assert_eq!(data.len(), 1);
+
+        let driver_number = DriverNumber { value: 1 };
+        let timing = data.get(&driver_number).unwrap();
+
+        assert_eq!(timing.position, 1);
+        assert_eq!(timing.lap_data.best_lap_time.as_deref(), Some("1:23.456"));
+        assert_eq!(timing.lap_data.last_lap.time.as_deref(), Some("1:24.000"));
+        assert!(timing.lap_data.last_lap.personal_fastest);
+
+        assert_eq!(timing.lap_data.last_lap.sectors.len(), 1);
+        assert_eq!(
+            timing.lap_data.last_lap.sectors[0].value.as_deref(),
+            Some("25.1")
+        );
+        assert!(timing.lap_data.last_lap.sectors[0].personal_fastest);
+
+        assert_eq!(timing.lap_data.last_lap.speeds.fl.value, "320");
+    }
+
+    #[test]
+    fn test_timing_data_missing_fields() {
+        let mut raw = HashMap::new();
+        raw.insert(
+            "44".to_string(),
+            RawTimingData {
+                RacingNumber: "44".to_string(),
+                Position: "1".to_string(),
+                InPit: false,
+                PitOut: false,
+                Retired: false,
+                Status: 0,
+                Stopped: false,
+                ShowPosition: true,
+                Sectors: vec![],
+                Speeds: RawSpeeds {
+                    FL: RawSpeed {
+                        Status: 0,
+                        ..Default::default()
+                    },
+                    I1: RawSpeed {
+                        Status: 0,
+                        ..Default::default()
+                    },
+                    I2: RawSpeed {
+                        Status: 0,
+                        ..Default::default()
+                    },
+                    ST: RawSpeed {
+                        Status: 0,
+                        ..Default::default()
+                    },
+                },
+                ..Default::default()
+            },
+        );
+
+        let map = convert_timing_data(&raw);
+        let driver_timing = map.get(&DriverNumber { value: 44 }).unwrap();
+
+        assert_eq!(driver_timing.lap_data.best_lap_time, None);
+        assert_eq!(driver_timing.lap_data.last_lap.time, None);
+        assert_eq!(driver_timing.time_diffs.to_fastest, None);
+    }
+}

@@ -119,11 +119,9 @@ pub fn parse_raw_timing_data(val: &Value) -> Result<HashMap<String, RawTimingDat
 
 #[cfg(test)]
 mod tests {
-    use f1_term_core::driver::DriverNumber;
     use serde_json::json;
 
     use super::*;
-    use crate::convert::timing::convert_timing_data;
 
     #[test]
     fn test_parse_timing_data() {
@@ -173,25 +171,20 @@ mod tests {
         });
 
         let raw = parse_raw_timing_data(&json).unwrap();
-        let data = convert_timing_data(&raw);
-        assert_eq!(data.len(), 1);
+        assert_eq!(raw.len(), 1);
 
-        let driver_number = DriverNumber { value: 1 };
-        let timing = data.get(&driver_number).unwrap();
+        let timing = raw.get("1").unwrap();
 
-        assert_eq!(timing.position, 1);
-        assert_eq!(timing.lap_data.best_lap_time.as_deref(), Some("1:23.456"));
-        assert_eq!(timing.lap_data.last_lap.time.as_deref(), Some("1:24.000"));
-        assert!(timing.lap_data.last_lap.personal_fastest);
+        assert_eq!(timing.Position, "1");
+        assert_eq!(timing.BestLapTime.Value, "1:23.456");
+        assert_eq!(timing.LastLapTime.Value, "1:24.000");
+        assert!(timing.LastLapTime.PersonalFastest);
 
-        assert_eq!(timing.lap_data.last_lap.sectors.len(), 1);
-        assert_eq!(
-            timing.lap_data.last_lap.sectors[0].value.as_deref(),
-            Some("25.1")
-        );
-        assert!(timing.lap_data.last_lap.sectors[0].personal_fastest);
+        assert_eq!(timing.Sectors.len(), 1);
+        assert_eq!(timing.Sectors[0].Value, "25.1");
+        assert!(timing.Sectors[0].PersonalFastest);
 
-        assert_eq!(timing.lap_data.last_lap.speeds.fl.value, "320");
+        assert_eq!(timing.Speeds.FL.Value, "320");
     }
 
     #[test]
@@ -226,11 +219,10 @@ mod tests {
         );
 
         let raw = result.unwrap();
-        let map = convert_timing_data(&raw);
-        let driver_timing = map.get(&DriverNumber { value: 44 }).unwrap();
+        let driver_timing = raw.get("44").unwrap();
 
-        assert_eq!(driver_timing.lap_data.best_lap_time, None);
-        assert_eq!(driver_timing.lap_data.last_lap.time, None);
-        assert_eq!(driver_timing.time_diffs.to_fastest, None);
+        assert_eq!(driver_timing.BestLapTime.Value, "");
+        assert_eq!(driver_timing.LastLapTime.Value, "");
+        assert_eq!(driver_timing.TimeDiffToFastest, "");
     }
 }

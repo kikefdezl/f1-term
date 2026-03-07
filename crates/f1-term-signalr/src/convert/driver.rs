@@ -53,3 +53,39 @@ pub fn convert_drivers(raw_drivers: &HashMap<String, RawDriver>) -> HashMap<Driv
 
     drivers
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_convert_drivers() {
+        let mut raw_drivers = HashMap::new();
+        raw_drivers.insert(
+            "1".to_string(),
+            RawDriver {
+                RacingNumber: "1".to_string(),
+                FirstName: "Max".to_string(),
+                LastName: "Verstappen".to_string(),
+                FullName: "Max VERSTAPPEN".to_string(),
+                BroadcastName: "M VERSTAPPEN".to_string(),
+                HeadshotUrl: "url".to_string(),
+                Line: 1,
+                PublicIdRight: "id".to_string(),
+                Tla: "VER".to_string(),
+                TeamName: "Red Bull Racing".to_string(),
+                Reference: "ref".to_string(),
+                TeamColour: "3671C6".to_string(),
+            },
+        );
+
+        let drivers = convert_drivers(&raw_drivers);
+        assert_eq!(drivers.len(), 1);
+
+        let driver = drivers.get(&DriverNumber { value: 1 }).unwrap();
+        assert_eq!(driver.first_name, "Max");
+        assert_eq!(driver.last_name, "Verstappen");
+        assert_eq!(driver.tla, "VER");
+        assert_eq!(driver.team_name.value, "Red Bull Racing");
+    }
+}

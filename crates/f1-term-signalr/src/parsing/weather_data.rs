@@ -25,7 +25,6 @@ mod tests {
     use serde_json::json;
 
     use super::*;
-    use crate::convert::weather::convert_weather_data;
 
     #[test]
     fn parse_weather_data_from_json() {
@@ -41,14 +40,13 @@ mod tests {
         });
 
         let raw = parse_raw_weather_data(&json_data).expect("Failed to parse raw weather data");
-        let result = convert_weather_data(&raw).expect("Failed to parse weather data");
 
-        assert_eq!(result.air_temperature, 23.5);
-        assert_eq!(result.humidity, 34.3);
-        assert_eq!(result.pressure, 1018.2);
-        assert_eq!(result.rainfall, 0.0);
-        assert_eq!(result.track_temperature, 25.8);
-        assert_eq!(result.wind.direction.value, 353.0);
-        assert_eq!(result.wind.speed, 2.0);
+        assert_eq!(raw.AirTemp, "23.5");
+        assert_eq!(raw.Humidity, "34.3");
+        assert_eq!(raw.Pressure, "1018.2");
+        assert_eq!(raw.Rainfall, "0");
+        assert_eq!(raw.TrackTemp, "25.8");
+        assert_eq!(raw.WindDirection, "353");
+        assert_eq!(raw.WindSpeed, "2.0");
     }
 }

@@ -51,11 +51,9 @@ pub fn parse_driver_list(val: &Value) -> Result<HashMap<String, RawDriver>> {
 
 #[cfg(test)]
 mod tests {
-    use f1_term_core::{driver::DriverNumber, team::TeamName};
     use serde_json::json;
 
     use super::*;
-    use crate::convert::{driver::convert_drivers, team::convert_teams};
 
     fn driver_1() -> serde_json::Value {
         json!({
@@ -103,21 +101,20 @@ mod tests {
         });
 
         let raw_drivers = parse_driver_list(&val).unwrap();
-        let drivers = convert_drivers(&raw_drivers);
 
-        assert_eq!(drivers.len(), 2);
+        assert_eq!(raw_drivers.len(), 2);
 
-        let driver_1 = drivers.get(&DriverNumber { value: 1 }).unwrap();
-        assert_eq!(driver_1.first_name, "Max");
-        assert_eq!(driver_1.last_name, "Verstappen");
-        assert_eq!(driver_1.tla, "VER");
-        assert_eq!(driver_1.team_name.value, "Red Bull Racing");
+        let driver_1 = raw_drivers.get("1").unwrap();
+        assert_eq!(driver_1.FirstName, "Max");
+        assert_eq!(driver_1.LastName, "Verstappen");
+        assert_eq!(driver_1.Tla, "VER");
+        assert_eq!(driver_1.TeamName, "Red Bull Racing");
 
-        let driver_16 = drivers.get(&DriverNumber { value: 16 }).unwrap();
-        assert_eq!(driver_16.first_name, "Charles");
-        assert_eq!(driver_16.last_name, "Leclerc");
-        assert_eq!(driver_16.tla, "LEC");
-        assert_eq!(driver_16.team_name.value, "Ferrari");
+        let driver_16 = raw_drivers.get("16").unwrap();
+        assert_eq!(driver_16.FirstName, "Charles");
+        assert_eq!(driver_16.LastName, "Leclerc");
+        assert_eq!(driver_16.Tla, "LEC");
+        assert_eq!(driver_16.TeamName, "Ferrari");
     }
 
     #[test]
@@ -125,34 +122,5 @@ mod tests {
         let val = json!("invalid");
         let result = parse_driver_list(&val);
         assert!(result.is_err());
-    }
-
-    #[test]
-    fn test_parse_teams() {
-        let json = json!({
-            "1": driver_1(),
-            "16": driver_2(),
-            "invalid": {
-                "NotATeam": "Something"
-            }
-        });
-
-        let raw_drivers = parse_driver_list(&json).unwrap();
-        let teams = convert_teams(&raw_drivers);
-        assert_eq!(teams.len(), 2);
-
-        let rb = teams
-            .get(&TeamName {
-                value: "Red Bull Racing".to_string(),
-            })
-            .unwrap();
-        assert_eq!(rb.color.u32, 0x3671C6);
-
-        let ferrari = teams
-            .get(&TeamName {
-                value: "Ferrari".to_string(),
-            })
-            .unwrap();
-        assert_eq!(ferrari.color.u32, 0xF91536);
     }
 }

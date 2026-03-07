@@ -50,11 +50,9 @@ pub fn parse_raw_stints(val: &Value) -> Result<HashMap<String, RawDriverStints>>
 
 #[cfg(test)]
 mod tests {
-    use f1_term_core::{driver::DriverNumber, stint::Compound};
     use serde_json::json;
 
     use super::*;
-    use crate::convert::stint::convert_stints;
 
     #[test]
     fn test_parse_stints() {
@@ -84,23 +82,20 @@ mod tests {
         });
 
         let raw = parse_raw_stints(&json).unwrap();
-        let stints_map = convert_stints(&raw);
-        assert_eq!(stints_map.len(), 1);
+        assert_eq!(raw.len(), 1);
 
-        let driver_number = DriverNumber { value: 1 };
-        let stints = stints_map.get(&driver_number).unwrap();
+        let driver_stints = raw.get("1").unwrap();
+        assert_eq!(driver_stints.Stints.len(), 2);
 
-        assert_eq!(stints.len(), 2);
+        assert_eq!(driver_stints.Stints[0].Compound, "SOFT");
+        assert_eq!(driver_stints.Stints[0].New, "true");
+        assert_eq!(driver_stints.Stints[0].StartLaps, 0);
+        assert_eq!(driver_stints.Stints[0].TotalLaps, 15);
 
-        assert!(matches!(stints[0].compound, Compound::Soft));
-        assert!(stints[0].new);
-        assert_eq!(stints[0].start_laps, 0);
-        assert_eq!(stints[0].total_laps, 15);
-
-        assert!(matches!(stints[1].compound, Compound::Medium));
-        assert!(!stints[1].new);
-        assert_eq!(stints[1].start_laps, 3);
-        assert_eq!(stints[1].total_laps, 25);
+        assert_eq!(driver_stints.Stints[1].Compound, "MEDIUM");
+        assert_eq!(driver_stints.Stints[1].New, "false");
+        assert_eq!(driver_stints.Stints[1].StartLaps, 3);
+        assert_eq!(driver_stints.Stints[1].TotalLaps, 25);
     }
 
     #[test]
@@ -128,11 +123,10 @@ mod tests {
         );
 
         let raw = result.unwrap();
-        let map = convert_stints(&raw);
-        let stints = map.get(&DriverNumber { value: 44 }).unwrap();
+        let driver_stints = raw.get("44").unwrap();
 
-        assert_eq!(stints.len(), 1);
-        assert_eq!(stints[0].tires_not_changed, 0);
-        assert_eq!(stints[0].lap_flags, 0);
+        assert_eq!(driver_stints.Stints.len(), 1);
+        assert_eq!(driver_stints.Stints[0].TyresNotChanged, "");
+        assert_eq!(driver_stints.Stints[0].LapFlags, 0);
     }
 }
