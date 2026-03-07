@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use f1_term_core::{
     driver::DriverNumber,
-    timing::{LastLap, LiveTiming, Sector, Segment, SegmentStatus, Speed, Speeds, TimeDiffs},
+    timing::{Lap, LiveTiming, Sector, Segment, SegmentStatus, Speed, Speeds, TimeDiffs},
 };
 use log::{info, warn};
 use serde::Deserialize;
@@ -182,7 +182,7 @@ impl TryFrom<TimingDataPayload> for LiveTiming {
         let time_diff_to_position_ahead =
             Some(payload.TimeDiffToPositionAhead).filter(|s| !s.is_empty());
 
-        let last_lap = LastLap {
+        let last_lap = Lap {
             overall_fastest: payload.LastLapTime.OverallFastest,
             personal_fastest: payload.LastLapTime.PersonalFastest,
             status: payload.LastLapTime.Status,
@@ -202,21 +202,39 @@ impl TryFrom<TimingDataPayload> for LiveTiming {
                 .map(|stat| stat.into())
                 .collect::<Vec<TimeDiffs>>()
         });
-        Ok(LiveTiming {
-            driver_number,
+
+        let lap_data = f1_term_core::timing::LapData {
             best_lap_time,
+            last_lap,
+            number_of_laps: payload.NumberOfLaps,
+        };
+
+        let pit_data = f1_term_core::timing::PitData {
             in_pit: payload.InPit,
             pit_out: payload.PitOut,
-            last_lap,
+            number_of_pit_stops: payload.NumberOfPitStops,
+        };
+
+        let quali_stats =
+            if payload.Cutoff.is_some() || payload.KnockedOut.is_some() || quali_stats.is_some() {
+                Some(f1_term_core::timing::QualiStats {
+                    cutoff: payload.Cutoff,
+                    knocked_out: payload.KnockedOut,
+                    diffs: quali_stats,
+                })
+            } else {
+                None
+            };
+
+        Ok(LiveTiming {
+            driver_number,
             position: payload.Position.parse().unwrap_or(0),
-            retired: payload.Retired,
             status: payload.Status,
+            retired: payload.Retired,
             stopped: payload.Stopped,
             time_diffs,
-            cutoff: payload.Cutoff,
-            knocked_out: payload.KnockedOut,
-            number_of_laps: payload.NumberOfLaps,
-            number_of_pit_stops: payload.NumberOfPitStops,
+            lap_data,
+            pit_data,
             quali_stats,
         })
     }
@@ -317,15 +335,18 @@ mod tests {
         let timing = data.get(&driver_number).unwrap();
 
         assert_eq!(timing.position, 1);
-        assert_eq!(timing.best_lap_time.as_deref(), Some("1:23.456"));
-        assert_eq!(timing.last_lap.time.as_deref(), Some("1:24.000"));
-        assert!(timing.last_lap.personal_fastest);
+        assert_eq!(timing.lap_data.best_lap_time.as_deref(), Some("1:23.456"));
+        assert_eq!(timing.lap_data.last_lap.time.as_deref(), Some("1:24.000"));
+        assert!(timing.lap_data.last_lap.personal_fastest);
 
-        assert_eq!(timing.last_lap.sectors.len(), 1);
-        assert_eq!(timing.last_lap.sectors[0].value.as_deref(), Some("25.1"));
-        assert!(timing.last_lap.sectors[0].personal_fastest);
+        assert_eq!(timing.lap_data.last_lap.sectors.len(), 1);
+        assert_eq!(
+            timing.lap_data.last_lap.sectors[0].value.as_deref(),
+            Some("25.1")
+        );
+        assert!(timing.lap_data.last_lap.sectors[0].personal_fastest);
 
-        assert_eq!(timing.last_lap.speeds.fl.value, "320");
+        assert_eq!(timing.lap_data.last_lap.speeds.fl.value, "320");
     }
 
     #[test]
@@ -362,8 +383,8 @@ mod tests {
         let map = result.unwrap();
         let driver_timing = map.get(&DriverNumber { value: 44 }).unwrap();
 
-        assert_eq!(driver_timing.best_lap_time, None);
-        assert_eq!(driver_timing.last_lap.time, None);
+        assert_eq!(driver_timing.lap_data.best_lap_time, None);
+        assert_eq!(driver_timing.lap_data.last_lap.time, None);
         assert_eq!(driver_timing.time_diffs.to_fastest, None);
     }
 }

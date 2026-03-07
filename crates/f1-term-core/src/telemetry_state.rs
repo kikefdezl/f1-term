@@ -28,17 +28,86 @@ pub struct TelemetryState {
     pub laps: Option<Laps>,
 }
 
+#[derive(Debug, Clone, Copy)]
+pub enum SessionType {
+    Practice,
+    Qualifying { current_phase: usize },
+    Race,
+}
+
 #[derive(Debug)]
 pub struct ParticipantContext<'a> {
     pub driver: &'a Driver,
     pub team: &'a Team,
     pub timing: Option<&'a LiveTiming>,
     pub stints: Option<&'a Stints>,
+    pub session_type: Option<SessionType>,
+}
+
+impl<'a> ParticipantContext<'a> {
+    pub fn time_diff_to_fastest(&self) -> Option<String> {
+        self.timing.and_then(|lt| {
+            if let Some(SessionType::Qualifying { current_phase }) = self.session_type
+                && current_phase > 0
+            {
+                return lt
+                    .quali_stats
+                    .as_ref()
+                    .and_then(|qs| qs.diffs.as_ref())
+                    .and_then(|stats| {
+                        if stats.len() == current_phase {
+                            stats.last().and_then(|s| s.to_fastest.clone())
+                        } else {
+                            None
+                        }
+                    });
+            }
+            lt.time_diffs.to_fastest.clone()
+        })
+    }
+
+    pub fn time_diff_to_position_ahead(&self) -> Option<String> {
+        self.timing.and_then(|lt| {
+            if let Some(SessionType::Qualifying { current_phase }) = self.session_type
+                && current_phase > 0
+            {
+                return lt
+                    .quali_stats
+                    .as_ref()
+                    .and_then(|qs| qs.diffs.as_ref())
+                    .and_then(|stats| {
+                        if stats.len() == current_phase {
+                            stats.last().and_then(|s| s.to_position_ahead.clone())
+                        } else {
+                            None
+                        }
+                    });
+            }
+            lt.time_diffs.to_position_ahead.clone()
+        })
+    }
 }
 
 impl TelemetryState {
-    pub fn leaderboard(&self) -> Vec<ParticipantContext<'_>> {
+    pub fn participants(&self) -> Vec<ParticipantContext<'_>> {
         let mut contexts = Vec::with_capacity(self.drivers.len());
+
+        let session_type = self.info.as_ref().map(|info| match info.type_ {
+            crate::session_info::SessionType::Practice => SessionType::Practice,
+            crate::session_info::SessionType::Qualifying => {
+                let current_phase = self
+                    .timing_data
+                    .values()
+                    .filter_map(|timing| {
+                        timing.quali_stats.as_ref().and_then(|qs| qs.diffs.as_ref())
+                    })
+                    .map(|stats| stats.len())
+                    .max()
+                    .unwrap_or(0);
+                SessionType::Qualifying { current_phase }
+            }
+            crate::session_info::SessionType::Race => SessionType::Race,
+        });
 
         for driver in self.drivers.values() {
             let team = self
@@ -51,6 +120,7 @@ impl TelemetryState {
                 team,
                 timing: self.timing_data.get(&driver.number),
                 stints: self.stints.get(&driver.number),
+                session_type,
             });
         }
 

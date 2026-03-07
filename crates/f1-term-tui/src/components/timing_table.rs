@@ -44,6 +44,8 @@ pub struct TimingTableDataArgs<'a> {
     pub team: &'a Team,
     pub live_timing: Option<&'a LiveTiming>,
     pub stints: Option<&'a Stints>,
+    pub time_diff_to_fastest: Option<String>,
+    pub time_diff_to_position_ahead: Option<String>,
 }
 
 impl TimingTableData {
@@ -61,47 +63,39 @@ impl TimingTableData {
             self.tire_laps = None;
         }
 
-        self.in_pit = args.live_timing.map(|lt| lt.in_pit).unwrap_or(false);
+        self.in_pit = args
+            .live_timing
+            .map(|lt| lt.pit_data.in_pit)
+            .unwrap_or(false);
 
-        self.best_lap_time
-            .clone_from(&args.live_timing.and_then(|lt| lt.best_lap_time.clone()));
-        self.last_lap_time
-            .clone_from(&args.live_timing.and_then(|lt| lt.last_lap.time.clone()));
+        self.best_lap_time.clone_from(
+            &args
+                .live_timing
+                .and_then(|lt| lt.lap_data.best_lap_time.clone()),
+        );
+        self.last_lap_time.clone_from(
+            &args
+                .live_timing
+                .and_then(|lt| lt.lap_data.last_lap.time.clone()),
+        );
 
         self.last_lap_overall_fastest = args
             .live_timing
-            .map(|lt| lt.last_lap.overall_fastest)
+            .map(|lt| lt.lap_data.last_lap.overall_fastest)
             .unwrap_or(false);
         self.last_lap_personal_fastest = args
             .live_timing
-            .map(|lt| lt.last_lap.personal_fastest)
+            .map(|lt| lt.lap_data.last_lap.personal_fastest)
             .unwrap_or(false);
 
         if let Some(lt) = args.live_timing {
-            self.sectors.clone_from(&lt.last_lap.sectors);
+            self.sectors.clone_from(&lt.lap_data.last_lap.sectors);
         } else {
             self.sectors.clear();
         }
 
-        // if it's quali, the time diffs come from the stats and not the global
-        // so we try to use the global time diff and fallback to stats if nto
-        // TODO: but this shows the gaps for Q1/Q2 when we are in Q3 and that
-        // should be fixed!
-        // We have to pass the quali session to only take the relevant ones.
-        self.time_diff_to_fastest = args.live_timing.and_then(|lt| {
-            lt.time_diffs.to_fastest.clone().or_else(|| {
-                lt.quali_stats
-                    .as_ref()
-                    .and_then(|stats| stats.iter().rev().find_map(|s| s.to_fastest.clone()))
-            })
-        });
-        self.time_diff_to_position_ahead = args.live_timing.and_then(|lt| {
-            lt.time_diffs.to_position_ahead.clone().or_else(|| {
-                lt.quali_stats
-                    .as_ref()
-                    .and_then(|stats| stats.iter().rev().find_map(|s| s.to_position_ahead.clone()))
-            })
-        });
+        self.time_diff_to_fastest = args.time_diff_to_fastest.clone();
+        self.time_diff_to_position_ahead = args.time_diff_to_position_ahead.clone();
     }
 }
 
@@ -172,21 +166,23 @@ impl TimingTable {
     }
 
     fn update_data(&mut self, state: &TelemetryState) {
-        let leaderboard = state.leaderboard();
+        let participants = state.participants();
 
-        if self.items.len() < leaderboard.len() {
+        if self.items.len() < participants.len() {
             self.items
-                .resize_with(leaderboard.len(), TimingTableData::default);
+                .resize_with(participants.len(), TimingTableData::default);
         } else {
-            self.items.truncate(leaderboard.len());
+            self.items.truncate(participants.len());
         }
 
-        for (i, participant) in leaderboard.into_iter().enumerate() {
+        for (i, participant) in participants.into_iter().enumerate() {
             let args = TimingTableDataArgs {
                 driver: participant.driver,
                 team: participant.team,
                 live_timing: participant.timing,
                 stints: participant.stints,
+                time_diff_to_fastest: participant.time_diff_to_fastest(),
+                time_diff_to_position_ahead: participant.time_diff_to_position_ahead(),
             };
             self.items[i].update_from(&args);
         }

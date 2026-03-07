@@ -3,24 +3,40 @@ use super::driver::DriverNumber;
 #[derive(Debug, Default, Clone, PartialEq)]
 pub struct LiveTiming {
     pub driver_number: DriverNumber,
-    pub best_lap_time: Option<String>,
-    pub in_pit: bool,
-    pub pit_out: bool,
-    pub last_lap: LastLap,
     pub position: u8,
-    pub retired: bool,
     pub status: u32,
+    pub retired: bool,
     pub stopped: bool,
+
+    pub lap_data: LapData,
+    pub pit_data: PitData,
     pub time_diffs: TimeDiffs,
-    pub cutoff: Option<bool>,
-    pub knocked_out: Option<bool>,
-    pub number_of_laps: Option<u8>,
-    pub number_of_pit_stops: Option<u8>,
-    pub quali_stats: Option<Vec<TimeDiffs>>,
+    pub quali_stats: Option<QualiStats>,
 }
 
 #[derive(Debug, Default, Clone, PartialEq)]
-pub struct LastLap {
+pub struct LapData {
+    pub best_lap_time: Option<String>,
+    pub last_lap: Lap,
+    pub number_of_laps: Option<u8>,
+}
+
+#[derive(Debug, Default, Clone, PartialEq)]
+pub struct PitData {
+    pub in_pit: bool,
+    pub pit_out: bool,
+    pub number_of_pit_stops: Option<u8>,
+}
+
+#[derive(Debug, Default, Clone, PartialEq)]
+pub struct QualiStats {
+    pub cutoff: Option<bool>,
+    pub knocked_out: Option<bool>,
+    pub diffs: Option<Vec<TimeDiffs>>,
+}
+
+#[derive(Debug, Default, Clone, PartialEq)]
+pub struct Lap {
     pub overall_fastest: bool,
     pub personal_fastest: bool,
     pub status: u32,
