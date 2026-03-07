@@ -85,6 +85,9 @@ impl TimingTableData {
 
         // if it's quali, the time diffs come from the stats and not the global
         // so we try to use the global time diff and fallback to stats if nto
+        // TODO: but this shows the gaps for Q1/Q2 when we are in Q3 and that
+        // should be fixed!
+        // We have to pass the quali session to only take the relevant ones.
         self.time_diff_to_fastest = args.live_timing.and_then(|lt| {
             lt.time_diffs.to_fastest.clone().or_else(|| {
                 lt.quali_stats
