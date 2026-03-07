@@ -3,36 +3,30 @@ use serde::Deserialize;
 #[derive(Deserialize, Debug)]
 #[allow(non_snake_case)]
 #[allow(dead_code)]
-struct SessionDataPayload {
+pub struct RawSessionData {
     #[serde(default)]
-    Series: Option<Vec<SeriesPayload>>,
+    pub Series: Option<Vec<RawSeries>>,
     #[serde(default)]
-    StatusSeries: Option<Vec<StatusSeriesPayload>>,
+    pub StatusSeries: Option<Vec<RawStatusSeries>>,
 }
 
 #[derive(Deserialize, Debug)]
 #[allow(non_snake_case)]
 #[allow(dead_code)]
-struct SeriesPayload {
-    QualifyingPart: Option<u8>,
-    Utc: Option<String>,
+pub struct RawSeries {
+    pub QualifyingPart: Option<u8>,
+    pub Utc: Option<String>,
 }
 
 #[derive(Deserialize, Debug)]
 #[allow(non_snake_case)]
 #[allow(dead_code)]
-struct StatusSeriesPayload {
-    TrackStatus: Option<String>,
-    SessionStatus: Option<String>,
-    Utc: Option<String>,
+pub struct RawStatusSeries {
+    pub TrackStatus: Option<String>,
+    pub SessionStatus: Option<String>,
+    pub Utc: Option<String>,
 }
 
-pub fn qualifying_part(data: &serde_json::Value) -> Option<u8> {
-    if let Ok(payload) = serde_json::from_value::<SessionDataPayload>(data.clone()) {
-        payload
-            .Series
-            .and_then(|series| series.into_iter().rev().find_map(|s| s.QualifyingPart))
-    } else {
-        None
-    }
+pub fn parse_raw_session_data(data: &serde_json::Value) -> Option<RawSessionData> {
+    serde_json::from_value::<RawSessionData>(data.clone()).ok()
 }

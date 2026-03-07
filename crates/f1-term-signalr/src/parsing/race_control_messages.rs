@@ -1,8 +1,3 @@
-use chrono::{DateTime, NaiveDateTime, Utc};
-use f1_term_core::{
-    flag::{Flag, FlagColor, FlagScope},
-    race_control_message::{MessageCategory, RaceControlMessage},
-};
 use serde::Deserialize;
 use serde_json::Value;
 
@@ -10,88 +5,26 @@ use super::Result;
 
 #[derive(Deserialize, Debug)]
 #[allow(non_snake_case)]
-struct RaceControlMessagesPayload {
-    Messages: Vec<RaceControlMessagePayload>,
+pub struct RawRaceControlMessages {
+    pub Messages: Vec<RawRaceControlMessage>,
 }
 
 #[derive(Deserialize, Debug)]
 #[allow(non_snake_case)]
-struct RaceControlMessagePayload {
-    Utc: String,
-    Category: String,
-    Message: String,
-    Flag: Option<String>,
-    Scope: Option<String>,
-    Sector: Option<u8>,
+pub struct RawRaceControlMessage {
+    pub Utc: String,
+    pub Category: String,
+    pub Message: String,
+    pub Flag: Option<String>,
+    pub Scope: Option<String>,
+    pub Sector: Option<u8>,
 }
 
-impl TryFrom<RaceControlMessagePayload> for RaceControlMessage {
-    type Error = Box<dyn std::error::Error>;
-
-    fn try_from(value: RaceControlMessagePayload) -> Result<Self> {
-        let timestamp = DateTime::from_naive_utc_and_offset(
-            NaiveDateTime::parse_from_str(&value.Utc, "%Y-%m-%dT%H:%M:%S")?,
-            Utc,
-        );
-
-        let category = match value.Category.as_str() {
-            "Flag" => {
-                let color_str = value.Flag.ok_or("Missing 'Flag' in Flag category")?;
-                let color = match color_str.as_str() {
-                    "GREEN" => FlagColor::Green,
-                    "YELLOW" => FlagColor::Yellow,
-                    "DOUBLE YELLOW" => FlagColor::DoubleYellow,
-                    "RED" => FlagColor::Red,
-                    "CLEAR" => FlagColor::Clear,
-                    "CHEQUERED" => FlagColor::Chequered,
-                    _ => return Err(format!("Unknown flag color: {}", color_str).into()),
-                };
-
-                let scope_str = value.Scope.ok_or("Missing 'Scope' in Flag category")?;
-                let scope = match scope_str.as_str() {
-                    "Track" => FlagScope::Track,
-                    "Sector" => {
-                        let sector_num = value.Sector.ok_or("Missing 'Sector' for Sector scope")?;
-                        FlagScope::Sector(sector_num)
-                    }
-                    _ => return Err(format!("Unknown flag scope: {}", scope_str).into()),
-                };
-
-                MessageCategory::Flag(Flag { color, scope })
-            }
-            "SafetyCar" => MessageCategory::SafetyCar,
-            "Other" => {
-                // Some messages containing flag information don't come categorized as "Flag".
-                // We parse them here if they contain flag specific keywords to properly colorize the UI.
-                if value.Message.contains("RED FLAG") {
-                    MessageCategory::Flag(Flag {
-                        color: FlagColor::Red,
-                        scope: FlagScope::Track,
-                    })
-                } else {
-                    MessageCategory::Other
-                }
-            }
-            _ => return Err(format!("Unknown Category: {}", value.Category).into()),
-        };
-
-        Ok(RaceControlMessage {
-            timestamp,
-            category,
-            message: value.Message,
-        })
-    }
-}
-
-pub fn parse_race_control_messages(val: &Value) -> Result<Vec<RaceControlMessage>> {
+pub fn parse_raw_race_control_messages(val: &Value) -> Result<RawRaceControlMessages> {
     match val {
         Value::Object(_) => {
-            let payload: RaceControlMessagesPayload = RaceControlMessagesPayload::deserialize(val)?;
-            payload
-                .Messages
-                .into_iter()
-                .map(RaceControlMessage::try_from)
-                .collect()
+            let payload: RawRaceControlMessages = RawRaceControlMessages::deserialize(val)?;
+            Ok(payload)
         }
         _ => Err("RaceControlMessages value is not a JSON object".into()),
     }
@@ -99,11 +32,15 @@ pub fn parse_race_control_messages(val: &Value) -> Result<Vec<RaceControlMessage
 
 #[cfg(test)]
 mod tests {
-    use chrono::TimeZone;
-    use f1_term_core::flag::{FlagColor, FlagScope};
+    use chrono::{TimeZone, Utc};
+    use f1_term_core::{
+        flag::{Flag, FlagColor, FlagScope},
+        race_control_message::MessageCategory,
+    };
     use serde_json::json;
 
     use super::*;
+    use crate::convert::race_control_message::convert_race_control_messages;
 
     #[test]
     fn test_parse_other_message() {
@@ -118,7 +55,8 @@ mod tests {
             "_kf": true
         });
 
-        let parsed = parse_race_control_messages(&json_data).unwrap();
+        let raw = parse_raw_race_control_messages(&json_data).unwrap();
+        let parsed = convert_race_control_messages(&raw.Messages).unwrap();
         assert_eq!(parsed.len(), 1);
         assert_eq!(
             parsed[0].timestamp,
@@ -143,7 +81,8 @@ mod tests {
             "_kf": true
         });
 
-        let parsed = parse_race_control_messages(&json_data).unwrap();
+        let raw = parse_raw_race_control_messages(&json_data).unwrap();
+        let parsed = convert_race_control_messages(&raw.Messages).unwrap();
         assert_eq!(parsed.len(), 1);
         assert_eq!(
             parsed[0].timestamp,
@@ -175,7 +114,8 @@ mod tests {
             "_kf": true
         });
 
-        let parsed = parse_race_control_messages(&json_data).unwrap();
+        let raw = parse_raw_race_control_messages(&json_data).unwrap();
+        let parsed = convert_race_control_messages(&raw.Messages).unwrap();
         assert_eq!(parsed.len(), 1);
         assert_eq!(
             parsed[0].timestamp,
@@ -204,7 +144,8 @@ mod tests {
             "_kf": true
         });
 
-        let parsed = parse_race_control_messages(&json_data).unwrap();
+        let raw = parse_raw_race_control_messages(&json_data).unwrap();
+        let parsed = convert_race_control_messages(&raw.Messages).unwrap();
         assert_eq!(parsed.len(), 1);
         assert_eq!(
             parsed[0].timestamp,
@@ -236,7 +177,8 @@ mod tests {
             "_kf": true
         });
 
-        let parsed = parse_race_control_messages(&json_data).unwrap();
+        let raw = parse_raw_race_control_messages(&json_data).unwrap();
+        let parsed = convert_race_control_messages(&raw.Messages).unwrap();
         assert_eq!(parsed.len(), 1);
         assert_eq!(
             parsed[0].timestamp,
@@ -267,7 +209,8 @@ mod tests {
             "_kf": true
         });
 
-        let parsed = parse_race_control_messages(&json_data).unwrap();
+        let raw = parse_raw_race_control_messages(&json_data).unwrap();
+        let parsed = convert_race_control_messages(&raw.Messages).unwrap();
         assert_eq!(parsed.len(), 1);
         assert_eq!(
             parsed[0].timestamp,

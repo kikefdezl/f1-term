@@ -9,17 +9,17 @@ use f1_term_core::{
     timing::{LiveTiming, Sector, Segment, SegmentStatus},
 };
 use ratatui::{
+    Frame,
     layout::{Constraint, Rect},
     style::{Color, Modifier, Style},
     text::{Line, Span},
     widgets::{Cell, Row, Table as RatatuiTable, TableState},
-    Frame,
 };
 
 use super::{Action, Component};
 use crate::constants::{
     COLOR_ABORTED, COLOR_IN_PIT, COLOR_OVERALL_FASTEST, COLOR_PERSONAL_FASTEST, COLOR_SLOWER,
-    SEGMENTS, SEGMENT_WIDTH,
+    SEGMENT_WIDTH, SEGMENTS,
 };
 
 #[derive(Default)]

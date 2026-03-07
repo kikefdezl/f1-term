@@ -8,17 +8,21 @@ use f1_term_core::{
 use log::error;
 
 use self::{
-    driver_list::{parse_drivers, parse_teams},
-    stints::parse_stints,
-    timing_data::parse_timing_data,
+    driver_list::parse_driver_list, lap_count::parse_raw_lap_count,
+    session_info::parse_raw_session_info, stints::parse_raw_stints, timing_data::parse_raw_timing_data,
 };
 use super::{
     parsing::{
-        lap_count::parse_lap_count, race_control_messages::parse_race_control_messages,
-        session_info::parse_session_info, track_status::parse_track_status,
-        weather_data::parse_weather_data,
+        race_control_messages::parse_raw_race_control_messages,
+        track_status::parse_raw_track_status, weather_data::parse_raw_weather_data,
     },
     topic::Topic,
+};
+use crate::convert::{
+    driver::convert_drivers, lap_count::convert_lap_count,
+    race_control_message::convert_race_control_messages, session::convert_session_info,
+    stint::convert_stints, team::convert_teams, track_status::convert_track_status,
+    weather::convert_weather_data, timing::convert_timing_data,
 };
 
 pub mod driver_list;
@@ -43,8 +47,15 @@ pub fn parse_message(state: &serde_json::Value, updated_topics: &[Topic]) -> Vec
         && let Some(info_data) = state.get(Topic::SessionInfo.to_string())
     {
         let session_data = state.get(Topic::SessionData.to_string());
-        match parse_session_info(info_data, session_data) {
-            Ok(info) => events.push(TelemetryUpdate::SessionInfo(Box::new(info))),
+        match parse_raw_session_info(info_data) {
+            Ok(raw_info) => {
+                let raw_data =
+                    session_data.and_then(crate::parsing::session_data::parse_raw_session_data);
+                match convert_session_info(&raw_info, raw_data.as_ref()) {
+                    Ok(info) => events.push(TelemetryUpdate::SessionInfo(Box::new(info))),
+                    Err(e) => error!("{}", e),
+                }
+            }
             Err(e) => error!("{}", e),
         }
     }
@@ -56,41 +67,60 @@ pub fn parse_message(state: &serde_json::Value, updated_topics: &[Topic]) -> Vec
 
         if let Some(topic_data) = state.get(topic.to_string()) {
             if topic == &Topic::DriverList {
-                let drivers: HashMap<DriverNumber, Driver> =
-                    parse_drivers(topic_data).unwrap_or_default();
-                events.push(TelemetryUpdate::Drivers(drivers));
-                let teams: HashMap<TeamName, Team> = parse_teams(topic_data).unwrap_or_default();
-                events.push(TelemetryUpdate::Teams(teams));
+                match parse_driver_list(topic_data) {
+                    Ok(raw_drivers) => {
+                        let drivers: HashMap<DriverNumber, Driver> = convert_drivers(&raw_drivers);
+                        events.push(TelemetryUpdate::Drivers(drivers));
+                        let teams: HashMap<TeamName, Team> = convert_teams(&raw_drivers);
+                        events.push(TelemetryUpdate::Teams(teams));
+                    }
+                    Err(e) => error!("{}", e),
+                }
             } else if topic == &Topic::TimingData {
-                match parse_timing_data(topic_data) {
-                    Ok(timing_data) => events.push(TelemetryUpdate::TimingData(timing_data)),
+                match parse_raw_timing_data(topic_data) {
+                    Ok(raw_timing) => events.push(TelemetryUpdate::TimingData(convert_timing_data(&raw_timing))),
                     Err(e) => error!("{}", e),
                 }
             } else if topic == &Topic::TimingAppData {
-                match parse_stints(topic_data) {
-                    Ok(stints) => events.push(TelemetryUpdate::Stints(stints)),
+                match parse_raw_stints(topic_data) {
+                    Ok(raw_stints) => {
+                        let stints = convert_stints(&raw_stints);
+                        events.push(TelemetryUpdate::Stints(stints));
+                    }
                     Err(e) => error!("{}", e),
                 }
             } else if topic == &Topic::TrackStatus {
-                match parse_track_status(topic_data) {
-                    Ok(track_status) => events.push(TelemetryUpdate::TrackStatus(track_status)),
+                match parse_raw_track_status(topic_data) {
+                    Ok(raw_status) => match convert_track_status(&raw_status) {
+                        Ok(track_status) => events.push(TelemetryUpdate::TrackStatus(track_status)),
+                        Err(e) => error!("{}", e),
+                    },
                     Err(e) => error!("{}", e),
                 }
             } else if topic == &Topic::RaceControlMessages {
-                match parse_race_control_messages(topic_data) {
-                    Ok(race_control_messages) => {
-                        events.push(TelemetryUpdate::RaceControlMessages(race_control_messages))
+                match parse_raw_race_control_messages(topic_data) {
+                    Ok(raw_messages) => {
+                        match convert_race_control_messages(&raw_messages.Messages) {
+                            Ok(race_control_messages) => events
+                                .push(TelemetryUpdate::RaceControlMessages(race_control_messages)),
+                            Err(e) => error!("{}", e),
+                        }
                     }
                     Err(e) => error!("{}", e),
                 }
             } else if topic == &Topic::WeatherData {
-                match parse_weather_data(topic_data) {
-                    Ok(weather) => events.push(TelemetryUpdate::Weather(weather)),
+                match parse_raw_weather_data(topic_data) {
+                    Ok(raw_weather) => match convert_weather_data(&raw_weather) {
+                        Ok(weather) => events.push(TelemetryUpdate::Weather(weather)),
+                        Err(e) => error!("{}", e),
+                    },
                     Err(e) => error!("{}", e),
                 }
             } else if topic == &Topic::LapCount {
-                match parse_lap_count(topic_data) {
-                    Ok(laps) => events.push(TelemetryUpdate::Laps(laps)),
+                match parse_raw_lap_count(topic_data) {
+                    Ok(raw_laps) => {
+                        events.push(TelemetryUpdate::Laps(convert_lap_count(&raw_laps)))
+                    }
                     Err(e) => error!("{}", e),
                 }
             }

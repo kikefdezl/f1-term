@@ -1,271 +1,113 @@
 use std::collections::HashMap;
 
-use f1_term_core::{
-    driver::DriverNumber,
-    timing::{Lap, LiveTiming, Sector, Segment, SegmentStatus, Speed, Speeds, TimeDiffs},
-};
-use log::{info, warn};
 use serde::Deserialize;
 use serde_json::Value;
 
 use super::Result;
 
-#[derive(Deserialize, Debug, Default)]
+#[derive(Deserialize, Debug, Default, Clone)]
 #[allow(non_snake_case)]
 #[serde(default)]
-struct BestLapTimePayload {
-    Value: String,
+pub struct RawBestLapTime {
+    pub Value: String,
 }
 
-#[derive(Deserialize, Debug, Default)]
+#[derive(Deserialize, Debug, Default, Clone)]
 #[allow(non_snake_case)]
 #[serde(default)]
-struct LastLapTimePayload {
-    OverallFastest: bool,
-    PersonalFastest: bool,
-    Status: u32,
-    Value: String,
+pub struct RawLastLapTime {
+    pub OverallFastest: bool,
+    pub PersonalFastest: bool,
+    pub Status: u32,
+    pub Value: String,
 }
 
-#[derive(Deserialize, Debug, Default)]
+#[derive(Deserialize, Debug, Default, Clone)]
 #[allow(non_snake_case)]
 #[serde(default)]
-struct SegmentPayload {
-    Status: u32,
+pub struct RawSegment {
+    pub Status: u32,
 }
 
-#[derive(Deserialize, Debug, Default)]
+#[derive(Deserialize, Debug, Default, Clone)]
 #[allow(non_snake_case)]
 #[serde(default)]
-struct SectorPayload {
-    OverallFastest: bool,
-    PersonalFastest: bool,
-    Segments: Vec<SegmentPayload>,
-    Status: u32,
-    Stopped: bool,
-    Value: String,
-    PreviousValue: Option<String>,
+pub struct RawSector {
+    pub OverallFastest: bool,
+    pub PersonalFastest: bool,
+    pub Segments: Vec<RawSegment>,
+    pub Status: u32,
+    pub Stopped: bool,
+    pub Value: String,
+    pub PreviousValue: Option<String>,
 }
 
-#[derive(Deserialize, Debug, Default)]
+#[derive(Deserialize, Debug, Default, Clone)]
 #[allow(non_snake_case)]
 #[serde(default)]
-struct SpeedPayload {
-    OverallFastest: bool,
-    PersonalFastest: bool,
-    Status: u32,
-    Value: String,
+pub struct RawSpeed {
+    pub OverallFastest: bool,
+    pub PersonalFastest: bool,
+    pub Status: u32,
+    pub Value: String,
 }
 
-#[derive(Deserialize, Debug, Default)]
+#[derive(Deserialize, Debug, Default, Clone)]
 #[allow(non_snake_case)]
 #[serde(default)]
-struct SpeedsPayload {
-    FL: SpeedPayload,
-    I1: SpeedPayload,
-    I2: SpeedPayload,
-    ST: SpeedPayload,
+pub struct RawSpeeds {
+    pub FL: RawSpeed,
+    pub I1: RawSpeed,
+    pub I2: RawSpeed,
+    pub ST: RawSpeed,
 }
 
-#[derive(Deserialize, Debug, Default)]
+#[derive(Deserialize, Debug, Default, Clone)]
 #[allow(non_snake_case)]
 #[serde(default)]
-struct StatsPayload {
-    TimeDiffToFastest: String,
-    TimeDifftoPositionAhead: String,
+pub struct RawStats {
+    pub TimeDiffToFastest: String,
+    pub TimeDifftoPositionAhead: String,
 }
 
-impl From<StatsPayload> for TimeDiffs {
-    fn from(value: StatsPayload) -> Self {
-        let to_fastest = Some(value.TimeDiffToFastest).filter(|s| !s.is_empty());
-        let to_position_ahead = Some(value.TimeDifftoPositionAhead).filter(|s| !s.is_empty());
-        Self {
-            to_fastest,
-            to_position_ahead,
-        }
-    }
-}
-
-#[derive(Deserialize, Debug, Default)]
+#[derive(Deserialize, Debug, Default, Clone)]
 #[allow(non_snake_case)]
 #[serde(default)]
-struct TimingDataPayload {
-    RacingNumber: String,
-    BestLapTime: BestLapTimePayload,
-    InPit: bool,
-    PitOut: bool,
-    LastLapTime: LastLapTimePayload,
-    Position: String,
-    Retired: bool,
-    Status: u32,
-    Stopped: bool,
-    TimeDiffToFastest: String,
-    TimeDiffToPositionAhead: String,
-    Sectors: Vec<SectorPayload>,
-    ShowPosition: bool,
-    Speeds: SpeedsPayload,
-    Cutoff: Option<bool>,
-    KnockedOut: Option<bool>,
-    NumberOfLaps: Option<u8>,
-    NumberOfPitStops: Option<u8>,
-    Stats: Option<Vec<StatsPayload>>,
+pub struct RawTimingData {
+    pub RacingNumber: String,
+    pub BestLapTime: RawBestLapTime,
+    pub InPit: bool,
+    pub PitOut: bool,
+    pub LastLapTime: RawLastLapTime,
+    pub Position: String,
+    pub Retired: bool,
+    pub Status: u32,
+    pub Stopped: bool,
+    pub TimeDiffToFastest: String,
+    pub TimeDiffToPositionAhead: String,
+    pub Sectors: Vec<RawSector>,
+    pub ShowPosition: bool,
+    pub Speeds: RawSpeeds,
+    pub Cutoff: Option<bool>,
+    pub KnockedOut: Option<bool>,
+    pub NumberOfLaps: Option<u8>,
+    pub NumberOfPitStops: Option<u8>,
+    pub Stats: Option<Vec<RawStats>>,
 }
 
-impl From<SegmentPayload> for Segment {
-    fn from(p: SegmentPayload) -> Self {
-        let status = match p.Status {
-            0 => SegmentStatus::None,
-            2048 => SegmentStatus::Normal,
-            2049 => SegmentStatus::PersonalFastest,
-            2050 => SegmentStatus::Unknown,
-            2051 => SegmentStatus::OverallFastest,
-            2052 => SegmentStatus::Aborted,
-            2064 => SegmentStatus::InPit,
-            other => {
-                warn!("Unknown SegmentStatus value {}!", other);
-                SegmentStatus::None
-            }
-        };
-        Segment { status }
-    }
-}
-
-impl From<SectorPayload> for Sector {
-    fn from(p: SectorPayload) -> Self {
-        let value = Some(p.Value).filter(|s| !s.is_empty());
-        Sector {
-            overall_fastest: p.OverallFastest,
-            personal_fastest: p.PersonalFastest,
-            segments: p.Segments.into_iter().map(Into::into).collect(),
-            status: p.Status,
-            stopped: p.Stopped,
-            value,
-            previous_value: p.PreviousValue,
-        }
-    }
-}
-
-impl From<SpeedPayload> for Speed {
-    fn from(p: SpeedPayload) -> Self {
-        Speed {
-            overall_fastest: p.OverallFastest,
-            personal_fastest: p.PersonalFastest,
-            status: p.Status,
-            value: p.Value,
-        }
-    }
-}
-
-impl From<SpeedsPayload> for Speeds {
-    fn from(p: SpeedsPayload) -> Self {
-        Speeds {
-            fl: p.FL.into(),
-            i1: p.I1.into(),
-            i2: p.I2.into(),
-            st: p.ST.into(),
-        }
-    }
-}
-
-impl TryFrom<TimingDataPayload> for LiveTiming {
-    type Error = Box<dyn std::error::Error>;
-
-    fn try_from(payload: TimingDataPayload) -> Result<Self> {
-        let driver_number = DriverNumber {
-            value: payload.RacingNumber.parse()?,
-        };
-
-        // API returns empty strings, we convert those to None
-        let best_lap_time = Some(payload.BestLapTime.Value).filter(|s| !s.is_empty());
-        let last_lap_time = Some(payload.LastLapTime.Value).filter(|s| !s.is_empty());
-        let time_diff_to_fastest = Some(payload.TimeDiffToFastest).filter(|s| !s.is_empty());
-        let time_diff_to_position_ahead =
-            Some(payload.TimeDiffToPositionAhead).filter(|s| !s.is_empty());
-
-        let last_lap = Lap {
-            overall_fastest: payload.LastLapTime.OverallFastest,
-            personal_fastest: payload.LastLapTime.PersonalFastest,
-            status: payload.LastLapTime.Status,
-            time: last_lap_time,
-            sectors: payload.Sectors.into_iter().map(Into::into).collect(),
-            show_position: payload.ShowPosition,
-            speeds: payload.Speeds.into(),
-        };
-
-        let time_diffs = TimeDiffs {
-            to_fastest: time_diff_to_fastest,
-            to_position_ahead: time_diff_to_position_ahead,
-        };
-
-        let quali_stats = payload.Stats.map(|s| {
-            s.into_iter()
-                .map(|stat| stat.into())
-                .collect::<Vec<TimeDiffs>>()
-        });
-
-        let lap_data = f1_term_core::timing::LapData {
-            best_lap_time,
-            last_lap,
-            number_of_laps: payload.NumberOfLaps,
-        };
-
-        let pit_data = f1_term_core::timing::PitData {
-            in_pit: payload.InPit,
-            pit_out: payload.PitOut,
-            number_of_pit_stops: payload.NumberOfPitStops,
-        };
-
-        let quali_stats =
-            if payload.Cutoff.is_some() || payload.KnockedOut.is_some() || quali_stats.is_some() {
-                Some(f1_term_core::timing::QualiStats {
-                    cutoff: payload.Cutoff,
-                    knocked_out: payload.KnockedOut,
-                    diffs: quali_stats,
-                })
-            } else {
-                None
-            };
-
-        Ok(LiveTiming {
-            driver_number,
-            position: payload.Position.parse().unwrap_or(0),
-            status: payload.Status,
-            retired: payload.Retired,
-            stopped: payload.Stopped,
-            time_diffs,
-            lap_data,
-            pit_data,
-            quali_stats,
-        })
-    }
-}
-
-pub fn parse_timing_data(val: &Value) -> Result<HashMap<DriverNumber, LiveTiming>> {
-    let mut timing_data: HashMap<DriverNumber, LiveTiming> = HashMap::new();
+pub fn parse_raw_timing_data(val: &Value) -> Result<HashMap<String, RawTimingData>> {
+    let mut timing_data: HashMap<String, RawTimingData> = HashMap::new();
     let lines = val.get("Lines").ok_or("Missing Lines in TimingData")?;
 
     match lines {
         Value::Object(map) => {
             for (num, attrs) in map.iter() {
-                let number: u8 = match num.parse() {
-                    Ok(n) => n,
-                    Err(_) => {
-                        warn!("Failed to parse timing data line {num}");
-                        continue;
+                match RawTimingData::deserialize(attrs) {
+                    Ok(payload) => {
+                        timing_data.insert(num.clone(), payload);
                     }
-                };
-                let driver_number = DriverNumber { value: number };
-                match TimingDataPayload::deserialize(attrs) {
-                    Ok(payload) => match LiveTiming::try_from(payload) {
-                        Ok(lt) => {
-                            timing_data.insert(driver_number, lt);
-                        }
-                        Err(e) => {
-                            info!("Failed to convert live timing payload for {}: {}", num, e);
-                        }
-                    },
                     Err(e) => {
-                        info!("Failed to parse timing data payload for {}: {}", num, e);
+                        log::info!("Failed to parse timing data payload for {}: {}", num, e);
                     }
                 }
             }
@@ -277,9 +119,11 @@ pub fn parse_timing_data(val: &Value) -> Result<HashMap<DriverNumber, LiveTiming
 
 #[cfg(test)]
 mod tests {
+    use f1_term_core::driver::DriverNumber;
     use serde_json::json;
 
     use super::*;
+    use crate::convert::timing::convert_timing_data;
 
     #[test]
     fn test_parse_timing_data() {
@@ -328,7 +172,8 @@ mod tests {
             }
         });
 
-        let data = parse_timing_data(&json).unwrap();
+        let raw = parse_raw_timing_data(&json).unwrap();
+        let data = convert_timing_data(&raw);
         assert_eq!(data.len(), 1);
 
         let driver_number = DriverNumber { value: 1 };
@@ -373,14 +218,15 @@ mod tests {
             }
         });
 
-        let result = parse_timing_data(&raw_payload);
+        let result = parse_raw_timing_data(&raw_payload);
         assert!(
             result.is_ok(),
             "Failed to parse payload missing optional fields: {:?}",
             result.err()
         );
 
-        let map = result.unwrap();
+        let raw = result.unwrap();
+        let map = convert_timing_data(&raw);
         let driver_timing = map.get(&DriverNumber { value: 44 }).unwrap();
 
         assert_eq!(driver_timing.lap_data.best_lap_time, None);

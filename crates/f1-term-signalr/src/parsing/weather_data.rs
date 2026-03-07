@@ -1,4 +1,3 @@
-use f1_term_core::weather::{Weather, Wind, WindDirection};
 use serde::Deserialize;
 use serde_json::Value;
 
@@ -6,38 +5,19 @@ use super::Result;
 
 #[derive(Deserialize)]
 #[allow(non_snake_case)]
-struct WeatherDataPayload {
-    AirTemp: String,
-    Humidity: String,
-    Pressure: String,
-    Rainfall: String,
-    TrackTemp: String,
-    WindDirection: String,
-    WindSpeed: String,
+pub struct RawWeatherData {
+    pub AirTemp: String,
+    pub Humidity: String,
+    pub Pressure: String,
+    pub Rainfall: String,
+    pub TrackTemp: String,
+    pub WindDirection: String,
+    pub WindSpeed: String,
 }
 
-impl TryFrom<WeatherDataPayload> for Weather {
-    type Error = Box<dyn std::error::Error>;
-
-    fn try_from(value: WeatherDataPayload) -> Result<Self> {
-        Ok(Weather {
-            air_temperature: value.AirTemp.parse()?,
-            track_temperature: value.TrackTemp.parse()?,
-            humidity: value.Humidity.parse()?,
-            pressure: value.Pressure.parse()?,
-            rainfall: value.Rainfall.parse()?,
-            wind: Wind {
-                direction: WindDirection {
-                    value: value.WindDirection.parse()?,
-                },
-                speed: value.WindSpeed.parse()?,
-            },
-        })
-    }
-}
-pub fn parse_weather_data(val: &Value) -> Result<Weather> {
-    let payload: WeatherDataPayload = WeatherDataPayload::deserialize(val)?;
-    Weather::try_from(payload)
+pub fn parse_raw_weather_data(val: &Value) -> Result<RawWeatherData> {
+    let payload = RawWeatherData::deserialize(val)?;
+    Ok(payload)
 }
 
 #[cfg(test)]
@@ -45,6 +25,7 @@ mod tests {
     use serde_json::json;
 
     use super::*;
+    use crate::convert::weather::convert_weather_data;
 
     #[test]
     fn parse_weather_data_from_json() {
@@ -59,7 +40,8 @@ mod tests {
             "_kf": true
         });
 
-        let result = parse_weather_data(&json_data).expect("Failed to parse weather data");
+        let raw = parse_raw_weather_data(&json_data).expect("Failed to parse raw weather data");
+        let result = convert_weather_data(&raw).expect("Failed to parse weather data");
 
         assert_eq!(result.air_temperature, 23.5);
         assert_eq!(result.humidity, 34.3);

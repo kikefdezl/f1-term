@@ -1,145 +1,61 @@
 use std::collections::HashMap;
 
-use f1_term_core::{
-    driver::{Driver, DriverNumber},
-    team::{Team, TeamColor, TeamName},
-};
-use log::{info, warn};
+use log::info;
 use serde::Deserialize;
 use serde_json::Value;
 
 use super::Result;
 
-#[derive(Deserialize, Debug)]
+#[derive(Deserialize, Debug, Clone)]
 #[allow(non_snake_case)]
-struct DriverPayload {
-    RacingNumber: String,
-    FirstName: String,
-    LastName: String,
-    FullName: String,
-    BroadcastName: String,
-    HeadshotUrl: String,
-    Line: u8,
-    PublicIdRight: String,
-    Tla: String,
-    TeamName: String,
-    Reference: String,
-    TeamColour: String,
+pub struct RawDriver {
+    pub RacingNumber: String,
+    pub FirstName: String,
+    pub LastName: String,
+    pub FullName: String,
+    pub BroadcastName: String,
+    pub HeadshotUrl: String,
+    pub Line: u8,
+    pub PublicIdRight: String,
+    pub Tla: String,
+    pub TeamName: String,
+    pub Reference: String,
+    pub TeamColour: String,
 }
 
-impl TryFrom<DriverPayload> for Driver {
-    type Error = Box<dyn std::error::Error>;
-
-    fn try_from(payload: DriverPayload) -> Result<Self> {
-        Ok(Driver {
-            number: DriverNumber {
-                value: payload.RacingNumber.parse()?,
-            },
-            first_name: payload.FirstName,
-            last_name: payload.LastName,
-            full_name: payload.FullName,
-            broadcast_name: payload.BroadcastName,
-            headshot_url: payload.HeadshotUrl,
-            line: Some(payload.Line),
-            public_id_right: payload.PublicIdRight,
-            tla: payload.Tla,
-            team_name: TeamName {
-                value: payload.TeamName,
-            },
-            reference: payload.Reference,
-        })
-    }
-}
-
-pub fn parse_drivers(val: &Value) -> Result<HashMap<DriverNumber, Driver>> {
-    let mut drivers: HashMap<DriverNumber, Driver> = HashMap::new();
+pub fn parse_driver_list(val: &Value) -> Result<HashMap<String, RawDriver>> {
+    let mut raw_drivers: HashMap<String, RawDriver> = HashMap::new();
     match val {
         Value::Object(map) => {
-            for (num, attrs) in map.iter() {
-                if num == "_kf" {
+            for (num_str, attrs) in map.iter() {
+                if num_str == "_kf" {
                     continue;
                 }
-                let number: u8 = match num.parse() {
-                    Ok(n) => n,
-                    Err(_) => {
-                        warn!("Failed to parse number for car {num}");
-                        continue;
-                    }
-                };
-                let driver_number = DriverNumber { value: number };
 
-                // Medical and safety cars don't have all fields, so those fail to parse.
-                // We just ignore them too.
-                match DriverPayload::deserialize(attrs) {
-                    Ok(payload) => match Driver::try_from(payload) {
-                        Ok(d) => {
-                            drivers.insert(driver_number, d);
-                        }
-                        Err(e) => {
-                            info!("Failed to convert driver payload {}: {}", number, e);
-                        }
-                    },
+                match RawDriver::deserialize(attrs) {
+                    Ok(payload) => {
+                        raw_drivers.insert(num_str.clone(), payload);
+                    }
                     Err(e) => {
-                        info!("Failed to parse driver payload for {}: {}", number, e);
+                        // Medical and safety cars don't have all fields, so those fail to parse.
+                        // We just ignore them.
+                        info!("Failed to parse driver payload for {}: {}", num_str, e);
                     }
                 }
             }
         }
         _ => return Err("Drivers value is not a JSON object".into()),
     }
-    Ok(drivers)
-}
-
-impl TryFrom<DriverPayload> for Team {
-    type Error = Box<dyn std::error::Error>;
-
-    fn try_from(payload: DriverPayload) -> Result<Self> {
-        Ok(Team {
-            name: TeamName {
-                value: payload.TeamName,
-            },
-            color: TeamColor {
-                u32: u32::from_str_radix(&payload.TeamColour, 16)?,
-            },
-        })
-    }
-}
-
-pub fn parse_teams(val: &Value) -> Result<HashMap<TeamName, Team>> {
-    let mut teams: HashMap<TeamName, Team> = HashMap::new();
-    match val {
-        Value::Object(map) => {
-            for (k, attrs) in map.iter() {
-                if k == "_kf" {
-                    continue;
-                }
-                // Medical and safety cars don't have a team, so those fail to parse.
-                // We just ignore them.
-                match DriverPayload::deserialize(attrs) {
-                    Ok(payload) => match Team::try_from(payload) {
-                        Ok(t) => {
-                            teams.insert(t.name.clone(), t);
-                        }
-                        Err(e) => {
-                            info!("Failed to convert driver payload: {}", e);
-                        }
-                    },
-                    Err(e) => {
-                        info!("Failed to parse team payload: {}", e);
-                    }
-                }
-            }
-        }
-        _ => return Err("Drivers value is not a JSON object".into()),
-    }
-    Ok(teams)
+    Ok(raw_drivers)
 }
 
 #[cfg(test)]
 mod tests {
+    use f1_term_core::{driver::DriverNumber, team::TeamName};
     use serde_json::json;
 
     use super::*;
+    use crate::convert::{driver::convert_drivers, team::convert_teams};
 
     fn driver_1() -> serde_json::Value {
         json!({
@@ -186,7 +102,8 @@ mod tests {
             }
         });
 
-        let drivers = parse_drivers(&val).unwrap();
+        let raw_drivers = parse_driver_list(&val).unwrap();
+        let drivers = convert_drivers(&raw_drivers);
 
         assert_eq!(drivers.len(), 2);
 
@@ -206,7 +123,7 @@ mod tests {
     #[test]
     fn test_parse_drivers_invalid() {
         let val = json!("invalid");
-        let result = parse_drivers(&val);
+        let result = parse_driver_list(&val);
         assert!(result.is_err());
     }
 
@@ -220,7 +137,8 @@ mod tests {
             }
         });
 
-        let teams = parse_teams(&json).unwrap();
+        let raw_drivers = parse_driver_list(&json).unwrap();
+        let teams = convert_teams(&raw_drivers);
         assert_eq!(teams.len(), 2);
 
         let rb = teams

@@ -1,10 +1,5 @@
 use std::collections::HashMap;
 
-use f1_term_core::{
-    driver::DriverNumber,
-    stint::{Compound, Stint, Stints},
-};
-use log::warn;
 use serde::Deserialize;
 use serde_json::Value;
 
@@ -13,48 +8,24 @@ use super::Result;
 #[derive(Deserialize, Debug, Default)]
 #[allow(non_snake_case)]
 #[serde(default)]
-struct StintPayload {
-    Compound: String,
-    LapFlags: u8,
-    New: String,
-    StartLaps: u8,
-    TotalLaps: u8,
-    TyresNotChanged: String,
+pub struct RawStint {
+    pub Compound: String,
+    pub LapFlags: u8,
+    pub New: String,
+    pub StartLaps: u8,
+    pub TotalLaps: u8,
+    pub TyresNotChanged: String,
 }
 
 #[derive(Deserialize, Debug, Default)]
 #[allow(non_snake_case)]
 #[serde(default)]
-struct DriverStintsPayload {
-    Stints: Vec<StintPayload>,
+pub struct RawDriverStints {
+    pub Stints: Vec<RawStint>,
 }
 
-impl TryFrom<StintPayload> for Stint {
-    type Error = Box<dyn std::error::Error>;
-
-    fn try_from(payload: StintPayload) -> Result<Self> {
-        let compound = match payload.Compound.as_str() {
-            "SOFT" => Compound::Soft,
-            "MEDIUM" => Compound::Medium,
-            "HARD" => Compound::Hard,
-            "INTERMEDIATE" => Compound::Intermediate,
-            "WET" => Compound::Wet,
-            _ => Compound::Unknown,
-        };
-
-        Ok(Stint {
-            compound,
-            lap_flags: payload.LapFlags,
-            new: payload.New == "true",
-            start_laps: payload.StartLaps,
-            total_laps: payload.TotalLaps,
-            tires_not_changed: payload.TyresNotChanged.parse().unwrap_or(0),
-        })
-    }
-}
-
-pub fn parse_stints(val: &Value) -> Result<HashMap<DriverNumber, Stints>> {
-    let mut stints_map: HashMap<DriverNumber, Stints> = HashMap::new();
+pub fn parse_raw_stints(val: &Value) -> Result<HashMap<String, RawDriverStints>> {
+    let mut stints_map: HashMap<String, RawDriverStints> = HashMap::new();
     let lines = val
         .get("Lines")
         .ok_or("Couldn't find 'Lines' in response")?;
@@ -62,32 +33,12 @@ pub fn parse_stints(val: &Value) -> Result<HashMap<DriverNumber, Stints>> {
     match lines {
         Value::Object(l) => {
             for (num, attrs) in l {
-                let number: u8 = match num.parse() {
-                    Ok(n) => n,
-                    Err(_) => {
-                        warn!("Failed to parse stint line {num}");
-                        continue;
-                    }
-                };
-                let driver_number = DriverNumber { value: number };
-
-                match DriverStintsPayload::deserialize(attrs) {
+                match RawDriverStints::deserialize(attrs) {
                     Ok(payload) => {
-                        let driver_stints: Stints = payload
-                            .Stints
-                            .into_iter()
-                            .filter_map(|s| match Stint::try_from(s) {
-                                Ok(stint) => Some(stint),
-                                Err(e) => {
-                                    warn!("Failed to parse stint for driver {}: {}", num, e);
-                                    None
-                                }
-                            })
-                            .collect();
-                        stints_map.insert(driver_number, driver_stints);
+                        stints_map.insert(num.clone(), payload);
                     }
                     Err(e) => {
-                        warn!("Failed to parse stints payload for driver {}: {}", num, e);
+                        log::warn!("Failed to parse stints payload for driver {}: {}", num, e);
                     }
                 }
             }
@@ -99,9 +50,11 @@ pub fn parse_stints(val: &Value) -> Result<HashMap<DriverNumber, Stints>> {
 
 #[cfg(test)]
 mod tests {
+    use f1_term_core::{driver::DriverNumber, stint::Compound};
     use serde_json::json;
 
     use super::*;
+    use crate::convert::stint::convert_stints;
 
     #[test]
     fn test_parse_stints() {
@@ -130,7 +83,8 @@ mod tests {
             }
         });
 
-        let stints_map = parse_stints(&json).unwrap();
+        let raw = parse_raw_stints(&json).unwrap();
+        let stints_map = convert_stints(&raw);
         assert_eq!(stints_map.len(), 1);
 
         let driver_number = DriverNumber { value: 1 };
@@ -166,14 +120,15 @@ mod tests {
             }
         });
 
-        let result = parse_stints(&raw_payload);
+        let result = parse_raw_stints(&raw_payload);
         assert!(
             result.is_ok(),
             "Failed to parse stints missing optional fields: {:?}",
             result.err()
         );
 
-        let map = result.unwrap();
+        let raw = result.unwrap();
+        let map = convert_stints(&raw);
         let stints = map.get(&DriverNumber { value: 44 }).unwrap();
 
         assert_eq!(stints.len(), 1);
