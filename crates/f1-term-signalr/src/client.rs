@@ -1,21 +1,10 @@
 use std::{
-    collections::HashMap,
     fs::{self, OpenOptions},
     io::Write,
     time::{SystemTime, UNIX_EPOCH},
 };
 
-use f1_term_core::{
-    driver::{Driver, DriverNumber},
-    race_control_message::RaceControlMessage,
-    session_info::SessionInfo,
-    stint::Stints,
-    team::{Team, TeamName},
-    telemetry_provider::{TelemetryProvider, TelemetryUpdate},
-    timing::LiveTiming,
-    track_status::TrackStatus,
-    weather::Weather,
-};
+use f1_term_core::telemetry_provider::{TelemetryProvider, TelemetryUpdate};
 use futures_util::{
     SinkExt, StreamExt,
     stream::{SplitSink, SplitStream},
@@ -30,23 +19,7 @@ use tokio_tungstenite::{
     tungstenite::{Message, client::IntoClientRequest},
 };
 
-use crate::{
-    convert::{
-        driver::convert_drivers, lap_count::convert_lap_count,
-        race_control_message::convert_race_control_messages, session::convert_session_info,
-        stint::convert_stints, team::convert_teams, timing::convert_timing_data,
-        track_status::convert_track_status, weather::convert_weather_data,
-    },
-    merge_patch::merge_patch,
-    parsing::{
-        driver_list::parse_driver_list, lap_count::parse_raw_lap_count,
-        race_control_messages::parse_raw_race_control_messages,
-        session_data::parse_raw_session_data, session_info::parse_raw_session_info,
-        stints::parse_raw_stints, timing_data::parse_raw_timing_data,
-        track_status::parse_raw_track_status, weather_data::parse_raw_weather_data,
-    },
-    topic::Topic,
-};
+use crate::{merge_patch::merge_patch, topic::Topic};
 
 const URL: &str = "livetiming.formula1.com/signalr";
 const HUB: &str = "Streaming";
@@ -202,7 +175,10 @@ impl TelemetryProvider for SignalRF1Client {
                     }
 
                     if !updated_topics.is_empty() {
-                        return Some(self.extract_updates(&updated_topics));
+                        return Some(crate::extract::extract_updates(
+                            &self.canonical_state,
+                            &updated_topics,
+                        ));
                     }
                 }
                 Ok(Message::Close(_)) => {
@@ -299,216 +275,5 @@ impl SignalRF1Client {
             }
         }
         Ok(())
-    }
-
-    fn extract_updates(&self, updated_topics: &[Topic]) -> TelemetryUpdate {
-        TelemetryUpdate {
-            session_info: self.extract_session_info_update(updated_topics),
-            drivers: self.extract_drivers_update(updated_topics),
-            teams: self.extract_teams_update(updated_topics),
-            timing_data: self.extract_timing_data_update(updated_topics),
-            stints: self.extract_stints_update(updated_topics),
-            track_status: self.extract_track_status_update(updated_topics),
-            race_control_messages: self.extract_race_control_messages_update(updated_topics),
-            weather: self.extract_weather_update(updated_topics),
-            laps: self.extract_lap_count_update(updated_topics),
-        }
-    }
-
-    fn extract_session_info_update(&self, updated_topics: &[Topic]) -> Option<Box<SessionInfo>> {
-        if !(updated_topics.contains(&Topic::SessionInfo)
-            || updated_topics.contains(&Topic::SessionData))
-        {
-            return None;
-        }
-
-        let info_data = self.canonical_state.get(Topic::SessionInfo.to_string())?;
-
-        match parse_raw_session_info(info_data) {
-            Ok(raw_info) => {
-                let session_data = self.canonical_state.get(Topic::SessionData.to_string());
-                let raw_data = session_data.and_then(parse_raw_session_data);
-                match convert_session_info(&raw_info, raw_data.as_ref()) {
-                    Ok(info) => Some(Box::new(info)),
-                    Err(e) => {
-                        error!("{}", e);
-                        None
-                    }
-                }
-            }
-            Err(e) => {
-                error!("{}", e);
-                None
-            }
-        }
-    }
-
-    fn extract_drivers_update(
-        &self,
-        updated_topics: &[Topic],
-    ) -> Option<HashMap<DriverNumber, Driver>> {
-        if !updated_topics.contains(&Topic::DriverList) {
-            return None;
-        }
-
-        let topic_data = self.canonical_state.get(Topic::DriverList.to_string())?;
-
-        match parse_driver_list(topic_data) {
-            Ok(raw_drivers) => {
-                let drivers = convert_drivers(&raw_drivers);
-                Some(drivers)
-            }
-            Err(e) => {
-                error!("{}", e);
-                None
-            }
-        }
-    }
-
-    fn extract_teams_update(&self, updated_topics: &[Topic]) -> Option<HashMap<TeamName, Team>> {
-        if !updated_topics.contains(&Topic::DriverList) {
-            return None;
-        }
-
-        let topic_data = self.canonical_state.get(Topic::DriverList.to_string())?;
-
-        match parse_driver_list(topic_data) {
-            Ok(raw_drivers) => {
-                let teams = convert_teams(&raw_drivers);
-                Some(teams)
-            }
-            Err(e) => {
-                error!("{}", e);
-                None
-            }
-        }
-    }
-
-    fn extract_timing_data_update(
-        &self,
-        updated_topics: &[Topic],
-    ) -> Option<HashMap<DriverNumber, LiveTiming>> {
-        if !updated_topics.contains(&Topic::TimingData) {
-            return None;
-        }
-
-        let topic_data = self.canonical_state.get(Topic::TimingData.to_string())?;
-
-        match parse_raw_timing_data(topic_data) {
-            Ok(raw_timing) => Some(convert_timing_data(&raw_timing)),
-            Err(e) => {
-                error!("{}", e);
-                None
-            }
-        }
-    }
-
-    fn extract_stints_update(
-        &self,
-        updated_topics: &[Topic],
-    ) -> Option<HashMap<DriverNumber, Stints>> {
-        if !updated_topics.contains(&Topic::TimingAppData) {
-            return None;
-        }
-
-        let topic_data = self.canonical_state.get(Topic::TimingAppData.to_string())?;
-
-        match parse_raw_stints(topic_data) {
-            Ok(raw_stints) => Some(convert_stints(&raw_stints)),
-            Err(e) => {
-                error!("{}", e);
-                None
-            }
-        }
-    }
-
-    fn extract_track_status_update(&self, updated_topics: &[Topic]) -> Option<TrackStatus> {
-        if !updated_topics.contains(&Topic::TrackStatus) {
-            return None;
-        }
-
-        let topic_data = self.canonical_state.get(Topic::TrackStatus.to_string())?;
-
-        match parse_raw_track_status(topic_data) {
-            Ok(raw_status) => match convert_track_status(&raw_status) {
-                Ok(track_status) => Some(track_status),
-                Err(e) => {
-                    error!("{}", e);
-                    None
-                }
-            },
-            Err(e) => {
-                error!("{}", e);
-                None
-            }
-        }
-    }
-
-    fn extract_race_control_messages_update(
-        &self,
-        updated_topics: &[Topic],
-    ) -> Option<Vec<RaceControlMessage>> {
-        if !updated_topics.contains(&Topic::RaceControlMessages) {
-            return None;
-        }
-
-        let topic_data = self
-            .canonical_state
-            .get(Topic::RaceControlMessages.to_string())?;
-
-        match parse_raw_race_control_messages(topic_data) {
-            Ok(raw_messages) => match convert_race_control_messages(&raw_messages.Messages) {
-                Ok(race_control_messages) => Some(race_control_messages),
-                Err(e) => {
-                    error!("{}", e);
-                    None
-                }
-            },
-            Err(e) => {
-                error!("{}", e);
-                None
-            }
-        }
-    }
-
-    fn extract_weather_update(&self, updated_topics: &[Topic]) -> Option<Weather> {
-        if !updated_topics.contains(&Topic::WeatherData) {
-            return None;
-        }
-
-        let topic_data = self.canonical_state.get(Topic::WeatherData.to_string())?;
-
-        match parse_raw_weather_data(topic_data) {
-            Ok(raw_weather) => match convert_weather_data(&raw_weather) {
-                Ok(weather) => Some(weather),
-                Err(e) => {
-                    error!("{}", e);
-                    None
-                }
-            },
-            Err(e) => {
-                error!("{}", e);
-                None
-            }
-        }
-    }
-
-    fn extract_lap_count_update(
-        &self,
-        updated_topics: &[Topic],
-    ) -> Option<f1_term_core::laps::Laps> {
-        if !updated_topics.contains(&Topic::LapCount) {
-            return None;
-        }
-
-        let topic_data = self.canonical_state.get(Topic::LapCount.to_string())?;
-
-        match parse_raw_lap_count(topic_data) {
-            Ok(raw_laps) => Some(convert_lap_count(&raw_laps)),
-            Err(e) => {
-                error!("{}", e);
-                None
-            }
-        }
     }
 }
