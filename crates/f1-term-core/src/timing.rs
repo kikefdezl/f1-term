@@ -15,6 +15,7 @@ pub struct LiveTiming {
     pub cutoff: Option<bool>,
     pub knocked_out: Option<bool>,
     pub number_of_laps: Option<u8>,
+    pub number_of_pit_stops: Option<u8>,
     pub quali_stats: Option<Vec<TimeDiffs>>,
 }
 

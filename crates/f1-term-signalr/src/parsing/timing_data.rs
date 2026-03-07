@@ -107,6 +107,7 @@ struct TimingDataPayload {
     Cutoff: Option<bool>,
     KnockedOut: Option<bool>,
     NumberOfLaps: Option<u8>,
+    NumberOfPitStops: Option<u8>,
     Stats: Option<Vec<StatsPayload>>,
 }
 
@@ -215,6 +216,7 @@ impl TryFrom<TimingDataPayload> for LiveTiming {
             cutoff: payload.Cutoff,
             knocked_out: payload.KnockedOut,
             number_of_laps: payload.NumberOfLaps,
+            number_of_pit_stops: payload.NumberOfPitStops,
             quali_stats,
         })
     }
