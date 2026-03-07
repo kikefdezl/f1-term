@@ -19,7 +19,7 @@ use tokio_tungstenite::{
     tungstenite::{Message, client::IntoClientRequest},
 };
 
-use super::{merge_patch::merge_patch, parsing::parse_message, topic::Topic};
+use super::{merge_patch::merge_patch, topic::Topic};
 
 const URL: &str = "livetiming.formula1.com/signalr";
 const HUB: &str = "Streaming";
@@ -175,7 +175,7 @@ impl TelemetryProvider for SignalRF1Client {
                     }
 
                     if !updated_topics.is_empty() {
-                        let updates = parse_message(&self.canonical_state, &updated_topics);
+                        let updates = self.extract_updates(&updated_topics);
                         info!("Parsed {} delta updates", updates.len());
                         return Some(updates);
                     }
@@ -274,5 +274,130 @@ impl SignalRF1Client {
             }
         }
         Ok(())
+    }
+
+    fn extract_updates(&self, updated_topics: &[Topic]) -> Vec<TelemetryUpdate> {
+        let mut events = Vec::new();
+
+        self.extract_session_update(updated_topics, &mut events);
+
+        for topic in updated_topics {
+            if matches!(topic, &Topic::SessionInfo | &Topic::SessionData) {
+                continue;
+            }
+
+            if let Some(topic_data) = self.canonical_state.get(topic.to_string()) {
+                self.extract_topic_update(topic, topic_data, &mut events);
+            }
+        }
+
+        events
+    }
+
+    fn extract_session_update(&self, updated_topics: &[Topic], events: &mut Vec<TelemetryUpdate>) {
+        let session_info_updated = updated_topics.contains(&Topic::SessionInfo);
+        let session_data_updated = updated_topics.contains(&Topic::SessionData);
+
+        if !(session_info_updated || session_data_updated) {
+            return;
+        }
+
+        let Some(info_data) = self.canonical_state.get(Topic::SessionInfo.to_string()) else {
+            return;
+        };
+
+        let session_data = self.canonical_state.get(Topic::SessionData.to_string());
+        match crate::parsing::session_info::parse_raw_session_info(info_data) {
+            Ok(raw_info) => {
+                let raw_data =
+                    session_data.and_then(crate::parsing::session_data::parse_raw_session_data);
+                match crate::convert::session::convert_session_info(&raw_info, raw_data.as_ref()) {
+                    Ok(info) => events.push(TelemetryUpdate::SessionInfo(Box::new(info))),
+                    Err(e) => error!("{}", e),
+                }
+            }
+            Err(e) => error!("{}", e),
+        }
+    }
+
+    fn extract_topic_update(
+        &self,
+        topic: &Topic,
+        topic_data: &serde_json::Value,
+        events: &mut Vec<TelemetryUpdate>,
+    ) {
+        match topic {
+            Topic::DriverList => match crate::parsing::driver_list::parse_driver_list(topic_data) {
+                Ok(raw_drivers) => {
+                    let drivers = crate::convert::driver::convert_drivers(&raw_drivers);
+                    events.push(TelemetryUpdate::Drivers(drivers));
+                    let teams = crate::convert::team::convert_teams(&raw_drivers);
+                    events.push(TelemetryUpdate::Teams(teams));
+                }
+                Err(e) => error!("{}", e),
+            },
+            Topic::TimingData => {
+                match crate::parsing::timing_data::parse_raw_timing_data(topic_data) {
+                    Ok(raw_timing) => events.push(TelemetryUpdate::TimingData(
+                        crate::convert::timing::convert_timing_data(&raw_timing),
+                    )),
+                    Err(e) => error!("{}", e),
+                }
+            }
+            Topic::TimingAppData => match crate::parsing::stints::parse_raw_stints(topic_data) {
+                Ok(raw_stints) => {
+                    let stints = crate::convert::stint::convert_stints(&raw_stints);
+                    events.push(TelemetryUpdate::Stints(stints));
+                }
+                Err(e) => error!("{}", e),
+            },
+            Topic::TrackStatus => {
+                match crate::parsing::track_status::parse_raw_track_status(topic_data) {
+                    Ok(raw_status) => {
+                        match crate::convert::track_status::convert_track_status(&raw_status) {
+                            Ok(track_status) => {
+                                events.push(TelemetryUpdate::TrackStatus(track_status))
+                            }
+                            Err(e) => error!("{}", e),
+                        }
+                    }
+                    Err(e) => error!("{}", e),
+                }
+            }
+            Topic::RaceControlMessages => {
+                match crate::parsing::race_control_messages::parse_raw_race_control_messages(
+                    topic_data,
+                ) {
+                    Ok(raw_messages) => {
+                        match crate::convert::race_control_message::convert_race_control_messages(
+                            &raw_messages.Messages,
+                        ) {
+                            Ok(race_control_messages) => events
+                                .push(TelemetryUpdate::RaceControlMessages(race_control_messages)),
+                            Err(e) => error!("{}", e),
+                        }
+                    }
+                    Err(e) => error!("{}", e),
+                }
+            }
+            Topic::WeatherData => {
+                match crate::parsing::weather_data::parse_raw_weather_data(topic_data) {
+                    Ok(raw_weather) => {
+                        match crate::convert::weather::convert_weather_data(&raw_weather) {
+                            Ok(weather) => events.push(TelemetryUpdate::Weather(weather)),
+                            Err(e) => error!("{}", e),
+                        }
+                    }
+                    Err(e) => error!("{}", e),
+                }
+            }
+            Topic::LapCount => match crate::parsing::lap_count::parse_raw_lap_count(topic_data) {
+                Ok(raw_laps) => events.push(TelemetryUpdate::Laps(
+                    crate::convert::lap_count::convert_lap_count(&raw_laps),
+                )),
+                Err(e) => error!("{}", e),
+            },
+            _ => {}
+        }
     }
 }
