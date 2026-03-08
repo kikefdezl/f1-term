@@ -49,6 +49,7 @@ impl Component for MessageLog {
                             FlagColor::Yellow | FlagColor::DoubleYellow => Color::Yellow,
                             FlagColor::Red => Color::Red,
                             FlagColor::Chequered => Color::White,
+                            FlagColor::Blue => Color::Blue,
                         };
                         (Span::styled("  ", Style::default().fg(c)), c)
                     }

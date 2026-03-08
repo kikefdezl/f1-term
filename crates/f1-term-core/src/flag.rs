@@ -11,6 +11,7 @@ pub enum FlagColor {
     DoubleYellow,
     Red,
     Chequered,
+    Blue,
     Clear,
 }
 
@@ -18,4 +19,5 @@ pub enum FlagColor {
 pub enum FlagScope {
     Track,
     Sector(u8),
+    Driver,
 }

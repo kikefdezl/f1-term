@@ -28,6 +28,7 @@ impl TryFrom<&RawRaceControlMessage> for RaceControlMessage {
                     "RED" => FlagColor::Red,
                     "CLEAR" => FlagColor::Clear,
                     "CHEQUERED" => FlagColor::Chequered,
+                    "BLUE" => FlagColor::Blue,
                     _ => return Err(format!("Unknown flag color: {}", color_str).into()),
                 };
 
@@ -41,6 +42,7 @@ impl TryFrom<&RawRaceControlMessage> for RaceControlMessage {
                         let sector_num = value.Sector.ok_or("Missing 'Sector' for Sector scope")?;
                         FlagScope::Sector(sector_num)
                     }
+                    "Driver" => FlagScope::Driver,
                     _ => return Err(format!("Unknown flag scope: {}", scope_str).into()),
                 };
 

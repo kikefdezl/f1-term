@@ -59,6 +59,7 @@ pub fn convert_session_info(
             .and_then(|series| series.iter().rev().find_map(|s| s.QualifyingPart))
     });
     let session_status = match raw_info.SessionStatus.as_str() {
+        "Inactive" => SessionStatus::Inactive,
         "Started" => SessionStatus::Started,
         "Finished" => SessionStatus::Started,
         "Finalised" => SessionStatus::Finalised,

@@ -73,6 +73,14 @@ pub struct RawStats {
 #[derive(Deserialize, Debug, Default, Clone)]
 #[allow(non_snake_case)]
 #[serde(default)]
+pub struct RawIntervalToPositionAhead {
+    pub Catching: bool,
+    pub Value: String,
+}
+
+#[derive(Deserialize, Debug, Default, Clone)]
+#[allow(non_snake_case)]
+#[serde(default)]
 pub struct RawTimingData {
     pub RacingNumber: String,
     pub BestLapTime: RawBestLapTime,
@@ -83,8 +91,8 @@ pub struct RawTimingData {
     pub Retired: bool,
     pub Status: u32,
     pub Stopped: bool,
-    pub TimeDiffToFastest: String,
-    pub TimeDiffToPositionAhead: String,
+    pub TimeDiffToFastest: Option<String>,
+    pub TimeDiffToPositionAhead: Option<String>,
     pub Sectors: Vec<RawSector>,
     pub ShowPosition: bool,
     pub Speeds: RawSpeeds,
@@ -93,6 +101,8 @@ pub struct RawTimingData {
     pub NumberOfLaps: Option<u8>,
     pub NumberOfPitStops: Option<u8>,
     pub Stats: Option<Vec<RawStats>>,
+    pub GapToLeader: Option<String>,
+    pub IntervalToPositionAhead: Option<RawIntervalToPositionAhead>,
 }
 
 pub fn parse_raw_timing_data(val: &Value) -> Result<HashMap<String, RawTimingData>> {
@@ -223,6 +233,6 @@ mod tests {
 
         assert_eq!(driver_timing.BestLapTime.Value, "");
         assert_eq!(driver_timing.LastLapTime.Value, "");
-        assert_eq!(driver_timing.TimeDiffToFastest, "");
+        assert_eq!(driver_timing.TimeDiffToFastest, None);
     }
 }

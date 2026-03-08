@@ -89,10 +89,23 @@ impl TryFrom<&RawTimingData> for LiveTiming {
         // API returns empty strings, we convert those to None
         let best_lap_time = Some(payload.BestLapTime.Value.clone()).filter(|s| !s.is_empty());
         let last_lap_time = Some(payload.LastLapTime.Value.clone()).filter(|s| !s.is_empty());
-        let time_diff_to_fastest =
-            Some(payload.TimeDiffToFastest.clone()).filter(|s| !s.is_empty());
-        let time_diff_to_position_ahead =
-            Some(payload.TimeDiffToPositionAhead.clone()).filter(|s| !s.is_empty());
+
+        let time_diff_to_fastest = payload
+            .TimeDiffToFastest
+            .clone()
+            .filter(|s| !s.is_empty())
+            .or_else(|| payload.GapToLeader.clone().filter(|s| !s.is_empty()));
+        let time_diff_to_position_ahead = payload
+            .TimeDiffToPositionAhead
+            .clone()
+            .filter(|s| !s.is_empty())
+            .or_else(|| {
+                payload
+                    .IntervalToPositionAhead
+                    .as_ref()
+                    .map(|i| i.Value.clone())
+                    .filter(|s| !s.is_empty())
+            });
 
         let last_lap = Lap {
             overall_fastest: payload.LastLapTime.OverallFastest,
@@ -211,8 +224,10 @@ mod tests {
                 Retired: false,
                 Status: 0,
                 Stopped: false,
-                TimeDiffToFastest: "".to_string(),
-                TimeDiffToPositionAhead: "".to_string(),
+                TimeDiffToFastest: Some("".to_string()),
+                TimeDiffToPositionAhead: Some("".to_string()),
+                GapToLeader: None,
+                IntervalToPositionAhead: None,
                 Sectors: vec![RawSector {
                     OverallFastest: false,
                     PersonalFastest: true,

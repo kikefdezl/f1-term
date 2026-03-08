@@ -39,6 +39,7 @@ pub struct Country {
 
 #[derive(Debug, Clone)]
 pub enum SessionStatus {
+    Inactive,
     Started,
     Finished,
     Finalised,
