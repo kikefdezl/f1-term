@@ -63,10 +63,23 @@ impl TelemetryProvider for SignalRF1Client {
         info!("=== Negotiating connection ===");
 
         let connection_data = json!([{"name": HUB}]).to_string();
-        let negotiate_url = format!("https://{}/negotiate", URL);
+        let negotiate_url = Url::parse_with_params(
+            &format!("https://{}/negotiate", URL),
+            &[
+                ("clientProtocol", "1.5"),
+                ("connectionData", &connection_data),
+            ],
+        )?;
 
-        let client = reqwest::Client::new();
-        let negotiate_response = client.get(&negotiate_url).send().await?;
+        let client = reqwest::Client::builder()
+            .user_agent("BestHTTP")
+            .build()?;
+            
+        let negotiate_response = client.get(negotiate_url).send().await?;
+
+        if !negotiate_response.status().is_success() {
+            return Err(format!("Negotiate failed: {}", negotiate_response.status()).into());
+        }
 
         let cookie = negotiate_response
             .headers()
@@ -76,8 +89,6 @@ impl TelemetryProvider for SignalRF1Client {
             .to_string();
 
         let negotiate_data: NegotiateResponse = negotiate_response.json().await?;
-        debug!("Connection token: {}", negotiate_data.connection_token);
-        debug!("Cookie: {}", cookie);
 
         let ws_url = Url::parse_with_params(
             &format!("wss://{}/connect", URL),
@@ -89,22 +100,47 @@ impl TelemetryProvider for SignalRF1Client {
             ],
         )?;
 
-        info!("=== Connecting to WebSocket ===");
-        info!("URL: {}", ws_url);
-
         let mut req = ws_url.to_string().into_client_request()?;
         let headers = req.headers_mut();
-        headers.insert("Cookie", cookie.parse().unwrap());
+        
+        headers.insert("User-Agent", "BestHTTP".parse().unwrap());
+        headers.insert("Accept-Encoding", "gzip,identity".parse().unwrap());
+        
+        if !cookie.is_empty() {
+            headers.insert("Cookie", cookie.parse().unwrap());
+        }
 
-        let (ws_stream, _) = connect_async(req).await?;
-        info!("✓ WebSocket connected!");
+        let (ws_stream, _response) = connect_async(req).await?;
+
+        // ASP.NET SignalR 1.5 specification requires a /start HTTP request after the 
+        // WebSocket connection is established before the server will flush the message buffer.
+        let start_url = Url::parse_with_params(
+            &format!("https://{}/start", URL),
+            &[
+                ("clientProtocol", "1.5"),
+                ("transport", "webSockets"),
+                ("connectionToken", &negotiate_data.connection_token),
+                ("connectionData", &connection_data),
+            ],
+        )?;
+
+        let start_response = client
+            .get(start_url)
+            .header("Cookie", &cookie)
+            .send()
+            .await?;
+
+        if !start_response.status().is_success() {
+            return Err(format!("Start request failed: {}", start_response.status()).into());
+        }
 
         let (writer, reader) = ws_stream.split();
         self.writer = Some(writer);
         self.reader = Some(reader);
 
-        info!("\n === Subscribing to topics ===");
         self.subscribe().await?;
+        info!("✓ Connected and subscribed to telemetry topics!");
+        
         Ok(())
     }
 
@@ -117,13 +153,11 @@ impl TelemetryProvider for SignalRF1Client {
 
             match msg {
                 Ok(Message::Text(text)) => {
-                    debug!("Received SignalR Text Message. Length: {}", text.len());
                     let mut updated_topics: Vec<Topic> = Vec::new();
 
                     if let Ok(json) = serde_json::from_str::<serde_json::Value>(&text) {
                         // 1. Initial State (the 'R' field from Subscribe)
                         if let Some(r) = json.get("R") {
-                            debug!("Applying initial state (R field)");
                             self.canonical_state.clone_from(r);
 
                             if let Some(obj) = self.canonical_state.as_object() {
@@ -143,15 +177,13 @@ impl TelemetryProvider for SignalRF1Client {
                                     && let Some(args) = msg.get("A").and_then(|a| a.as_array())
                                     && args.len() >= 2
                                 {
-                                    let Ok(topic) =
-                                        Topic::try_from(args[0].as_str().unwrap_or("UnknownTopic"))
-                                    else {
-                                        warn!("Unknown topic {}", args[0]);
+                                    let topic_str = args[0].as_str().unwrap_or("UnknownTopic");
+                                    let Ok(topic) = Topic::try_from(topic_str) else {
+                                        warn!("Unknown topic {}", topic_str);
                                         continue;
                                     };
 
                                     let delta = &args[1];
-                                    debug!("Applying partial update for topic: {}", topic);
 
                                     if !self.canonical_state.is_object() {
                                         self.canonical_state = json!({});
@@ -162,6 +194,7 @@ impl TelemetryProvider for SignalRF1Client {
                                     let topic_entry = canonical_obj
                                         .entry(topic.to_string())
                                         .or_insert_with(|| json!({}));
+
                                     merge_patch(topic_entry, delta);
 
                                     self.log_topic_update(&topic.to_string(), delta);
@@ -191,11 +224,13 @@ impl TelemetryProvider for SignalRF1Client {
                 Ok(Message::Binary(_)) => {
                     debug!("Received unhandled Binary message");
                 }
+                Ok(Message::Frame(_)) => {
+                    debug!("Received unhandled Frame message");
+                }
                 Err(e) => {
                     error!("WebSocket error: {}", e);
                     return None;
                 }
-                _ => {}
             }
         }
     }
@@ -262,16 +297,26 @@ impl SignalRF1Client {
 
     pub async fn subscribe(&mut self) -> Result<(), Box<dyn std::error::Error>> {
         match &mut self.writer {
-            None => return Err("Client not connected".into()),
+            None => {
+                return Err("Client not connected".into());
+            }
             Some(w) => {
+                let topics_str = self
+                    .topics
+                    .iter()
+                    .map(|t| t.to_string())
+                    .collect::<Vec<String>>();
+
                 let subscribe_msg = json!({
                     "H": HUB,
                     "M": "Subscribe",
-                    "A": [self.topics.iter().map(|t| t.to_string()).collect::<Vec<String>>()],
+                    "A": [topics_str],
                     "I": 1
                 });
-                w.send(Message::Text(subscribe_msg.to_string().into()))
-                    .await?
+
+                let msg_str = subscribe_msg.to_string();
+
+                w.send(Message::Text(msg_str.into())).await?;
             }
         }
         Ok(())
