@@ -62,34 +62,11 @@ impl TelemetryProvider for SignalRF1Client {
     async fn connect(&mut self) -> Result<(), Box<dyn std::error::Error>> {
         info!("=== Negotiating connection ===");
 
+        let client = reqwest::Client::builder().user_agent("BestHTTP").build()?;
+
+        let (negotiate_data, cookie) = Self::negotiate(&client).await?;
+
         let connection_data = json!([{"name": HUB}]).to_string();
-        let negotiate_url = Url::parse_with_params(
-            &format!("https://{}/negotiate", URL),
-            &[
-                ("clientProtocol", "1.5"),
-                ("connectionData", &connection_data),
-            ],
-        )?;
-
-        let client = reqwest::Client::builder()
-            .user_agent("BestHTTP")
-            .build()?;
-            
-        let negotiate_response = client.get(negotiate_url).send().await?;
-
-        if !negotiate_response.status().is_success() {
-            return Err(format!("Negotiate failed: {}", negotiate_response.status()).into());
-        }
-
-        let cookie = negotiate_response
-            .headers()
-            .get("set-cookie")
-            .and_then(|h| h.to_str().ok())
-            .unwrap_or("")
-            .to_string();
-
-        let negotiate_data: NegotiateResponse = negotiate_response.json().await?;
-
         let ws_url = Url::parse_with_params(
             &format!("wss://{}/connect", URL),
             &[
@@ -102,37 +79,17 @@ impl TelemetryProvider for SignalRF1Client {
 
         let mut req = ws_url.to_string().into_client_request()?;
         let headers = req.headers_mut();
-        
+
         headers.insert("User-Agent", "BestHTTP".parse().unwrap());
         headers.insert("Accept-Encoding", "gzip,identity".parse().unwrap());
-        
+
         if !cookie.is_empty() {
             headers.insert("Cookie", cookie.parse().unwrap());
         }
 
         let (ws_stream, _response) = connect_async(req).await?;
 
-        // ASP.NET SignalR 1.5 specification requires a /start HTTP request after the 
-        // WebSocket connection is established before the server will flush the message buffer.
-        let start_url = Url::parse_with_params(
-            &format!("https://{}/start", URL),
-            &[
-                ("clientProtocol", "1.5"),
-                ("transport", "webSockets"),
-                ("connectionToken", &negotiate_data.connection_token),
-                ("connectionData", &connection_data),
-            ],
-        )?;
-
-        let start_response = client
-            .get(start_url)
-            .header("Cookie", &cookie)
-            .send()
-            .await?;
-
-        if !start_response.status().is_success() {
-            return Err(format!("Start request failed: {}", start_response.status()).into());
-        }
+        Self::start_connection(&client, &negotiate_data.connection_token, &cookie).await?;
 
         let (writer, reader) = ws_stream.split();
         self.writer = Some(writer);
@@ -140,7 +97,7 @@ impl TelemetryProvider for SignalRF1Client {
 
         self.subscribe().await?;
         info!("✓ Connected and subscribed to telemetry topics!");
-        
+
         Ok(())
     }
 
@@ -156,55 +113,7 @@ impl TelemetryProvider for SignalRF1Client {
                     let mut updated_topics: Vec<Topic> = Vec::new();
 
                     if let Ok(json) = serde_json::from_str::<serde_json::Value>(&text) {
-                        // 1. Initial State (the 'R' field from Subscribe)
-                        if let Some(r) = json.get("R") {
-                            self.canonical_state.clone_from(r);
-
-                            if let Some(obj) = self.canonical_state.as_object() {
-                                updated_topics.extend(
-                                    obj.keys().filter_map(|k| Topic::try_from(k.as_str()).ok()),
-                                );
-                                for (k, v) in obj {
-                                    self.log_topic_update(k, v);
-                                }
-                            }
-                        }
-
-                        // 2. Partial Updates (the 'M' array of messages)
-                        if let Some(m_arr) = json.get("M").and_then(|m| m.as_array()) {
-                            for msg in m_arr {
-                                if msg.get("M").and_then(|m| m.as_str()) == Some("feed")
-                                    && let Some(args) = msg.get("A").and_then(|a| a.as_array())
-                                    && args.len() >= 2
-                                {
-                                    let topic_str = args[0].as_str().unwrap_or("UnknownTopic");
-                                    let Ok(topic) = Topic::try_from(topic_str) else {
-                                        warn!("Unknown topic {}", topic_str);
-                                        continue;
-                                    };
-
-                                    let delta = &args[1];
-
-                                    if !self.canonical_state.is_object() {
-                                        self.canonical_state = json!({});
-                                    }
-
-                                    let canonical_obj =
-                                        self.canonical_state.as_object_mut().unwrap();
-                                    let topic_entry = canonical_obj
-                                        .entry(topic.to_string())
-                                        .or_insert_with(|| json!({}));
-
-                                    merge_patch(topic_entry, delta);
-
-                                    self.log_topic_update(&topic.to_string(), delta);
-
-                                    if !updated_topics.contains(&topic) {
-                                        updated_topics.push(topic);
-                                    }
-                                }
-                            }
-                        }
+                        self.process_signalr_message(json, &mut updated_topics);
                     }
 
                     if !updated_topics.is_empty() {
@@ -240,6 +149,148 @@ impl SignalRF1Client {
     pub fn with_log_dir(mut self, log_dir: String) -> Self {
         self.log_dir = Some(log_dir);
         self
+    }
+
+    async fn negotiate(
+        client: &reqwest::Client,
+    ) -> Result<(NegotiateResponse, String), Box<dyn std::error::Error>> {
+        let connection_data = json!([{"name": HUB}]).to_string();
+        let negotiate_url = Url::parse_with_params(
+            &format!("https://{}/negotiate", URL),
+            &[
+                ("clientProtocol", "1.5"),
+                ("connectionData", &connection_data),
+            ],
+        )?;
+
+        let negotiate_response = client.get(negotiate_url).send().await?;
+
+        if !negotiate_response.status().is_success() {
+            return Err(format!("Negotiate failed: {}", negotiate_response.status()).into());
+        }
+
+        let cookie = negotiate_response
+            .headers()
+            .get("set-cookie")
+            .and_then(|h| h.to_str().ok())
+            .unwrap_or("")
+            .to_string();
+
+        let negotiate_data: NegotiateResponse = negotiate_response.json().await?;
+
+        Ok((negotiate_data, cookie))
+    }
+
+    async fn start_connection(
+        client: &reqwest::Client,
+        connection_token: &str,
+        cookie: &str,
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        let connection_data = json!([{"name": HUB}]).to_string();
+
+        // ASP.NET SignalR 1.5 specification requires a /start HTTP request after the
+        // WebSocket connection is established before the server will flush the message buffer.
+        let start_url = Url::parse_with_params(
+            &format!("https://{}/start", URL),
+            &[
+                ("clientProtocol", "1.5"),
+                ("transport", "webSockets"),
+                ("connectionToken", connection_token),
+                ("connectionData", &connection_data),
+            ],
+        )?;
+
+        let start_response = client
+            .get(start_url)
+            .header("Cookie", cookie)
+            .send()
+            .await?;
+
+        if !start_response.status().is_success() {
+            return Err(format!("Start request failed: {}", start_response.status()).into());
+        }
+
+        Ok(())
+    }
+
+    pub async fn subscribe(&mut self) -> Result<(), Box<dyn std::error::Error>> {
+        match &mut self.writer {
+            None => {
+                return Err("Client not connected".into());
+            }
+            Some(w) => {
+                let topics_str = self
+                    .topics
+                    .iter()
+                    .map(|t| t.to_string())
+                    .collect::<Vec<String>>();
+
+                let subscribe_msg = json!({
+                    "H": HUB,
+                    "M": "Subscribe",
+                    "A": [topics_str],
+                    "I": 1
+                });
+
+                let msg_str = subscribe_msg.to_string();
+
+                w.send(Message::Text(msg_str.into())).await?;
+            }
+        }
+        Ok(())
+    }
+
+    fn process_signalr_message(
+        &mut self,
+        json: serde_json::Value,
+        updated_topics: &mut Vec<Topic>,
+    ) {
+        // 1. Initial State (the 'R' field from Subscribe)
+        if let Some(r) = json.get("R") {
+            self.canonical_state.clone_from(r);
+
+            if let Some(obj) = self.canonical_state.as_object() {
+                updated_topics.extend(obj.keys().filter_map(|k| Topic::try_from(k.as_str()).ok()));
+                for (k, v) in obj {
+                    self.log_topic_update(k, v);
+                }
+            }
+        }
+
+        // 2. Partial Updates (the 'M' array of messages)
+        if let Some(m_arr) = json.get("M").and_then(|m| m.as_array()) {
+            for msg in m_arr {
+                if msg.get("M").and_then(|m| m.as_str()) == Some("feed")
+                    && let Some(args) = msg.get("A").and_then(|a| a.as_array())
+                    && args.len() >= 2
+                {
+                    let topic_str = args[0].as_str().unwrap_or("UnknownTopic");
+                    let Ok(topic) = Topic::try_from(topic_str) else {
+                        warn!("Unknown topic {}", topic_str);
+                        continue;
+                    };
+
+                    let delta = &args[1];
+
+                    if !self.canonical_state.is_object() {
+                        self.canonical_state = json!({});
+                    }
+
+                    let canonical_obj = self.canonical_state.as_object_mut().unwrap();
+                    let topic_entry = canonical_obj
+                        .entry(topic.to_string())
+                        .or_insert_with(|| json!({}));
+
+                    merge_patch(topic_entry, delta);
+
+                    self.log_topic_update(&topic.to_string(), delta);
+
+                    if !updated_topics.contains(&topic) {
+                        updated_topics.push(topic);
+                    }
+                }
+            }
+        }
     }
 
     fn log_topic_update(&self, topic: &str, payload: &serde_json::Value) {
@@ -293,32 +344,5 @@ impl SignalRF1Client {
         if let Err(e) = writeln!(file, "[{}]: {}", timestamp, payload_str) {
             error!("Failed to write to {}: {}", filename, e);
         }
-    }
-
-    pub async fn subscribe(&mut self) -> Result<(), Box<dyn std::error::Error>> {
-        match &mut self.writer {
-            None => {
-                return Err("Client not connected".into());
-            }
-            Some(w) => {
-                let topics_str = self
-                    .topics
-                    .iter()
-                    .map(|t| t.to_string())
-                    .collect::<Vec<String>>();
-
-                let subscribe_msg = json!({
-                    "H": HUB,
-                    "M": "Subscribe",
-                    "A": [topics_str],
-                    "I": 1
-                });
-
-                let msg_str = subscribe_msg.to_string();
-
-                w.send(Message::Text(msg_str.into())).await?;
-            }
-        }
-        Ok(())
     }
 }
