@@ -1,4 +1,5 @@
 use std::future::Future;
+use std::ops::Range;
 
 use f1_term_core::circuit::{CircuitLayout, CircuitLayoutProvider, Coord, Corner};
 use reqwest::Client;
@@ -94,7 +95,7 @@ impl CircuitLayoutProvider for MultiviewerClient {
         &self,
         circuit_key: u32,
         year: u32,
-    ) -> impl Future<Output = anyhow::Result<CircuitLayout>> + Send {
+    ) -> impl Future<Output = Result<CircuitLayout, Box<dyn std::error::Error>>> + Send {
         let client = self.client.clone();
         async move {
             let url = format!(
@@ -127,10 +128,24 @@ impl CircuitLayoutProvider for MultiviewerClient {
                     coord: Coord::from(&feat.track_position),
                 })
                 .collect();
+
+            let mut mini_sectors = Vec::with_capacity(response.mini_sectors_indexes.len());
+            mini_sectors.push(Range {
+                start: 0,
+                end: *response.mini_sectors_indexes.first().unwrap_or(&0),
+            });
+            for i in 1..response.mini_sectors_indexes.len() {
+                mini_sectors.push(Range {
+                    start: mini_sectors[i - 1].end + 1,
+                    end: response.mini_sectors_indexes[i],
+                })
+            }
+
             Ok(CircuitLayout {
                 coords,
                 rotation: response.rotation,
                 corners,
+                mini_sectors,
             })
         }
     }
@@ -146,6 +161,12 @@ mod tests {
         // Spa-Francorchamps (circuit key 7) for 2024
         let layout = client.fetch(7, 2024).await.expect("Failed to fetch layout");
 
-        assert!(!layout.coords.is_empty(), "Coordinates should not be empty");
+        assert_eq!(layout.coords.len(), 1005);
+
+        assert_eq!(layout.mini_sectors.len(), 27);
+        assert_eq!(layout.mini_sectors[0].start, 0);
+        assert_eq!(layout.mini_sectors[0].end, 40);
+        assert_eq!(layout.mini_sectors[26].start, 955);
+        assert_eq!(layout.mini_sectors[26].end, 1004);
     }
 }

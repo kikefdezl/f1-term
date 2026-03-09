@@ -1,4 +1,5 @@
 use std::future::Future;
+use std::ops::Range;
 
 #[derive(Debug, Default, Clone)]
 pub struct Circuit {
@@ -12,6 +13,7 @@ pub struct CircuitLayout {
     pub coords: Vec<Coord>,
     pub rotation: f64,
     pub corners: Vec<Corner>,
+    pub mini_sectors: Vec<Range<usize>>,
 }
 
 impl CircuitLayout {
@@ -37,6 +39,7 @@ impl CircuitLayout {
             coords: coords_rot,
             rotation: 0.0,
             corners: corners_rot,
+            mini_sectors: self.mini_sectors.clone(),
         }
     }
 
@@ -79,7 +82,7 @@ pub trait CircuitLayoutProvider: Send + Sync {
         &self,
         circuit_key: u32,
         year: u32,
-    ) -> impl Future<Output = anyhow::Result<CircuitLayout>> + Send;
+    ) -> impl Future<Output = Result<CircuitLayout, Box<dyn std::error::Error>>> + Send;
 }
 
 #[derive(Clone, Debug)]
@@ -118,6 +121,7 @@ mod tests {
             ],
             rotation: 90.0,
             corners: Vec::new(),
+            mini_sectors: vec![Range { start: 0, end: 3 }],
         };
 
         let rotated = layout.rotate();
