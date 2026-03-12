@@ -1,7 +1,9 @@
 use std::error::Error;
 
 use crossterm::event::KeyCode;
-use f1_term_core::circuit::{Bounds, CircuitKey, CircuitLayout, Corner};
+use f1_term_core::circuit::{
+    Bounds, CircuitKey, CircuitLayout, CircuitScope, CircuitStatus, Corner,
+};
 use ratatui::{
     Frame,
     layout::Rect,
@@ -14,6 +16,7 @@ use super::{Action, Component};
 #[derive(Default)]
 pub struct CircuitCanvas {
     circuit_key: CircuitKey,
+    circuit_status: CircuitStatus,
     bounds: Bounds,
     segments: Vec<Line>,
     show_corners: bool,
@@ -27,13 +30,16 @@ impl Component for CircuitCanvas {
                 let state = state_lock.read().unwrap();
                 if let Some(circuit) = &state.circuit
                     && let Some(layout) = &circuit.layout
-                    && (self.circuit_key != circuit.key || self.segments.is_empty())
+                    && (self.circuit_key != circuit.key
+                        || self.circuit_status != circuit.status
+                        || self.segments.is_empty())
                 {
                     let rotated = layout.rotate();
                     self.circuit_key = circuit.key;
+                    self.circuit_status = circuit.status.clone();
                     self.bounds = rotated.bounds();
                     self.corners = rotated.corners.clone();
-                    self.segments = segments_from_layout(&rotated);
+                    self.segments = segments_from_layout(&rotated, &self.circuit_status);
                 }
             }
             Action::KeyPress(key) => {
@@ -55,16 +61,7 @@ impl Component for CircuitCanvas {
         let bounds = pad_bounds_to_area(&self.bounds, area);
         let canvas = Canvas::default()
             .marker(ratatui::symbols::Marker::Braille)
-            .paint(|ctx| {
-                for segment in &self.segments {
-                    ctx.draw(segment);
-                }
-                if self.show_corners {
-                    for corner in &self.corners {
-                        ctx.print(corner.coord.x, corner.coord.y, format!("{}", corner.num));
-                    }
-                }
-            })
+            .paint(|ctx| draw_circuit(ctx, &self.segments, &self.corners, self.show_corners))
             .x_bounds([bounds.x_min as f64, bounds.x_max as f64])
             .y_bounds([bounds.y_min as f64, bounds.y_max as f64]);
 
@@ -73,17 +70,54 @@ impl Component for CircuitCanvas {
     }
 }
 
-fn segments_from_layout(layout: &CircuitLayout) -> Vec<Line> {
+fn draw_circuit(
+    ctx: &mut ratatui::widgets::canvas::Context<'_>,
+    segments: &[Line],
+    corners: &[Corner],
+    show_corners: bool,
+) {
+    for segment in segments {
+        ctx.draw(segment);
+    }
+    if show_corners {
+        for corner in corners {
+            ctx.print(corner.coord.x, corner.coord.y, format!("{}", corner.num));
+        }
+    }
+}
+
+fn segments_from_layout(layout: &CircuitLayout, status: &CircuitStatus) -> Vec<Line> {
     let mut lines = Vec::new();
+
     for i in 0..layout.coords.len().saturating_sub(1) {
+        let mut color = Color::White;
+
+        match status {
+            CircuitStatus::Clear => color = Color::White,
+            CircuitStatus::Red => color = Color::Red,
+            CircuitStatus::Yellow(CircuitScope::Full) => color = Color::Yellow,
+            CircuitStatus::Yellow(CircuitScope::Sectors(sectors)) => {
+                for &sector in sectors {
+                    let ms_idx = sector.saturating_sub(1) as usize;
+                    if let Some(range) = layout.mini_sectors.get(ms_idx)
+                        && range.contains(&i)
+                    {
+                        color = Color::Yellow;
+                        break;
+                    }
+                }
+            }
+        }
+
         lines.push(Line::new(
             layout.coords[i].x,
             layout.coords[i].y,
             layout.coords[i + 1].x,
             layout.coords[i + 1].y,
-            Color::White,
+            color,
         ));
     }
+
     lines
 }
 

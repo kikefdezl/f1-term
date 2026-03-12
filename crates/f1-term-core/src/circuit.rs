@@ -18,7 +18,7 @@ pub struct Circuit {
     pub status: CircuitStatus,
 }
 
-#[derive(Debug, Default, Clone)]
+#[derive(Debug, Default, Clone, PartialEq)]
 pub enum CircuitStatus {
     // Clear and Red are always on the full circuit and don't need a scope
     #[default]
@@ -27,7 +27,7 @@ pub enum CircuitStatus {
     Yellow(CircuitScope),
 }
 
-#[derive(Debug, Default, Clone)]
+#[derive(Debug, Default, Clone, PartialEq)]
 pub enum CircuitScope {
     #[default]
     Full,
