@@ -116,7 +116,14 @@ impl CircuitCanvas {
 
         if self.show_corners {
             for corner in &self.corners {
-                ctx.print(corner.coord.x, corner.coord.y, format!("{}", corner.num));
+                ctx.print(
+                    corner.coord.x,
+                    corner.coord.y,
+                    ratatui::text::Span::styled(
+                        format!("{}", corner.num),
+                        ratatui::style::Style::default().fg(Color::White),
+                    ),
+                );
             }
         }
     }
