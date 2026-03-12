@@ -1,6 +1,7 @@
 use std::{collections::HashMap, future::Future};
 
 use crate::{
+    circuit::{Circuit, CircuitLayout},
     driver::{Driver, DriverNumber},
     laps::Laps,
     race_control_message::RaceControlMessage,
@@ -12,9 +13,11 @@ use crate::{
     weather::Weather,
 };
 
-#[derive(Debug)]
+#[derive(Debug, Default)]
 pub struct TelemetryUpdate {
     pub session_info: Option<Box<SessionInfo>>,
+    pub circuit: Option<Circuit>,
+    pub circuit_layout: Option<CircuitLayout>,
     pub drivers: Option<HashMap<DriverNumber, Driver>>,
     pub teams: Option<HashMap<TeamName, Team>>,
     pub timing_data: Option<HashMap<DriverNumber, LiveTiming>>,

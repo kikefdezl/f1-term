@@ -1,7 +1,7 @@
 use std::error::Error;
 
 use crossterm::event::KeyCode;
-use f1_term_core::circuit::{Bounds, CircuitLayout, Corner};
+use f1_term_core::circuit::{Bounds, CircuitKey, CircuitLayout, Corner};
 use ratatui::{
     Frame,
     layout::Rect,
@@ -13,7 +13,7 @@ use super::{Action, Component};
 
 #[derive(Default)]
 pub struct CircuitCanvas {
-    circuit_key: u32,
+    circuit_key: CircuitKey,
     bounds: Bounds,
     segments: Vec<Line>,
     show_corners: bool,
@@ -25,12 +25,12 @@ impl Component for CircuitCanvas {
         match &action {
             Action::StateUpdate(state_lock) => {
                 let state = state_lock.read().unwrap();
-                if let Some(info) = state.info.as_ref()
-                    && let Some(layout) = &info.meeting.circuit.layout
-                    && (self.circuit_key != info.meeting.circuit.key || self.segments.is_empty())
+                if let Some(circuit) = &state.circuit
+                    && let Some(layout) = &circuit.layout
+                    && (self.circuit_key != circuit.key || self.segments.is_empty())
                 {
                     let rotated = layout.rotate();
-                    self.circuit_key = info.meeting.circuit.key;
+                    self.circuit_key = circuit.key;
                     self.bounds = rotated.bounds();
                     self.corners = rotated.corners.clone();
                     self.segments = segments_from_layout(&rotated);

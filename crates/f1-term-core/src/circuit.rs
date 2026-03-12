@@ -1,9 +1,18 @@
-use std::future::Future;
-use std::ops::Range;
+use std::{fmt::Display, future::Future, ops::Range};
+
+#[derive(Copy, Debug, Default, Clone, PartialEq)]
+pub struct CircuitKey(pub u32);
+
+impl Display for CircuitKey {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.0)
+    }
+}
 
 #[derive(Debug, Default, Clone)]
 pub struct Circuit {
-    pub key: u32,
+    pub key: CircuitKey,
+    pub year: u32,
     pub short_name: String,
     pub layout: Option<CircuitLayout>,
 }
@@ -13,6 +22,7 @@ pub struct CircuitLayout {
     pub coords: Vec<Coord>,
     pub rotation: f64,
     pub corners: Vec<Corner>,
+    // Each mini sector is a range of indexes of the coords that it contains
     pub mini_sectors: Vec<Range<usize>>,
 }
 
@@ -80,7 +90,7 @@ pub struct Bounds {
 pub trait CircuitLayoutProvider: Send + Sync {
     fn fetch(
         &self,
-        circuit_key: u32,
+        circuit_key: CircuitKey,
         year: u32,
     ) -> impl Future<Output = Result<CircuitLayout, Box<dyn std::error::Error>>> + Send;
 }

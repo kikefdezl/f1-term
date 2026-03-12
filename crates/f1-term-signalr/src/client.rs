@@ -19,7 +19,7 @@ use tokio_tungstenite::{
     tungstenite::{Message, client::IntoClientRequest},
 };
 
-use crate::{merge_patch::merge_patch, topic::Topic};
+use crate::{extract::extract_updates, merge_patch::merge_patch, topic::Topic};
 
 const URL: &str = "livetiming.formula1.com/signalr";
 const HUB: &str = "Streaming";
@@ -117,10 +117,7 @@ impl TelemetryProvider for SignalRF1Client {
                     }
 
                     if !updated_topics.is_empty() {
-                        return Some(crate::extract::extract_updates(
-                            &self.canonical_state,
-                            &updated_topics,
-                        ));
+                        return Some(extract_updates(&self.canonical_state, &updated_topics));
                     }
                 }
                 Ok(Message::Close(_)) => {

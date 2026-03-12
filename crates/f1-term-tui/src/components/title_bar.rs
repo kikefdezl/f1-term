@@ -130,7 +130,7 @@ impl TitleBar {
 
     fn location_time_line(&self) -> Line<'_> {
         let time_or_laps = match &self.laps {
-            Some(l) => format!("{}/{}", l.current, l.total),
+            Some(l) => format!("Lap {}/{}", l.current, l.total),
             // fallback to countdown if laps not there
             None => match self.end_date {
                 Some(end_date) => {
@@ -186,11 +186,12 @@ impl TitleBar {
         if let Some(info) = &state.info {
             self.grand_prix_name.clone_from(&info.meeting.name);
             self.session_name.clone_from(&info.type_.to_string());
-            self.circuit_name
-                .clone_from(&info.meeting.circuit.short_name);
             self.country_name.clone_from(&info.meeting.country.name);
             self.start_date = Some(info.start_date);
             self.end_date = Some(info.end_date);
+        }
+        if let Some(circuit) = &state.circuit {
+            self.circuit_name.clone_from(&circuit.short_name);
         }
         if let Some(sw) = &state.weather
             && self.weather != *sw

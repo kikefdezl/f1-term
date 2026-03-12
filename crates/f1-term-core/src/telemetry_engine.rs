@@ -1,18 +1,16 @@
 use std::sync::{Arc, RwLock};
 
-use chrono::Datelike;
-
 use super::{
     circuit::CircuitLayoutProvider,
     telemetry_provider::{TelemetryProvider, TelemetryUpdate},
     telemetry_state::TelemetryState,
 };
+use crate::circuit::CircuitKey;
 
 pub struct TelemetryEngine<T: TelemetryProvider, C: CircuitLayoutProvider> {
     pub state: Arc<RwLock<TelemetryState>>,
     pub telemetry_provider: T,
     pub circuit_provider: Arc<C>,
-    pub _cached_circuit_key: u32,
 }
 
 impl<T: TelemetryProvider, C: CircuitLayoutProvider + 'static> TelemetryEngine<T, C> {
@@ -21,7 +19,6 @@ impl<T: TelemetryProvider, C: CircuitLayoutProvider + 'static> TelemetryEngine<T
             state: Arc::new(RwLock::new(TelemetryState::default())),
             telemetry_provider: f1_client,
             circuit_provider: Arc::new(circuit_layout_provider),
-            _cached_circuit_key: u32::MAX,
         }
     }
 
@@ -34,24 +31,25 @@ impl<T: TelemetryProvider, C: CircuitLayoutProvider + 'static> TelemetryEngine<T
     }
 
     pub async fn run(&mut self) {
-        while let Some(update) = self.telemetry_provider.next_updates().await {
-            self.check_and_fetch_circuit_layout(&update);
+        while let Some(mut update) = self.telemetry_provider.next_updates().await {
+            self.check_and_fetch_circuit_layout(&mut update);
             self.apply_updates(update);
         }
     }
 
-    fn check_and_fetch_circuit_layout(&mut self, update: &TelemetryUpdate) {
-        if let Some(info) = &update.session_info {
-            let circuit_key = info.meeting.circuit.key;
-            if circuit_key != self._cached_circuit_key {
-                self._cached_circuit_key = circuit_key;
-                let year = info.start_date.year() as u32;
-                self.spawn_layout_fetch(circuit_key, year);
+    fn check_and_fetch_circuit_layout(&self, update: &mut TelemetryUpdate) {
+        if let Some(circuit_update) = &update.circuit {
+            if let Some(prev_circuit) = &self.state.read().unwrap().circuit {
+                if circuit_update.key != prev_circuit.key {
+                    self.spawn_layout_fetch(circuit_update.key, circuit_update.year);
+                }
+            } else {
+                self.spawn_layout_fetch(circuit_update.key, circuit_update.year);
             }
         }
     }
 
-    fn spawn_layout_fetch(&self, circuit_key: u32, year: u32) {
+    fn spawn_layout_fetch(&self, circuit_key: CircuitKey, year: u32) {
         let provider = Arc::clone(&self.circuit_provider);
         let state_arc = Arc::clone(&self.state);
 
@@ -59,16 +57,12 @@ impl<T: TelemetryProvider, C: CircuitLayoutProvider + 'static> TelemetryEngine<T
             match provider.fetch(circuit_key, year).await {
                 Ok(layout) => {
                     let mut state_lock = state_arc.write().unwrap();
-                    if let Some(info_mut) = &mut state_lock.info {
-                        if info_mut.meeting.circuit.key == circuit_key {
-                            info_mut.meeting.circuit.layout = Some(layout);
-                            state_lock.update_version += 1;
-                        } else {
-                            log::warn!(
-                                "Circuit key changed while fetching layout for {}, discarding.",
-                                circuit_key
-                            );
-                        }
+                    let update = TelemetryUpdate {
+                        circuit_layout: Some(layout),
+                        ..Default::default()
+                    };
+                    if state_lock.apply(update) {
+                        state_lock.update_version += 1;
                     }
                 }
                 Err(e) => log::warn!(

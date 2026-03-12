@@ -1,7 +1,6 @@
-use std::future::Future;
-use std::ops::Range;
+use std::{future::Future, ops::Range};
 
-use f1_term_core::circuit::{CircuitLayout, CircuitLayoutProvider, Coord, Corner};
+use f1_term_core::circuit::{CircuitKey, CircuitLayout, CircuitLayoutProvider, Coord, Corner};
 use reqwest::Client;
 use serde::Deserialize;
 
@@ -93,7 +92,7 @@ struct MultiviewerCircuitResponse {
 impl CircuitLayoutProvider for MultiviewerClient {
     fn fetch(
         &self,
-        circuit_key: u32,
+        circuit_key: CircuitKey,
         year: u32,
     ) -> impl Future<Output = Result<CircuitLayout, Box<dyn std::error::Error>>> + Send {
         let client = self.client.clone();
@@ -159,7 +158,10 @@ mod tests {
     async fn test_fetch_circuit_layout() {
         let client = MultiviewerClient::new();
         // Spa-Francorchamps (circuit key 7) for 2024
-        let layout = client.fetch(7, 2024).await.expect("Failed to fetch layout");
+        let layout = client
+            .fetch(CircuitKey(7), 2024)
+            .await
+            .expect("Failed to fetch layout");
 
         assert_eq!(layout.coords.len(), 1005);
 
