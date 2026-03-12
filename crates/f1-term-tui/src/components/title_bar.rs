@@ -116,7 +116,7 @@ impl TitleBar {
         };
 
         Line::from(vec![
-            Span::styled(" <H> ", Style::default().fg(Color::LightRed).bold()),
+            Span::styled(" <?> ", Style::default().fg(Color::LightRed).bold()),
             Span::styled("Help  |  ", Style::default().dim()),
             Span::styled("[ ", Style::default().dim()),
             Span::styled("STATUS: ", Style::default()),

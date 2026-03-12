@@ -25,7 +25,7 @@ impl Component for HelpPopup {
     fn update(&mut self, action: Action) -> Result<Option<Action>, Box<dyn std::error::Error>> {
         if let Action::KeyPress(key) = action {
             match key.code {
-                KeyCode::Char('h') => {
+                KeyCode::Char('?') => {
                     self.visible = !self.visible;
                     return Ok(Some(Action::Render));
                 }
@@ -48,10 +48,10 @@ impl Component for HelpPopup {
 
         let shortcuts = [
             ("Q", "Quit"),
-            ("H", "Toggle Help"),
+            ("?", "Toggle Help"),
             ("G", "Toggle Gap/Int"),
             ("N", "Toggle Corner Numbers"),
-            // TODO: These are not useful for anything yet
+            // TODO: These are not useful for anything yet:
             // ("↑/↓", "Select Driver (in Timing Table)"),
             // ("Esc", "Deselect / Close Help"),
         ];
@@ -104,7 +104,7 @@ impl Component for HelpPopup {
             .title(" Help / Shortcuts ")
             .title_alignment(Alignment::Center)
             .borders(Borders::ALL)
-            .border_style(Style::default().fg(Color::LightMagenta));
+            .border_style(Style::default().fg(Color::LightRed));
 
         let p = Paragraph::new(lines).block(block);
 
