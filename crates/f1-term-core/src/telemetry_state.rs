@@ -125,10 +125,10 @@ impl TelemetryState {
             changed = true;
         }
 
-        if let Some(mut circuit) = update.circuit
-            && let Some(old_circuit) = self.circuit.take()
-        {
-            if old_circuit.key == circuit.key {
+        if let Some(mut circuit) = update.circuit {
+            if let Some(old_circuit) = self.circuit.take()
+                && old_circuit.key == circuit.key
+            {
                 circuit.layout = old_circuit.layout;
             }
             self.circuit = Some(circuit);

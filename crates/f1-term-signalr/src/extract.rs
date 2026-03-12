@@ -89,16 +89,27 @@ fn extract_circuit_update(
     canonical_state: &serde_json::Value,
     updated_topics: &[Topic],
 ) -> Option<Circuit> {
-    if !updated_topics.contains(&Topic::SessionInfo) {
+    if !(updated_topics.contains(&Topic::SessionInfo)
+        || updated_topics.contains(&Topic::RaceControlMessages))
+    {
         return None;
     }
 
     let info_data = canonical_state.get(Topic::SessionInfo.to_string())?;
+    let rcm = canonical_state
+        .get(Topic::RaceControlMessages.to_string())
+        .and_then(|data| match parse_raw_race_control_messages(data) {
+            Ok(messages) => Some(messages),
+            Err(e) => {
+                error!("Failed to parse race control messages for circuit: {}", e);
+                None
+            }
+        });
 
     match parse_raw_session_info(info_data) {
-        Ok(raw_info) => Some(convert_circuit(&raw_info)),
+        Ok(raw_info) => Some(convert_circuit(&raw_info, rcm.as_ref())),
         Err(e) => {
-            error!("{}", e);
+            error!("Failed to parse session info for circuit: {}", e);
             None
         }
     }

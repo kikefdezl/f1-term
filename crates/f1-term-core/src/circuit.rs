@@ -15,6 +15,23 @@ pub struct Circuit {
     pub year: u32,
     pub short_name: String,
     pub layout: Option<CircuitLayout>,
+    pub status: CircuitStatus,
+}
+
+#[derive(Debug, Default, Clone)]
+pub enum CircuitStatus {
+    // Clear and Red are always on the full circuit and don't need a scope
+    #[default]
+    Clear,
+    Red,
+    Yellow(CircuitScope),
+}
+
+#[derive(Debug, Default, Clone)]
+pub enum CircuitScope {
+    #[default]
+    Full,
+    Sectors(Vec<u8>),
 }
 
 #[derive(Debug, Default, Clone)]
