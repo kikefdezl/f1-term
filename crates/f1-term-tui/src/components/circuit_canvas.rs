@@ -13,6 +13,8 @@ use ratatui::{
 
 use super::{Action, Component};
 
+const CIRCUIT_THICKNESS: f64 = 0.5;
+
 #[derive(Default)]
 pub struct CircuitCanvas {
     circuit_key: CircuitKey,
@@ -59,9 +61,10 @@ impl Component for CircuitCanvas {
         }
 
         let bounds = pad_bounds_to_area(&self.bounds, area);
+
         let canvas = Canvas::default()
             .marker(ratatui::symbols::Marker::Braille)
-            .paint(|ctx| draw_circuit(ctx, &self.segments, &self.corners, self.show_corners))
+            .paint(|ctx| self.draw_circuit(ctx, bounds, area))
             .x_bounds([bounds.x_min as f64, bounds.x_max as f64])
             .y_bounds([bounds.y_min as f64, bounds.y_max as f64]);
 
@@ -70,19 +73,56 @@ impl Component for CircuitCanvas {
     }
 }
 
-fn draw_circuit(
-    ctx: &mut ratatui::widgets::canvas::Context<'_>,
-    segments: &[Line],
-    corners: &[Corner],
-    show_corners: bool,
-) {
-    for segment in segments {
-        ctx.draw(segment);
-    }
-    if show_corners {
-        for corner in corners {
-            ctx.print(corner.coord.x, corner.coord.y, format!("{}", corner.num));
+impl CircuitCanvas {
+    /// Draws the circuit layout on the canvas.
+    ///
+    /// To create a simulated line thickness, we draw each segment multiple times,
+    /// slightly offset in the X and Y coordinate spaces.
+    /// This effectively creates a thicker "brush" around the true coordinate path.
+    fn draw_circuit(
+        &self,
+        ctx: &mut ratatui::widgets::canvas::Context<'_>,
+        bounds: Bounds,
+        area: Rect,
+    ) {
+        // This calculates the coordinate size of a single braille dot.
+        let dot_size_x = if area.width > 0 {
+            (bounds.x_max - bounds.x_min) as f64 / (area.width as f64 * 2.0)
+        } else {
+            1.0
+        };
+        let dot_size_y = if area.height > 0 {
+            (bounds.y_max - bounds.y_min) as f64 / (area.height as f64 * 4.0)
+        } else {
+            1.0
+        };
+
+        let dx = dot_size_x * CIRCUIT_THICKNESS;
+        let dy = dot_size_y * CIRCUIT_THICKNESS;
+
+        let offsets = [(0.0, 0.0), (0.0, dy), (0.0, -dy), (dx, 0.0), (-dx, 0.0)];
+
+        for segment in &self.segments {
+            for (ox, oy) in offsets {
+                ctx.draw(&Line {
+                    x1: segment.x1 + ox,
+                    y1: segment.y1 + oy,
+                    x2: segment.x2 + ox,
+                    y2: segment.y2 + oy,
+                    color: segment.color,
+                });
+            }
         }
+
+        if self.show_corners {
+            for corner in &self.corners {
+                ctx.print(corner.coord.x, corner.coord.y, format!("{}", corner.num));
+            }
+        }
+    }
+
+    fn toggle_show_curve_numbers(&mut self) {
+        self.show_corners = !self.show_corners
     }
 }
 
@@ -119,12 +159,6 @@ fn segments_from_layout(layout: &CircuitLayout, status: &CircuitStatus) -> Vec<L
     }
 
     lines
-}
-
-impl CircuitCanvas {
-    fn toggle_show_curve_numbers(&mut self) {
-        self.show_corners = !self.show_corners
-    }
 }
 
 /// Ratatui canvas widgets stretches the content to fit the area, so we add

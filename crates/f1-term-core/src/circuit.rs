@@ -96,7 +96,7 @@ impl CircuitLayout {
     }
 }
 
-#[derive(Default)]
+#[derive(Default, Clone, Copy)]
 pub struct Bounds {
     pub x_min: i32,
     pub y_min: i32,
