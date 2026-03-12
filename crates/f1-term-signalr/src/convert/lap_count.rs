@@ -14,3 +14,21 @@ impl From<&RawLapCount> for Laps {
 pub fn convert_lap_count(raw: &RawLapCount) -> Laps {
     Laps::from(raw)
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_convert_lap_count() {
+        let raw = RawLapCount {
+            CurrentLap: 5,
+            TotalLaps: 50,
+        };
+
+        let laps = convert_lap_count(&raw);
+
+        assert_eq!(laps.current, 5);
+        assert_eq!(laps.total, 50);
+    }
+}

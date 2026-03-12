@@ -1,6 +1,6 @@
 use chrono::{DateTime, FixedOffset, NaiveDateTime, Utc};
 use f1_term_core::{
-    circuit::Circuit,
+    circuit::CircuitKey,
     session_info::{
         ArchiveStatus, Country, Meeting, QualiPhase, SessionInfo, SessionStatus, SessionType,
     },
@@ -8,7 +8,7 @@ use f1_term_core::{
 
 use crate::parsing::{
     session_data::RawSessionData,
-    session_info::{RawCircuit, RawCountry, RawMeeting, RawSessionInfo},
+    session_info::{RawCountry, RawMeeting, RawSessionInfo},
 };
 
 impl TryFrom<&RawCountry> for Country {
@@ -18,17 +18,6 @@ impl TryFrom<&RawCountry> for Country {
             key: value.Key,
             code: value.Code.clone(),
             name: value.Name.clone(),
-        })
-    }
-}
-
-impl TryFrom<&RawCircuit> for Circuit {
-    type Error = Box<dyn std::error::Error>;
-    fn try_from(value: &RawCircuit) -> Result<Self, Self::Error> {
-        Ok(Circuit {
-            key: value.Key,
-            short_name: value.ShortName.clone(),
-            layout: None,
         })
     }
 }
@@ -44,7 +33,7 @@ impl TryFrom<&RawMeeting> for Meeting {
             location: value.Location.clone(),
             number: value.Number.try_into()?,
             country: Country::try_from(&value.Country)?,
-            circuit: Circuit::try_from(&value.Circuit)?,
+            circuit_key: CircuitKey(value.Circuit.Key),
         })
     }
 }

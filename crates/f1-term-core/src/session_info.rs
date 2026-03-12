@@ -2,7 +2,7 @@ use std::fmt::Display;
 
 use chrono::{DateTime, FixedOffset, Utc};
 
-use super::circuit::Circuit;
+use super::circuit::CircuitKey;
 
 #[derive(Debug, Clone)]
 pub struct SessionInfo {
@@ -27,7 +27,7 @@ pub struct Meeting {
     pub location: String,
     pub number: u8,
     pub country: Country,
-    pub circuit: Circuit,
+    pub circuit_key: CircuitKey,
 }
 
 #[derive(Debug, Default, Clone)]

@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 
 use f1_term_core::{
+    circuit::Circuit,
     driver::{Driver, DriverNumber},
     laps::Laps,
     race_control_message::RaceControlMessage,
@@ -16,7 +17,7 @@ use log::error;
 
 use crate::{
     convert::{
-        driver::convert_drivers, lap_count::convert_lap_count,
+        circuit::convert_circuit, driver::convert_drivers, lap_count::convert_lap_count,
         race_control_message::convert_race_control_messages, session::convert_session_info,
         stint::convert_stints, team::convert_teams, timing::convert_timing_data,
         track_status::convert_track_status, weather::convert_weather_data,
@@ -37,6 +38,8 @@ pub fn extract_updates(
 ) -> TelemetryUpdate {
     TelemetryUpdate {
         session_info: extract_session_info_update(canonical_state, updated_topics),
+        circuit: extract_circuit_update(canonical_state, updated_topics),
+        circuit_layout: None,
         drivers: extract_drivers_update(canonical_state, updated_topics),
         teams: extract_teams_update(canonical_state, updated_topics),
         timing_data: extract_timing_data_update(canonical_state, updated_topics),
@@ -77,6 +80,36 @@ fn extract_session_info_update(
         }
         Err(e) => {
             error!("{}", e);
+            None
+        }
+    }
+}
+
+fn extract_circuit_update(
+    canonical_state: &serde_json::Value,
+    updated_topics: &[Topic],
+) -> Option<Circuit> {
+    if !(updated_topics.contains(&Topic::SessionInfo)
+        || updated_topics.contains(&Topic::RaceControlMessages))
+    {
+        return None;
+    }
+
+    let info_data = canonical_state.get(Topic::SessionInfo.to_string())?;
+    let rcm = canonical_state
+        .get(Topic::RaceControlMessages.to_string())
+        .and_then(|data| match parse_raw_race_control_messages(data) {
+            Ok(messages) => Some(messages),
+            Err(e) => {
+                error!("Failed to parse race control messages for circuit: {}", e);
+                None
+            }
+        });
+
+    match parse_raw_session_info(info_data) {
+        Ok(raw_info) => Some(convert_circuit(&raw_info, rcm.as_ref())),
+        Err(e) => {
+            error!("Failed to parse session info for circuit: {}", e);
             None
         }
     }

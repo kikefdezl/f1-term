@@ -10,6 +10,7 @@ use super::{
     weather::Weather,
 };
 use crate::{
+    circuit::Circuit,
     race_control_message::RaceControlMessage,
     session_info::{SessionInfo, SessionType},
     telemetry_provider::TelemetryUpdate,
@@ -25,6 +26,7 @@ pub struct TelemetryState {
     pub stints: HashMap<DriverNumber, Stints>,
     pub track_status: Option<TrackStatus>,
     pub race_control_messages: Vec<RaceControlMessage>,
+    pub circuit: Option<Circuit>,
     pub weather: Option<Weather>,
     pub laps: Option<Laps>,
 }
@@ -118,13 +120,25 @@ impl TelemetryState {
     pub fn apply(&mut self, update: TelemetryUpdate) -> bool {
         let mut changed = false;
 
-        if let Some(mut info) = update.session_info {
-            if let Some(mut old_info) = self.info.take()
-                && old_info.meeting.circuit.key == info.meeting.circuit.key
-            {
-                info.meeting.circuit.layout = old_info.meeting.circuit.layout.take();
-            }
+        if let Some(info) = update.session_info {
             self.info = Some(*info);
+            changed = true;
+        }
+
+        if let Some(mut circuit) = update.circuit {
+            if let Some(old_circuit) = self.circuit.take()
+                && old_circuit.key == circuit.key
+            {
+                circuit.layout = old_circuit.layout;
+            }
+            self.circuit = Some(circuit);
+            changed = true;
+        }
+
+        if let Some(layout) = update.circuit_layout
+            && let Some(circuit) = &mut self.circuit
+        {
+            circuit.layout = Some(layout);
             changed = true;
         }
 
