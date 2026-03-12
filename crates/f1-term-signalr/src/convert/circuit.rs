@@ -23,6 +23,11 @@ pub fn compute_circuit_status(rcm: Option<&RawRaceControlMessages>) -> CircuitSt
     let mut status = CircuitStatus::Clear;
     let mut yellow_sectors: HashSet<u8> = HashSet::new();
 
+    // This algorithm goes through all the messages to compute the current status of
+    // the track.
+    // It goes from old -> new because you might have sequential yellow flags that
+    // have to be aggregated (e.g. first a yellow flag on sector 1 and then one on
+    // sector 2 & 3)
     if let Some(messages) = rcm {
         for msg in &messages.Messages {
             if msg.Category == "Flag" {
