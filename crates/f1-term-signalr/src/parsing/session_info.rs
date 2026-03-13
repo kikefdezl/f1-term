@@ -11,7 +11,7 @@ pub struct RawSessionInfo {
     pub ArchiveStatus: RawArchiveStatus,
     pub Key: u32,
     pub Type: String,
-    pub Number: Option<String>,
+    pub Number: Option<u8>,
     pub Name: String,
     pub StartDate: String,
     pub EndDate: String,

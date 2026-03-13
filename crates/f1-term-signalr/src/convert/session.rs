@@ -97,11 +97,7 @@ pub fn convert_session_info(
         archive_status,
         key: raw_info.Key,
         type_: session_type,
-        number: raw_info
-            .Number
-            .as_deref()
-            .map(|n: &str| n.parse::<u8>())
-            .transpose()?,
+        number: raw_info.Number,
         name: raw_info.Name.clone(),
         start_date: DateTime::from_naive_utc_and_offset(
             NaiveDateTime::parse_from_str(&raw_info.StartDate, "%Y-%m-%dT%H:%M:%S")?,
