@@ -75,6 +75,8 @@ pub fn convert_session_info(
             SessionType::Qualifying(phase)
         }
         "Race" => SessionType::Race,
+        // TODO: These actually don't happen, the type is "Qualifying" even during sprint, so
+        // this would have to be extracted from the session name.
         "Sprint Qualifying" => {
             let phase = quali_part.and_then(|p| match p {
                 1 => Some(QualiPhase::Q1),
