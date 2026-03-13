@@ -83,6 +83,8 @@ pub enum SessionType {
     Practice,
     Qualifying(Option<QualiPhase>),
     Race,
+    SprintQualifying(Option<QualiPhase>),
+    Sprint,
 }
 
 impl Display for SessionType {
@@ -92,6 +94,9 @@ impl Display for SessionType {
             Self::Qualifying(Some(phase)) => write!(f, "Qualifying - {}", phase),
             Self::Qualifying(None) => write!(f, "Qualifying"),
             Self::Race => write!(f, "Race"),
+            Self::SprintQualifying(Some(phase)) => write!(f, "Sprint Qualifying - {}", phase),
+            Self::SprintQualifying(None) => write!(f, "Sprint Qualifying"),
+            Self::Sprint => write!(f, "Sprint Race"),
         }
     }
 }

@@ -131,7 +131,6 @@ impl TitleBar {
 
     fn location_time_line(&self) -> Line<'_> {
         // Use laps if it's there, if not fall back to time remaining on the clock
-        log::debug!("{:?}", self.clock);
         let laps_or_time = match &self.laps {
             Some(l) => format!("Lap {}/{}", l.current, l.total),
             None => match &self.clock {

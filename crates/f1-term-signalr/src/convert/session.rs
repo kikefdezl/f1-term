@@ -75,6 +75,16 @@ pub fn convert_session_info(
             SessionType::Qualifying(phase)
         }
         "Race" => SessionType::Race,
+        "Sprint Qualifying" => {
+            let phase = quali_part.and_then(|p| match p {
+                1 => Some(QualiPhase::Q1),
+                2 => Some(QualiPhase::Q2),
+                3 => Some(QualiPhase::Q3),
+                _ => None,
+            });
+            SessionType::SprintQualifying(phase)
+        }
+        "Sprint" => SessionType::Sprint,
         _ => return Err(format!("Unknown SessionType: {}", raw_info.Type).into()),
     };
 
