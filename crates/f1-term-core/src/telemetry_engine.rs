@@ -1,5 +1,7 @@
 use std::sync::{Arc, RwLock};
 
+use log::info;
+
 use super::{
     circuit::CircuitLayoutProvider,
     telemetry_provider::{TelemetryProvider, TelemetryUpdate},
@@ -50,6 +52,7 @@ impl<T: TelemetryProvider, C: CircuitLayoutProvider + 'static> TelemetryEngine<T
     }
 
     fn spawn_layout_fetch(&self, circuit_key: CircuitKey, year: u32) {
+        info!("Fetching layout for key: {} and year {}", circuit_key, year);
         let provider = Arc::clone(&self.circuit_provider);
         let state_arc = Arc::clone(&self.state);
 
