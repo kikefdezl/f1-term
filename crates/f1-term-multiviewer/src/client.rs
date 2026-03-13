@@ -80,6 +80,7 @@ struct MultiviewerCircuitResponse {
     pub meeting_key: String,
     pub meeting_name: String,
     pub meeting_official_name: Option<String>,
+    #[serde(default)]
     pub mini_sectors_indexes: Vec<usize>,
     pub race_date: String,
     pub rotation: f64,
@@ -129,15 +130,17 @@ impl CircuitLayoutProvider for MultiviewerClient {
                 .collect();
 
             let mut mini_sectors = Vec::with_capacity(response.mini_sectors_indexes.len());
-            mini_sectors.push(Range {
-                start: 0,
-                end: *response.mini_sectors_indexes.first().unwrap_or(&0),
-            });
-            for i in 1..response.mini_sectors_indexes.len() {
+            if !response.mini_sectors_indexes.is_empty() {
                 mini_sectors.push(Range {
-                    start: mini_sectors[i - 1].end + 1,
-                    end: response.mini_sectors_indexes[i],
-                })
+                    start: 0,
+                    end: response.mini_sectors_indexes[0],
+                });
+                for i in 1..response.mini_sectors_indexes.len() {
+                    mini_sectors.push(Range {
+                        start: mini_sectors[i - 1].end + 1,
+                        end: response.mini_sectors_indexes[i],
+                    })
+                }
             }
 
             Ok(CircuitLayout {
@@ -170,5 +173,15 @@ mod tests {
         assert_eq!(layout.mini_sectors[0].end, 40);
         assert_eq!(layout.mini_sectors[26].start, 955);
         assert_eq!(layout.mini_sectors[26].end, 1004);
+    }
+
+    #[tokio::test]
+    async fn test_fetch_circuit_layout_china() {
+        let client = MultiviewerClient::new();
+        // Shanghai (circuit key 49) for 2024 - doesn't include miniSectorIndexes
+        let _layout = client
+            .fetch(CircuitKey(49), 2024)
+            .await
+            .expect("Failed to fetch layout");
     }
 }
