@@ -65,8 +65,9 @@ pub fn parse_raw_session_info(info_val: &Value) -> Result<RawSessionInfo> {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use serde_json::json;
+
+    use super::*;
 
     #[test]
     fn test_parse_raw_session_info() {

@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 
 use super::{
+    clock::Clock,
     driver::{Driver, DriverNumber},
     laps::Laps,
     stint::Stints,
@@ -20,8 +21,8 @@ use crate::{
 pub struct TelemetryState {
     pub update_version: u64,
     pub info: Option<SessionInfo>,
-    pub teams: HashMap<TeamName, Team>,
     pub drivers: HashMap<DriverNumber, Driver>,
+    pub teams: HashMap<TeamName, Team>,
     pub timing_data: HashMap<DriverNumber, LiveTiming>,
     pub stints: HashMap<DriverNumber, Stints>,
     pub track_status: Option<TrackStatus>,
@@ -29,6 +30,7 @@ pub struct TelemetryState {
     pub circuit: Option<Circuit>,
     pub weather: Option<Weather>,
     pub laps: Option<Laps>,
+    pub clock: Option<Clock>,
 }
 
 #[derive(Debug)]
@@ -179,6 +181,11 @@ impl TelemetryState {
 
         if let Some(laps) = update.laps {
             self.laps = Some(laps);
+            changed = true;
+        }
+
+        if let Some(clock) = update.clock {
+            self.clock = Some(clock);
             changed = true;
         }
 

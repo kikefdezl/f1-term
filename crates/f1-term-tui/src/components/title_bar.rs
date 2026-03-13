@@ -1,6 +1,7 @@
 use chrono::{DateTime, Datelike, Utc};
 use f1_term_core::{
-    laps::Laps, telemetry_state::TelemetryState, track_status::TrackStatus, weather::Weather,
+    clock::Clock, laps::Laps, telemetry_state::TelemetryState, track_status::TrackStatus,
+    weather::Weather,
 };
 use ratatui::{
     Frame,
@@ -19,10 +20,10 @@ pub struct TitleBar {
     pub circuit_name: String,
     pub country_name: String,
     pub start_date: Option<DateTime<Utc>>,
-    pub end_date: Option<DateTime<Utc>>,
     pub weather: Weather,
     pub track_status: Option<TrackStatus>,
     pub laps: Option<Laps>,
+    pub clock: Option<Clock>,
 }
 
 impl Component for TitleBar {
@@ -129,26 +130,13 @@ impl TitleBar {
     }
 
     fn location_time_line(&self) -> Line<'_> {
-        let time_or_laps = match &self.laps {
+        // Use laps if it's there, if not fall back to time remaining on the clock
+        log::debug!("{:?}", self.clock);
+        let laps_or_time = match &self.laps {
             Some(l) => format!("Lap {}/{}", l.current, l.total),
-            // fallback to countdown if laps not there
-            None => match self.end_date {
-                Some(end_date) => {
-                    let now = Utc::now();
-                    if end_date > now {
-                        let duration = end_date - now;
-                        let hours = duration.num_hours();
-                        let minutes = duration.num_minutes() % 60;
-                        let seconds = duration.num_seconds() % 60;
-                        format!("{:02}:{:02}:{:02}", hours, minutes, seconds)
-                    } else {
-                        "00:00:00".to_string()
-                    }
-                }
-                None => {
-                    log::error!("No end date to parse");
-                    "".to_string()
-                }
+            None => match &self.clock {
+                Some(c) => format!("{}", c),
+                None => "".to_string(),
             },
         };
 
@@ -156,7 +144,7 @@ impl TitleBar {
             Span::raw("  "),
             Span::styled(&self.circuit_name, Style::default().bold()),
             Span::styled(format!(" ({})", self.country_name), Style::default().dim()),
-            Span::raw(format!("  |  {} ", time_or_laps)).gray().dim(),
+            Span::raw(format!("  |  {} ", laps_or_time)).gray().dim(),
         ])
     }
 
@@ -188,7 +176,6 @@ impl TitleBar {
             self.session_name.clone_from(&info.type_.to_string());
             self.country_name.clone_from(&info.meeting.country.name);
             self.start_date = Some(info.start_date);
-            self.end_date = Some(info.end_date);
         }
         if let Some(circuit) = &state.circuit {
             self.circuit_name.clone_from(&circuit.short_name);
@@ -203,6 +190,9 @@ impl TitleBar {
         };
         if state.laps.is_some() {
             self.laps.clone_from(&state.laps);
+        }
+        if state.clock.is_some() {
+            self.clock.clone_from(&state.clock);
         }
     }
 }

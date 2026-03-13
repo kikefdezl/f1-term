@@ -1,4 +1,5 @@
 pub mod driver_list;
+pub mod extrapolated_clock;
 pub mod lap_count;
 pub mod race_control_messages;
 pub mod session_data;

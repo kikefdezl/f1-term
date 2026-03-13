@@ -1,4 +1,5 @@
 pub mod circuit;
+pub mod clock;
 pub mod driver;
 pub mod lap_count;
 pub mod race_control_message;

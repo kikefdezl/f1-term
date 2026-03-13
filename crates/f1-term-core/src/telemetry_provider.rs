@@ -2,6 +2,7 @@ use std::{collections::HashMap, future::Future};
 
 use crate::{
     circuit::{Circuit, CircuitLayout},
+    clock::Clock,
     driver::{Driver, DriverNumber},
     laps::Laps,
     race_control_message::RaceControlMessage,
@@ -26,6 +27,7 @@ pub struct TelemetryUpdate {
     pub race_control_messages: Option<Vec<RaceControlMessage>>,
     pub weather: Option<Weather>,
     pub laps: Option<Laps>,
+    pub clock: Option<Clock>,
 }
 
 pub trait TelemetryProvider {
