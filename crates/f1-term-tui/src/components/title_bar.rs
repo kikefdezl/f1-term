@@ -1,6 +1,7 @@
 use std::time::Duration;
 
 use chrono::{DateTime, Datelike, Utc};
+use crossterm::event::KeyCode;
 use f1_term_core::{
     clock::Clock, laps::Laps, telemetry_state::TelemetryState, track_status::TrackStatus,
     weather::Weather,
@@ -31,10 +32,25 @@ pub struct TitleBar {
 
 impl Component for TitleBar {
     fn update(&mut self, action: Action) -> Result<Option<Action>, Box<dyn std::error::Error>> {
-        if let Action::StateUpdate(ref state_lock) = action {
-            let state = state_lock.read().unwrap();
-            self.update_data(&state);
-            return Ok(Some(Action::Render)); // render every time to update the time remaining
+        match action {
+            Action::StateUpdate(ref state_lock) => {
+                let state = state_lock.read().unwrap();
+                self.update_data(&state);
+                return Ok(Some(Action::Render)); // render every time to update the time remaining
+            }
+
+            // Optimistic updates for the delay to make the TUI feel snappier when we increase or
+            // decrease the delay amount.
+            // Later the self.delay is updated in update() during the next tick from the central
+            // source of truth which is the TelemetryState
+            Action::KeyPress(key) => match key.code {
+                KeyCode::Left => self.delay += Duration::from_secs(1),
+                KeyCode::Right => {
+                    self.delay = self.delay.saturating_sub(Duration::from_secs(1));
+                }
+                _ => {}
+            },
+            _ => {}
         }
         Ok(None)
     }
@@ -160,7 +176,7 @@ impl TitleBar {
         let laps_or_time = match &self.laps {
             Some(l) => format!("Lap {}/{}", l.current, l.total),
             None => match &self.clock {
-                Some(c) => format!("{}", c),
+                Some(c) => self.format_clock(c),
                 None => "".to_string(),
             },
         };
@@ -171,6 +187,24 @@ impl TitleBar {
             Span::styled(format!(" ({})", self.country_name), Style::default().dim()),
             Span::raw(format!("  |  {} ", laps_or_time)).gray().dim(),
         ])
+    }
+
+    fn format_clock(&self, clock: &Clock) -> String {
+        let remaining = if clock.extrapolating {
+            let elapsed_real = (Utc::now() - clock.updated_at).to_std().unwrap_or(Duration::ZERO);
+            let elapsed_simulated = elapsed_real.saturating_sub(self.delay);
+            clock.time_remaining.saturating_sub(elapsed_simulated)
+        } else {
+            clock.time_remaining
+        };
+
+        let mut seconds = remaining.as_secs();
+        let hours = seconds / 3600;
+        seconds -= hours * 3600;
+        let minutes = seconds / 60;
+        seconds -= minutes * 60;
+
+        format!("{:02}:{:02}:{:02}", hours, minutes, seconds)
     }
 
     fn weather_line(&self) -> Line<'_> {
