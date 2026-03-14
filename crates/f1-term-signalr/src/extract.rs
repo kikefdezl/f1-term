@@ -306,10 +306,7 @@ fn extract_clock_update(
 
     match parse_extrapolated_clock(topic_data) {
         Ok(raw_clock) => match convert_clock(&raw_clock) {
-            Ok(c) => {
-                log::info!("parsed clock {}", c);
-                Some(c)
-            }
+            Ok(c) => Some(c),
             Err(e) => {
                 error!("{}", e);
                 None

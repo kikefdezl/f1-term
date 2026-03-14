@@ -35,6 +35,7 @@ impl TryFrom<&RawExtrapolatedClock> for Clock {
         Ok(Clock {
             time_remaining: Duration::from_secs(total_secs),
             updated_at,
+            extrapolating: value.Extrapolating,
         })
     }
 }
