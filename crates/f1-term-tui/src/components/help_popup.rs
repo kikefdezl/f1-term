@@ -51,6 +51,8 @@ impl Component for HelpPopup {
             ("?", "Toggle Help"),
             ("G", "Toggle Gap/Int"),
             ("N", "Toggle Corner Numbers"),
+            ("←", "Increase Live Delay"),
+            ("→", "Decrease Live Delay"),
             // TODO: These are not useful for anything yet:
             // ("↑/↓", "Select Driver (in Timing Table)"),
             // ("Esc", "Deselect / Close Help"),

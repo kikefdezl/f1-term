@@ -6,6 +6,7 @@ use f1_term_multiviewer::client::MultiviewerClient;
 use f1_term_signalr::client::SignalRF1Client;
 use f1_term_tui::app::App;
 use simplelog::{Config, LevelFilter, WriteLogger};
+use tokio::sync::mpsc;
 
 const APP: &str = "f1-term";
 const LOGFILE: &str = "f1-term.log";
@@ -39,13 +40,14 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let state = engine.get_state();
 
+    let (eng_tx, eng_rx) = mpsc::unbounded_channel();
     tokio::spawn(async move {
-        engine.run().await;
+        engine.run(eng_rx).await;
     });
 
     let mut terminal = ratatui::init();
 
-    let mut app = App::new(state);
+    let mut app = App::new(state, eng_tx);
     let res = app.run(&mut terminal).await;
 
     ratatui::restore();

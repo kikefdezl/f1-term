@@ -1,3 +1,5 @@
+use std::time::Duration;
+
 use chrono::{DateTime, Datelike, Utc};
 use f1_term_core::{
     clock::Clock, laps::Laps, telemetry_state::TelemetryState, track_status::TrackStatus,
@@ -24,6 +26,7 @@ pub struct TitleBar {
     pub track_status: Option<TrackStatus>,
     pub laps: Option<Laps>,
     pub clock: Option<Clock>,
+    pub delay: Duration,
 }
 
 impl Component for TitleBar {
@@ -101,6 +104,17 @@ impl TitleBar {
     }
 
     fn status_line(&self) -> Line<'_> {
+        let is_live = self.delay.is_zero();
+
+        let delay_text = if is_live {
+            Span::styled("LIVE", Style::default().fg(Color::LightRed).bold())
+        } else {
+            Span::styled(
+                format!("-{}s", self.delay.as_secs()),
+                Style::default().fg(Color::LightYellow).bold(),
+            )
+        };
+
         let track_status_text = match &self.track_status {
             Some(ts) => ts.message.as_str(),
             None => "Unknown",
@@ -117,15 +131,27 @@ impl TitleBar {
         };
 
         Line::from(vec![
-            Span::styled(" <?> ", Style::default().fg(Color::LightRed).bold()),
-            Span::styled("Help  |  ", Style::default().dim()),
-            Span::styled("[ ", Style::default().dim()),
-            Span::styled("STATUS: ", Style::default()),
+            // TODO: think about where to put the help tooltip
+            // Span::styled("? ", Style::default().bold().light_red()),
+            // Span::styled("Help", Style::default()),
+            // Span::styled("  │  ", Style::default().dim()),
+            Span::styled(" ◀ ", Style::default()),
+            delay_text,
+            Span::styled(
+                " ▶ ",
+                if is_live {
+                    Style::default().dim()
+                } else {
+                    Style::default()
+                },
+            ),
+            Span::styled("  │  ", Style::default().dim()),
+            Span::styled("STATUS: ", Style::default().dim()),
             Span::styled(
                 track_status_text.to_uppercase(),
                 Style::default().fg(status_color).bold(),
             ),
-            Span::styled(" ]  ", Style::default().dim()),
+            Span::raw("   "),
         ])
     }
 
@@ -170,6 +196,7 @@ impl TitleBar {
     }
 
     fn update_data(&mut self, state: &TelemetryState) {
+        self.delay = state.delay;
         if let Some(info) = &state.info {
             self.grand_prix_name.clone_from(&info.meeting.name);
             self.session_name.clone_from(&info.name.to_string());

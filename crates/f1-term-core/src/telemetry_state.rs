@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::{collections::HashMap, time::Duration};
 
 use super::{
     clock::Clock,
@@ -20,6 +20,7 @@ use crate::{
 #[derive(Debug, Default, Clone)]
 pub struct TelemetryState {
     pub update_version: u64,
+    pub delay: Duration,
     pub info: Option<SessionInfo>,
     pub drivers: HashMap<DriverNumber, Driver>,
     pub teams: HashMap<TeamName, Team>,

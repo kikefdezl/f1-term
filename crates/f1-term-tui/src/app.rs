@@ -4,10 +4,13 @@ use std::{
 };
 
 use crossterm::event::{Event as CrosstermEvent, EventStream, KeyCode};
-use f1_term_core::telemetry_state::TelemetryState;
+use f1_term_core::{telemetry_engine::TelemetryEngineCommand, telemetry_state::TelemetryState};
 use futures::StreamExt;
 use ratatui::{DefaultTerminal, Frame};
-use tokio::{sync::mpsc, time::interval};
+use tokio::{
+    sync::mpsc::{self, UnboundedSender},
+    time::interval,
+};
 
 use crate::{
     action::Action,
@@ -15,19 +18,24 @@ use crate::{
     pages::{ActivePage, dashboard::DashboardPage},
 };
 
-const REFRESH_RATE_MILLIS: u64 = 333;
+const REFRESH_RATE_MILLIS: u64 = 100;
 
 pub struct App {
     state: Arc<RwLock<TelemetryState>>,
+    engine_tx: UnboundedSender<TelemetryEngineCommand>,
     active_page: ActivePage,
     live_timing_page: DashboardPage,
     exit: bool,
 }
 
 impl App {
-    pub fn new(state: Arc<RwLock<TelemetryState>>) -> Self {
+    pub fn new(
+        state: Arc<RwLock<TelemetryState>>,
+        engine_tx: UnboundedSender<TelemetryEngineCommand>,
+    ) -> Self {
         Self {
             state,
+            engine_tx,
             active_page: ActivePage::default(),
             live_timing_page: DashboardPage::default(),
             exit: false,
@@ -104,11 +112,16 @@ impl App {
                 self.active_page = *page;
                 return Ok(Some(Action::Render));
             }
-            Action::KeyPress(key) => {
-                if let KeyCode::Char('q') = key.code {
-                    return Ok(Some(Action::Quit));
-                }
-            }
+            Action::KeyPress(key) => match key.code {
+                KeyCode::Char('q') => return Ok(Some(Action::Quit)),
+                KeyCode::Left => self.engine_tx.send(TelemetryEngineCommand::IncreaseDelay(
+                    Duration::from_secs(1),
+                ))?,
+                KeyCode::Right => self.engine_tx.send(TelemetryEngineCommand::DecreaseDelay(
+                    Duration::from_secs(1),
+                ))?,
+                _ => {}
+            },
             _ => {}
         }
 

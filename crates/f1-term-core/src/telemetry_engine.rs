@@ -5,7 +5,7 @@ use std::{
 };
 
 use log::info;
-use tokio::time::sleep;
+use tokio::{sync::mpsc::UnboundedReceiver, time::sleep};
 
 use super::{
     circuit::CircuitLayoutProvider,
@@ -14,11 +14,15 @@ use super::{
 };
 use crate::circuit::CircuitKey;
 
+pub enum TelemetryEngineCommand {
+    IncreaseDelay(Duration),
+    DecreaseDelay(Duration),
+}
+
 pub struct TelemetryEngine<T: TelemetryProvider, C: CircuitLayoutProvider> {
     pub state: Arc<RwLock<TelemetryState>>,
     pub telemetry_provider: T,
     pub circuit_provider: Arc<C>,
-    pub delay: Duration,
 }
 
 impl<T: TelemetryProvider, C: CircuitLayoutProvider + 'static> TelemetryEngine<T, C> {
@@ -27,7 +31,6 @@ impl<T: TelemetryProvider, C: CircuitLayoutProvider + 'static> TelemetryEngine<T
             state: Arc::new(RwLock::new(TelemetryState::default())),
             telemetry_provider: f1_client,
             circuit_provider: Arc::new(circuit_layout_provider),
-            delay: Duration::default(),
         }
     }
 
@@ -39,7 +42,7 @@ impl<T: TelemetryProvider, C: CircuitLayoutProvider + 'static> TelemetryEngine<T
         Arc::clone(&self.state)
     }
 
-    pub async fn run(&mut self) {
+    pub async fn run(&mut self, mut cmd_rx: UnboundedReceiver<TelemetryEngineCommand>) {
         struct StoredUpdate {
             timestamp: Instant,
             update: TelemetryUpdate,
@@ -49,9 +52,17 @@ impl<T: TelemetryProvider, C: CircuitLayoutProvider + 'static> TelemetryEngine<T
 
         loop {
             tokio::select! {
+                cmd_opt = cmd_rx.recv() => {
+                    if let Some(cmd) = cmd_opt {
+                        match cmd {
+                            TelemetryEngineCommand::IncreaseDelay(a) => self.increase_delay(a),
+                            TelemetryEngineCommand::DecreaseDelay(a) => self.decrease_delay(a),
+                        }
+                    }
+                }
+
                 update_opt = self.telemetry_provider.next_updates() => {
-                    if let Some(mut update) = update_opt {
-                            self.check_and_fetch_circuit_layout(&mut update);
+                    if let Some(update) = update_opt {
                             let stored = StoredUpdate {
                                 timestamp: Instant::now(),
                                 update: update.clone()
@@ -62,8 +73,9 @@ impl<T: TelemetryProvider, C: CircuitLayoutProvider + 'static> TelemetryEngine<T
 
                 _ = sleep(Duration::from_millis(100)) => {
                     while let Some(update) = queue.front() &&
-                        update.timestamp >= Instant::now() - self.delay &&
-                            let Some(u) = queue.pop_front() {
+                        update.timestamp.elapsed() >= self.state.read().unwrap().delay &&
+                        let Some(mut u) = queue.pop_front() {
+                            self.check_and_fetch_circuit_layout(&mut u.update);
                             self.apply_updates(u.update);
                     }
                 }
@@ -115,5 +127,17 @@ impl<T: TelemetryProvider, C: CircuitLayoutProvider + 'static> TelemetryEngine<T
         if state_lock.apply(update) {
             state_lock.update_version += 1;
         }
+    }
+
+    fn increase_delay(&mut self, amount: Duration) {
+        let mut state = self.state.write().unwrap();
+        state.delay += amount;
+        state.update_version += 1;
+    }
+
+    fn decrease_delay(&mut self, amount: Duration) {
+        let mut state = self.state.write().unwrap();
+        state.delay = state.delay.saturating_sub(amount);
+        state.update_version += 1;
     }
 }
