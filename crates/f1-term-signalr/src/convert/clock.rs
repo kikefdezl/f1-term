@@ -46,8 +46,9 @@ pub fn convert_clock(raw: &RawExtrapolatedClock) -> Result<Clock, Box<dyn std::e
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use chrono::{TimeZone, Timelike, Utc};
+
+    use super::*;
 
     #[test]
     fn test_clock_conversion() {

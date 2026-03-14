@@ -14,7 +14,7 @@ use crate::{
     weather::Weather,
 };
 
-#[derive(Debug, Default)]
+#[derive(Debug, Default, Clone)]
 pub struct TelemetryUpdate {
     pub session_info: Option<Box<SessionInfo>>,
     pub circuit: Option<Circuit>,

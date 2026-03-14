@@ -1,6 +1,11 @@
-use std::sync::{Arc, RwLock};
+use std::{
+    collections::VecDeque,
+    sync::{Arc, RwLock},
+    time::{Duration, Instant},
+};
 
 use log::info;
+use tokio::time::sleep;
 
 use super::{
     circuit::CircuitLayoutProvider,
@@ -13,6 +18,7 @@ pub struct TelemetryEngine<T: TelemetryProvider, C: CircuitLayoutProvider> {
     pub state: Arc<RwLock<TelemetryState>>,
     pub telemetry_provider: T,
     pub circuit_provider: Arc<C>,
+    pub delay: Duration,
 }
 
 impl<T: TelemetryProvider, C: CircuitLayoutProvider + 'static> TelemetryEngine<T, C> {
@@ -21,6 +27,7 @@ impl<T: TelemetryProvider, C: CircuitLayoutProvider + 'static> TelemetryEngine<T
             state: Arc::new(RwLock::new(TelemetryState::default())),
             telemetry_provider: f1_client,
             circuit_provider: Arc::new(circuit_layout_provider),
+            delay: Duration::default(),
         }
     }
 
@@ -33,9 +40,34 @@ impl<T: TelemetryProvider, C: CircuitLayoutProvider + 'static> TelemetryEngine<T
     }
 
     pub async fn run(&mut self) {
-        while let Some(mut update) = self.telemetry_provider.next_updates().await {
-            self.check_and_fetch_circuit_layout(&mut update);
-            self.apply_updates(update);
+        struct StoredUpdate {
+            timestamp: Instant,
+            update: TelemetryUpdate,
+        }
+
+        let mut queue: VecDeque<StoredUpdate> = VecDeque::new();
+
+        loop {
+            tokio::select! {
+                update_opt = self.telemetry_provider.next_updates() => {
+                    if let Some(mut update) = update_opt {
+                            self.check_and_fetch_circuit_layout(&mut update);
+                            let stored = StoredUpdate {
+                                timestamp: Instant::now(),
+                                update: update.clone()
+                            };
+                            queue.push_back(stored);
+                    }
+                }
+
+                _ = sleep(Duration::from_millis(100)) => {
+                    while let Some(update) = queue.front() &&
+                        update.timestamp >= Instant::now() - self.delay &&
+                            let Some(u) = queue.pop_front() {
+                            self.apply_updates(u.update);
+                    }
+                }
+            }
         }
     }
 
