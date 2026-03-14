@@ -82,65 +82,22 @@ mod tests {
 
     #[test]
     fn test_wind_to_direction() {
-        assert_eq!(WindDirection { value: 0.0 }.to_direction().to_string(), "N");
-        assert_eq!(
-            WindDirection { value: 10.0 }.to_direction().to_string(),
-            "N"
-        );
-        assert_eq!(
-            WindDirection { value: 22.5 }.to_direction().to_string(),
-            "N"
-        );
-
-        assert_eq!(
-            WindDirection { value: 22.6 }.to_direction().to_string(),
-            "NE"
-        );
-        assert_eq!(
-            WindDirection { value: 45.0 }.to_direction().to_string(),
-            "NE"
-        );
-        assert_eq!(
-            WindDirection { value: 67.5 }.to_direction().to_string(),
-            "NE"
-        );
-
-        assert_eq!(
-            WindDirection { value: 90.0 }.to_direction().to_string(),
-            "E"
-        );
-        assert_eq!(
-            WindDirection { value: 135.0 }.to_direction().to_string(),
-            "SE"
-        );
-        assert_eq!(
-            WindDirection { value: 180.0 }.to_direction().to_string(),
-            "S"
-        );
-        assert_eq!(
-            WindDirection { value: 225.0 }.to_direction().to_string(),
-            "SW"
-        );
-        assert_eq!(
-            WindDirection { value: 270.0 }.to_direction().to_string(),
-            "W"
-        );
-        assert_eq!(
-            WindDirection { value: 315.0 }.to_direction().to_string(),
-            "NW"
-        );
-
-        assert_eq!(
-            WindDirection { value: 337.5 }.to_direction().to_string(),
-            "N"
-        );
-        assert_eq!(
-            WindDirection { value: 350.0 }.to_direction().to_string(),
-            "N"
-        );
-        assert_eq!(
-            WindDirection { value: 360.0 }.to_direction().to_string(),
-            "N"
-        );
+        fn assert(value: f32, expected: &str) {
+            assert_eq!(WindDirection { value }.to_direction().to_string(), expected);
+        }
+        assert(10.0, "N");
+        assert(22.5, "N");
+        assert(22.6, "NE");
+        assert(45.0, "NE");
+        assert(67.5, "NE");
+        assert(90.0, "E");
+        assert(135.0, "SE");
+        assert(180.0, "S");
+        assert(225.0, "SW");
+        assert(270.0, "W");
+        assert(315.0, "NW");
+        assert(337.5, "N");
+        assert(350.0, "N");
+        assert(360.0, "N");
     }
 }
