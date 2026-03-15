@@ -10,4 +10,4 @@ f1-term-core = { path = "../f1-term-core/" }
 futures = "0.3.32"
 log = "0.4.29"
 ratatui = "0.30.0"
-tokio = { version = "1.49.0", features = ["full"] }
+tokio = "1.50.0"
