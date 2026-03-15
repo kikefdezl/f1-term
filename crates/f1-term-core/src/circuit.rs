@@ -134,6 +134,20 @@ impl Coord {
 }
 
 #[cfg(test)]
+pub struct MockCircuitLayoutProvider;
+
+#[cfg(test)]
+impl CircuitLayoutProvider for MockCircuitLayoutProvider {
+    async fn fetch(
+        &self,
+        _circuit_key: CircuitKey,
+        _year: u32,
+    ) -> Result<CircuitLayout, Box<dyn std::error::Error>> {
+        Ok(CircuitLayout::default())
+    }
+}
+
+#[cfg(test)]
 mod tests {
     use super::*;
 

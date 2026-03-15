@@ -34,3 +34,19 @@ pub trait TelemetryProvider {
     fn connect(&mut self) -> impl Future<Output = Result<(), Box<dyn std::error::Error>>>;
     fn next_updates(&mut self) -> impl Future<Output = Option<TelemetryUpdate>>;
 }
+
+#[cfg(test)]
+pub struct MockTelemetryProvider {
+    pub rx: tokio::sync::mpsc::UnboundedReceiver<TelemetryUpdate>,
+}
+
+#[cfg(test)]
+impl TelemetryProvider for MockTelemetryProvider {
+    async fn connect(&mut self) -> Result<(), Box<dyn std::error::Error>> {
+        Ok(())
+    }
+
+    async fn next_updates(&mut self) -> Option<TelemetryUpdate> {
+        self.rx.recv().await
+    }
+}
