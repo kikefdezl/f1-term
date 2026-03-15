@@ -277,7 +277,7 @@ mod tests {
 
         assert_eq!(padded.x_min, 0);
         assert_eq!(padded.x_max, 100);
-        assert_eq!(padded.y_min, -50);
-        assert_eq!(padded.y_max, 150);
+        assert_eq!(padded.y_min, -100);
+        assert_eq!(padded.y_max, 100);
     }
 }

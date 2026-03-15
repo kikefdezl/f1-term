@@ -191,7 +191,9 @@ impl TitleBar {
 
     fn format_clock(&self, clock: &Clock) -> String {
         let remaining = if clock.extrapolating {
-            let elapsed_real = (Utc::now() - clock.updated_at).to_std().unwrap_or(Duration::ZERO);
+            let elapsed_real = (Utc::now() - clock.updated_at)
+                .to_std()
+                .unwrap_or(Duration::ZERO);
             let elapsed_simulated = elapsed_real.saturating_sub(self.delay);
             clock.time_remaining.saturating_sub(elapsed_simulated)
         } else {

@@ -101,6 +101,108 @@ impl TimingTableData {
         self.time_diff_to_fastest = args.time_diff_to_fastest.clone();
         self.time_diff_to_position_ahead = args.time_diff_to_position_ahead.clone();
     }
+
+    fn position_cell(&self, pos: usize) -> Cell<'_> {
+        let pos_color = if self.retired || self.stopped {
+            Color::DarkGray
+        } else {
+            Color::default()
+        };
+        Cell::from(format!("{:>3}", pos)).style(Style::default().fg(pos_color))
+    }
+
+    fn driver_tla_cell(&self) -> Cell<'_> {
+        Cell::from(self.driver_tla.clone()).style(
+            Style::default()
+                .fg(self.team_color)
+                .add_modifier(Modifier::BOLD),
+        )
+    }
+
+    fn number_cell(&self) -> Cell<'_> {
+        Cell::from(self.driver_number.as_str())
+    }
+
+    fn tire_cell(&self) -> Cell<'_> {
+        match (&self.tire_compound, self.tire_laps) {
+            (Some(compound), Some(laps)) => {
+                let (letter, color) = match compound {
+                    Compound::Soft => ("S", Color::Red),
+                    Compound::Medium => ("M", Color::Yellow),
+                    Compound::Hard => ("H", Color::White),
+                    Compound::Wet => ("W", Color::Blue),
+                    Compound::Intermediate => ("I", Color::Green),
+                    Compound::Unknown => ("?", Color::DarkGray),
+                };
+                Cell::from(format!("{} ({})", letter, laps)).style(Style::default().fg(color))
+            }
+            _ => Cell::from(""),
+        }
+    }
+
+    fn pit_cell(&self) -> Cell<'_> {
+        if self.retired || self.stopped {
+            Cell::from("Out").style(Style::default().fg(Color::DarkGray))
+        } else {
+            match self.in_pit {
+                true => Cell::from("Pit").style(Style::default().fg(Color::Blue)),
+                false => Cell::from(""),
+            }
+        }
+    }
+
+    fn best_lap_cell(&self) -> Cell<'_> {
+        match &self.best_lap_time {
+            Some(ll) => Cell::from(ll.as_str()),
+            None => Cell::from("-:--.---"),
+        }
+    }
+
+    fn last_lap_cell(&self) -> Cell<'_> {
+        let last_lap = match &self.last_lap_time {
+            Some(ll) => ll.as_str(),
+            None => "-:--.---",
+        };
+
+        let last_lap_style = if self.last_lap_overall_fastest {
+            Style::default().fg(COLOR_OVERALL_FASTEST)
+        } else if self.last_lap_personal_fastest {
+            Style::default().fg(COLOR_PERSONAL_FASTEST)
+        } else {
+            Style::default().fg(COLOR_SLOWER)
+        };
+
+        Cell::from(last_lap).style(last_lap_style)
+    }
+
+    fn gap_cell(&self, is_leader: bool, gap_mode: GapMode) -> Cell<'_> {
+        if is_leader {
+            Cell::from("------")
+        } else {
+            let diff = match gap_mode {
+                GapMode::ToFastest => &self.time_diff_to_fastest,
+                GapMode::ToPositionAhead => &self.time_diff_to_position_ahead,
+            };
+            match diff {
+                Some(t) => Cell::from(t.as_str()),
+                None => Cell::from(" -.---"),
+            }
+        }
+    }
+
+    fn sector_cell(&self, sector: usize) -> Cell<'_> {
+        self.sectors
+            .get(sector)
+            .map(|s| TimingTable::sector(s))
+            .unwrap_or(Cell::from(""))
+    }
+
+    fn segment_cell(&self, sector: usize) -> Cell<'_> {
+        self.sectors
+            .get(sector)
+            .map(|s| TimingTable::segments(&s.segments))
+            .unwrap_or_default()
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
@@ -303,107 +405,23 @@ impl TimingTable {
             .enumerate()
             .map(|(i, data)| {
                 let pos = i + 1;
-                let pos_color = if data.retired || data.stopped {
-                    Color::DarkGray
-                } else {
-                    Color::default()
-                };
-
-                let tire_cell = match (&data.tire_compound, data.tire_laps) {
-                    (Some(compound), Some(laps)) => {
-                        let (letter, color) = match compound {
-                            Compound::Soft => ("S", Color::Red),
-                            Compound::Medium => ("M", Color::Yellow),
-                            Compound::Hard => ("H", Color::White),
-                            Compound::Wet => ("W", Color::Blue),
-                            Compound::Intermediate => ("I", Color::Green),
-                            Compound::Unknown => ("?", Color::DarkGray),
-                        };
-                        Cell::from(format!("{} ({})", letter, laps))
-                            .style(Style::default().fg(color))
-                    }
-                    _ => Cell::from(""),
-                };
-
-                let pit_cell = if data.retired || data.stopped {
-                    Cell::from("Out").style(Style::default().fg(Color::DarkGray))
-                } else {
-                    match data.in_pit {
-                        true => Cell::from("Pit").style(Style::default().fg(Color::Blue)),
-                        false => Cell::from(""),
-                    }
-                };
-
-                let best_lap = match &data.best_lap_time {
-                    Some(ll) => ll,
-                    None => "-:--.---",
-                };
-
-                let last_lap = match &data.last_lap_time {
-                    Some(ll) => ll,
-                    None => "-:--.---",
-                };
-
-                let time_diff = if i == 0 {
-                    "------"
-                } else {
-                    let diff = match gap_mode {
-                        GapMode::ToFastest => &data.time_diff_to_fastest,
-                        GapMode::ToPositionAhead => &data.time_diff_to_position_ahead,
-                    };
-                    match diff {
-                        Some(t) => t.as_str(),
-                        None => " -.---",
-                    }
-                };
-
-                let last_lap_style = if data.last_lap_overall_fastest {
-                    Style::default().fg(COLOR_OVERALL_FASTEST)
-                } else if data.last_lap_personal_fastest {
-                    Style::default().fg(COLOR_PERSONAL_FASTEST)
-                } else {
-                    Style::default().fg(COLOR_SLOWER)
-                };
-
-                let sector_data = |sector: usize| -> Cell {
-                    data.sectors
-                        .get(sector)
-                        .map(|s| TimingTable::sector(s))
-                        .unwrap_or(Cell::from(""))
-                };
-                let s1 = sector_data(0);
-                let s2 = sector_data(1);
-                let s3 = sector_data(2);
-
-                let segment_data = |sector: usize| -> Cell {
-                    data.sectors
-                        .get(sector)
-                        .map(|s| TimingTable::segments(&s.segments))
-                        .unwrap_or_default()
-                };
-                let s1_segments = segment_data(0);
-                let s2_segments = segment_data(1);
-                let s3_segments = segment_data(2);
+                let is_leader = i == 0;
 
                 Row::new(vec![
-                    Cell::from(format!("{:>3}", pos)).style(Style::default().fg(pos_color)),
-                    Cell::from(data.driver_tla.clone()).style(
-                        Style::default()
-                            .fg(data.team_color)
-                            .add_modifier(Modifier::BOLD),
-                    ),
-                    Cell::from(data.driver_number.as_str()),
-                    tire_cell,
-                    pit_cell,
-                    Cell::from(best_lap),
-                    Cell::from(time_diff),
-                    Cell::from(last_lap).style(last_lap_style),
-                    s1_segments,
-                    s1,
-                    s2_segments,
-                    s2,
-                    s3_segments,
-                    s3,
+                    data.position_cell(pos),
+                    data.driver_tla_cell(),
+                    data.number_cell(),
+                    data.tire_cell(),
+                    data.pit_cell(),
+                    data.best_lap_cell(),
+                    data.gap_cell(is_leader, gap_mode),
+                    data.last_lap_cell(),
+                    data.segment_cell(0),
+                    data.sector_cell(0),
+                    data.segment_cell(1),
+                    data.sector_cell(1),
+                    data.segment_cell(2),
+                    data.sector_cell(2),
                 ])
             })
             .collect();
@@ -450,5 +468,135 @@ impl TimingTable {
             .collect();
 
         Cell::from(Line::from(spans))
+    }
+}
+#[cfg(test)]
+mod tests {
+    use f1_term_core::stint::Compound;
+
+    use super::*;
+
+    #[test]
+    fn test_gap_mode_toggle() {
+        let mut mode = GapMode::ToFastest;
+        assert_eq!(mode.to_string(), "Gap");
+
+        mode.toggle();
+        assert_eq!(mode, GapMode::ToPositionAhead);
+        assert_eq!(mode.to_string(), "Int");
+
+        mode.toggle();
+        assert_eq!(mode, GapMode::ToFastest);
+    }
+
+    #[test]
+    fn test_pit_cell() {
+        let mut data = TimingTableData::default();
+
+        assert_eq!(data.pit_cell(), Cell::from(""));
+
+        data.in_pit = true;
+        assert_eq!(
+            data.pit_cell(),
+            Cell::from("Pit").style(Style::default().fg(Color::Blue))
+        );
+
+        data.retired = true;
+        assert_eq!(
+            data.pit_cell(),
+            Cell::from("Out").style(Style::default().fg(Color::DarkGray))
+        );
+    }
+
+    #[test]
+    fn test_tire_cell() {
+        let mut data = TimingTableData::default();
+        assert_eq!(data.tire_cell(), Cell::from(""));
+
+        data.tire_compound = Some(Compound::Soft);
+        data.tire_laps = Some(5);
+        assert_eq!(
+            data.tire_cell(),
+            Cell::from("S (5)").style(Style::default().fg(Color::Red))
+        );
+
+        data.tire_compound = Some(Compound::Medium);
+        data.tire_laps = Some(12);
+        assert_eq!(
+            data.tire_cell(),
+            Cell::from("M (12)").style(Style::default().fg(Color::Yellow))
+        );
+    }
+
+    #[test]
+    fn test_gap_cell() {
+        let mut data = TimingTableData {
+            time_diff_to_fastest: Some("+1.234".to_string()),
+            time_diff_to_position_ahead: Some("+0.500".to_string()),
+            ..Default::default()
+        };
+
+        assert_eq!(
+            data.gap_cell(true, GapMode::ToFastest),
+            Cell::from("------")
+        );
+        assert_eq!(
+            data.gap_cell(true, GapMode::ToPositionAhead),
+            Cell::from("------")
+        );
+
+        assert_eq!(
+            data.gap_cell(false, GapMode::ToFastest),
+            Cell::from("+1.234")
+        );
+
+        assert_eq!(
+            data.gap_cell(false, GapMode::ToPositionAhead),
+            Cell::from("+0.500")
+        );
+
+        data.time_diff_to_fastest = None;
+        assert_eq!(
+            data.gap_cell(false, GapMode::ToFastest),
+            Cell::from(" -.---")
+        );
+    }
+
+    #[test]
+    fn test_lap_time_cells() {
+        let mut data = TimingTableData::default();
+
+        // No lap times
+        assert_eq!(data.best_lap_cell(), Cell::from("-:--.---"));
+        assert_eq!(
+            data.last_lap_cell(),
+            Cell::from("-:--.---").style(Style::default().fg(COLOR_SLOWER))
+        );
+
+        // With lap times
+        data.best_lap_time = Some("1:20.000".to_string());
+        data.last_lap_time = Some("1:21.000".to_string());
+
+        assert_eq!(data.best_lap_cell(), Cell::from("1:20.000"));
+
+        // Last lap is default color
+        assert_eq!(
+            data.last_lap_cell(),
+            Cell::from("1:21.000").style(Style::default().fg(COLOR_SLOWER))
+        );
+
+        // Last lap is personal best
+        data.last_lap_personal_fastest = true;
+        assert_eq!(
+            data.last_lap_cell(),
+            Cell::from("1:21.000").style(Style::default().fg(COLOR_PERSONAL_FASTEST))
+        );
+
+        // Last lap is overall best (should override personal best)
+        data.last_lap_overall_fastest = true;
+        assert_eq!(
+            data.last_lap_cell(),
+            Cell::from("1:21.000").style(Style::default().fg(COLOR_OVERALL_FASTEST))
+        );
     }
 }
