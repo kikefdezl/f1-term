@@ -4,6 +4,7 @@ use super::{
     clock::Clock,
     driver::{Driver, DriverNumber},
     laps::Laps,
+    session_info::QualiPhase,
     stint::Stints,
     team::{Team, TeamName},
     timing::LiveTiming,
@@ -49,14 +50,12 @@ impl<'a> ParticipantContext<'a> {
                 return lt
                     .quali_stats
                     .as_ref()
-                    .and_then(|qs| qs.diffs.as_ref())
-                    .and_then(|stats| {
-                        if stats.len() == phase.index() + 1 {
-                            stats.last().and_then(|s| s.to_fastest.clone())
-                        } else {
-                            None
-                        }
-                    });
+                    .and_then(|qs| match phase {
+                        QualiPhase::Q1 => qs.q1_diffs.as_ref(),
+                        QualiPhase::Q2 => qs.q2_diffs.as_ref(),
+                        QualiPhase::Q3 => qs.q3_diffs.as_ref(),
+                    })
+                    .and_then(|d| d.to_fastest.clone());
             }
             lt.time_diffs.to_fastest.clone()
         })
@@ -71,14 +70,12 @@ impl<'a> ParticipantContext<'a> {
                 return lt
                     .quali_stats
                     .as_ref()
-                    .and_then(|qs| qs.diffs.as_ref())
-                    .and_then(|stats| {
-                        if stats.len() == phase.index() + 1 {
-                            stats.last().and_then(|s| s.to_position_ahead.clone())
-                        } else {
-                            None
-                        }
-                    });
+                    .and_then(|qs| match phase {
+                        QualiPhase::Q1 => qs.q1_diffs.as_ref(),
+                        QualiPhase::Q2 => qs.q2_diffs.as_ref(),
+                        QualiPhase::Q3 => qs.q3_diffs.as_ref(),
+                    })
+                    .and_then(|d| d.to_position_ahead.clone());
             }
             lt.time_diffs.to_position_ahead.clone()
         })
@@ -191,5 +188,190 @@ impl TelemetryState {
         }
 
         changed
+    }
+}
+
+#[cfg(test)]
+mod time_diff_tests {
+    use super::*;
+    use crate::{
+        driver::{Driver, DriverNumber},
+        session_info::{QualiPhase, SessionType},
+        team::{Team, TeamColor, TeamName},
+        timing::{Lap, LapData, LiveTiming, PitData, QualiStats, TimeDiffs},
+    };
+
+    fn create_context(timing: Option<LiveTiming>) -> ParticipantContext<'static> {
+        let driver = Box::new(Driver {
+            number: DriverNumber { value: 1 },
+            broadcast_name: "VER".to_string(),
+            full_name: "Max Verstappen".to_string(),
+            first_name: "Max".to_string(),
+            last_name: "Verstappen".to_string(),
+            team_name: TeamName {
+                value: "Red Bull Racing".to_string(),
+            },
+            line: Some(1),
+            headshot_url: "".to_string(),
+            public_id_right: "".to_string(),
+            tla: "VER".to_string(),
+            reference: "".to_string(),
+        });
+
+        let team = Box::new(Team {
+            name: TeamName {
+                value: "Red Bull Racing".to_string(),
+            },
+            color: TeamColor { u32: 0x1e41ff },
+        });
+
+        ParticipantContext {
+            driver: Box::leak(driver),
+            team: Box::leak(team),
+            timing: timing.map(|t| Box::leak(Box::new(t)) as &'static LiveTiming),
+            stints: None,
+        }
+    }
+
+    fn create_timing(regular_diffs: TimeDiffs, quali_stats: Option<QualiStats>) -> LiveTiming {
+        LiveTiming {
+            driver_number: DriverNumber { value: 1 },
+            position: 1,
+            lap_data: LapData {
+                best_lap_time: None,
+                last_lap: Lap::default(),
+                number_of_laps: None,
+            },
+            pit_data: PitData::default(),
+            time_diffs: regular_diffs,
+            quali_stats,
+            stopped: false,
+            retired: false,
+            status: 0,
+        }
+    }
+
+    fn create_quali_stats() -> QualiStats {
+        QualiStats {
+            cutoff: None,
+            knocked_out: None,
+            q1_diffs: Some(TimeDiffs {
+                to_fastest: Some("+0.100".to_string()),
+                to_position_ahead: Some("+0.050".to_string()),
+            }),
+            q2_diffs: Some(TimeDiffs {
+                to_fastest: Some("+0.200".to_string()),
+                to_position_ahead: Some("+0.150".to_string()),
+            }),
+            q3_diffs: None,
+        }
+    }
+
+    fn create_time_diffs() -> TimeDiffs {
+        TimeDiffs {
+            to_fastest: Some("+1.000".to_string()),
+            to_position_ahead: Some("+0.500".to_string()),
+        }
+    }
+
+    #[test]
+    fn test_time_diff_to_fastest_no_timing() {
+        let ctx = create_context(None);
+        assert_eq!(ctx.time_diff_to_fastest(None), None);
+    }
+
+    #[test]
+    fn test_time_diff_to_fastest_regular_session() {
+        let timing = create_timing(create_time_diffs(), None);
+        let ctx = create_context(Some(timing));
+        assert_eq!(
+            ctx.time_diff_to_fastest(Some(&SessionType::Practice)),
+            Some("+1.000".to_string())
+        );
+        assert_eq!(
+            ctx.time_diff_to_fastest(Some(&SessionType::Race)),
+            Some("+1.000".to_string())
+        );
+        assert_eq!(ctx.time_diff_to_fastest(None), Some("+1.000".to_string()));
+    }
+
+    #[test]
+    fn test_time_diff_to_fastest_quali_no_stats() {
+        let timing = create_timing(create_time_diffs(), None);
+        let ctx = create_context(Some(timing));
+        assert_eq!(
+            ctx.time_diff_to_fastest(Some(&SessionType::Qualifying(Some(QualiPhase::Q1)))),
+            None
+        );
+    }
+
+    #[test]
+    fn test_time_diff_to_fastest_quali_with_stats() {
+        let timing = create_timing(create_time_diffs(), Some(create_quali_stats()));
+        let ctx = create_context(Some(timing));
+
+        assert_eq!(
+            ctx.time_diff_to_fastest(Some(&SessionType::Qualifying(Some(QualiPhase::Q1)))),
+            Some("+0.100".to_string())
+        );
+        assert_eq!(
+            ctx.time_diff_to_fastest(Some(&SessionType::Qualifying(Some(QualiPhase::Q2)))),
+            Some("+0.200".to_string())
+        );
+        assert_eq!(
+            ctx.time_diff_to_fastest(Some(&SessionType::Qualifying(Some(QualiPhase::Q3)))),
+            None
+        );
+        assert_eq!(
+            ctx.time_diff_to_fastest(Some(&SessionType::Qualifying(None))),
+            Some("+1.000".to_string())
+        );
+    }
+
+    #[test]
+    fn test_time_diff_to_position_ahead_no_timing() {
+        let ctx = create_context(None);
+        assert_eq!(ctx.time_diff_to_position_ahead(None), None);
+    }
+
+    #[test]
+    fn test_time_diff_to_position_ahead_regular_session() {
+        let timing = create_timing(create_time_diffs(), None);
+        let ctx = create_context(Some(timing));
+        assert_eq!(
+            ctx.time_diff_to_position_ahead(Some(&SessionType::Practice)),
+            Some("+0.500".to_string())
+        );
+        assert_eq!(
+            ctx.time_diff_to_position_ahead(Some(&SessionType::Race)),
+            Some("+0.500".to_string())
+        );
+        assert_eq!(
+            ctx.time_diff_to_position_ahead(None),
+            Some("+0.500".to_string())
+        );
+    }
+
+    #[test]
+    fn test_time_diff_to_position_ahead_quali_with_stats() {
+        let timing = create_timing(create_time_diffs(), Some(create_quali_stats()));
+        let ctx = create_context(Some(timing));
+
+        assert_eq!(
+            ctx.time_diff_to_position_ahead(Some(&SessionType::Qualifying(Some(QualiPhase::Q1)))),
+            Some("+0.050".to_string())
+        );
+        assert_eq!(
+            ctx.time_diff_to_position_ahead(Some(&SessionType::Qualifying(Some(QualiPhase::Q2)))),
+            Some("+0.150".to_string())
+        );
+        assert_eq!(
+            ctx.time_diff_to_position_ahead(Some(&SessionType::Qualifying(Some(QualiPhase::Q3)))),
+            None
+        );
+        assert_eq!(
+            ctx.time_diff_to_position_ahead(Some(&SessionType::Qualifying(None))),
+            Some("+0.500".to_string())
+        );
     }
 }
