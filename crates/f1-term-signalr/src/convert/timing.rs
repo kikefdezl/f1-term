@@ -70,7 +70,7 @@ impl From<&RawStats> for TimeDiffs {
     fn from(value: &RawStats) -> Self {
         let to_fastest = Some(value.TimeDiffToFastest.clone()).filter(|s| !s.is_empty());
         let to_position_ahead =
-            Some(value.TimeDifftoPositionAhead.clone()).filter(|s| !s.is_empty());
+            Some(value.TimeDiffToPositionAhead.clone()).filter(|s| !s.is_empty());
         Self {
             to_fastest,
             to_position_ahead,

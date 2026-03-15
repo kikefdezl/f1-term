@@ -67,7 +67,7 @@ pub struct RawSpeeds {
 #[serde(default)]
 pub struct RawStats {
     pub TimeDiffToFastest: String,
-    pub TimeDifftoPositionAhead: String,
+    pub TimeDiffToPositionAhead: String,
 }
 
 #[derive(Deserialize, Debug, Default, Clone)]
@@ -234,5 +234,50 @@ mod tests {
         assert_eq!(driver_timing.BestLapTime.Value, "");
         assert_eq!(driver_timing.LastLapTime.Value, "");
         assert_eq!(driver_timing.TimeDiffToFastest, None);
+    }
+
+    #[test]
+    fn test_parse_timing_data_quali_stats() {
+        let json = json!({
+            "Lines": {
+                "1": {
+                    "RacingNumber": "1",
+                    "Stats": [
+                        {
+                            "TimeDiffToFastest": "+0.123",
+                            "TimeDiffToPositionAhead": "+0.050"
+                        }
+                    ],
+                    "BestLapTime": {
+                        "Value": "1:23.456"
+                    },
+                    "LastLapTime": {
+                        "OverallFastest": false,
+                        "PersonalFastest": true,
+                        "Status": 0,
+                        "Value": "1:24.000"
+                    },
+                    "Position": "1",
+                    "Status": 0,
+                    "Stopped": false,
+                    "ShowPosition": true,
+                    "Sectors": [],
+                    "Speeds": {
+                        "FL": { "OverallFastest": false, "PersonalFastest": false, "Status": 0, "Value": "320" },
+                        "I1": { "OverallFastest": false, "PersonalFastest": false, "Status": 0, "Value": "" },
+                        "I2": { "OverallFastest": false, "PersonalFastest": false, "Status": 0, "Value": "" },
+                        "ST": { "OverallFastest": false, "PersonalFastest": false, "Status": 0, "Value": "" }
+                    }
+                }
+            }
+        });
+
+        let raw = parse_raw_timing_data(&json).unwrap();
+        let timing = raw.get("1").unwrap();
+
+        let stats = timing.Stats.as_ref().unwrap();
+        assert_eq!(stats.len(), 1);
+        assert_eq!(stats[0].TimeDiffToFastest, "+0.123");
+        assert_eq!(stats[0].TimeDiffToPositionAhead, "+0.050");
     }
 }
