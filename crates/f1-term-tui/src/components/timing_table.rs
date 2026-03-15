@@ -29,6 +29,8 @@ pub struct TimingTableData {
     team_color: Color,
     tire_compound: Option<Compound>,
     tire_laps: Option<u8>,
+    retired: bool,
+    stopped: bool,
     in_pit: bool,
     best_lap_time: Option<String>,
     last_lap_time: Option<String>,
@@ -63,6 +65,8 @@ impl TimingTableData {
             self.tire_laps = None;
         }
 
+        self.retired = args.live_timing.map(|lt| lt.retired).unwrap_or(false);
+        self.stopped = args.live_timing.map(|lt| lt.stopped).unwrap_or(false);
         self.in_pit = args
             .live_timing
             .map(|lt| lt.pit_data.in_pit)
@@ -280,7 +284,7 @@ impl TimingTable {
             Cell::from("Drv"),
             Cell::from("Num"),
             Cell::from("Tire"),
-            Cell::from("Pit"),
+            Cell::from("Sts"),
             Cell::from("Best Lap"),
             Cell::from(self.gap_mode.to_string()),
             Cell::from("Last Lap"),
@@ -292,12 +296,18 @@ impl TimingTable {
             Cell::from(""),
         ])
     }
+
     fn rows(items: &[TimingTableData], gap_mode: GapMode) -> Vec<Row<'_>> {
         let rows: Vec<Row> = items
             .iter()
             .enumerate()
             .map(|(i, data)| {
                 let pos = i + 1;
+                let pos_color = if data.retired || data.stopped {
+                    Color::DarkGray
+                } else {
+                    Color::default()
+                };
 
                 let tire_cell = match (&data.tire_compound, data.tire_laps) {
                     (Some(compound), Some(laps)) => {
@@ -315,9 +325,13 @@ impl TimingTable {
                     _ => Cell::from(""),
                 };
 
-                let pit_cell = match data.in_pit {
-                    true => Cell::from("Pit").style(Style::default().fg(Color::Blue)),
-                    false => Cell::from(""),
+                let pit_cell = if data.retired || data.stopped {
+                    Cell::from("Out").style(Style::default().fg(Color::DarkGray))
+                } else {
+                    match data.in_pit {
+                        true => Cell::from("Pit").style(Style::default().fg(Color::Blue)),
+                        false => Cell::from(""),
+                    }
                 };
 
                 let best_lap = match &data.best_lap_time {
@@ -372,7 +386,7 @@ impl TimingTable {
                 let s3_segments = segment_data(2);
 
                 Row::new(vec![
-                    Cell::from(format!("{:>3}", pos)),
+                    Cell::from(format!("{:>3}", pos)).style(Style::default().fg(pos_color)),
                     Cell::from(data.driver_tla.clone()).style(
                         Style::default()
                             .fg(data.team_color)
