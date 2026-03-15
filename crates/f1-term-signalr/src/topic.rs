@@ -1,48 +1,56 @@
 use std::fmt::Display;
 
+// Unused topics for reference:
+// - ArchiveStatus
+// - AudioStreams
+// - CarDataZ (CarData.z)
+// - ChampionshipPrediction
+// - ContentStreams
+// - CurrentTyres
+// - DriverRaceInfo
+// - DriverTracker
+// - Heartbeat
+// - LapSeries
+// - OvertakeSeries
+// - PitLaneTimeCollection
+// - PitStop
+// - PitStopSeries
+// - PositionZ (Position.z)
+// - SessionStatus
+// - TeamRadio
+// - TimingDataF1
+// - TimingStats
+// - TlaRcm
+// - TopThree
+// - TyreStintSeries
+// - WeatherDataSeries
 #[derive(PartialEq)]
 pub enum Topic {
-    Heartbeat,
-    ExtrapolatedClock,
-    TimingStats,
-    TimingAppData,
-    WeatherData,
-    TrackStatus,
     DriverList,
-    RaceControlMessages,
-    SessionInfo,
-    SessionData,
+    ExtrapolatedClock,
     LapCount,
+    RaceControlMessages,
+    SessionData,
+    SessionInfo,
+    TimingAppData,
     TimingData,
-    TeamRadio,
-    CarDataZ,
-    PositionZ,
-    ChampionshipPrediction,
-    PitLaneTimeCollection,
-    PitStopSeries,
+    TrackStatus,
+    WeatherData,
 }
 
 impl Topic {
     pub fn all() -> Vec<Topic> {
         vec![
-            Topic::Heartbeat,
-            Topic::ExtrapolatedClock,
-            Topic::TimingStats,
-            Topic::TimingAppData,
-            Topic::WeatherData,
-            Topic::TrackStatus,
             Topic::DriverList,
-            Topic::RaceControlMessages,
-            Topic::SessionInfo,
-            Topic::SessionData,
+            Topic::ExtrapolatedClock,
             Topic::LapCount,
+            Topic::RaceControlMessages,
+            Topic::SessionData,
+            Topic::SessionInfo,
+            Topic::TimingAppData,
             Topic::TimingData,
-            Topic::TeamRadio,
-            Topic::CarDataZ,
-            Topic::PositionZ,
-            Topic::ChampionshipPrediction,
-            Topic::PitLaneTimeCollection,
-            Topic::PitStopSeries,
+            Topic::TrackStatus,
+            Topic::WeatherData,
         ]
     }
 }
@@ -50,24 +58,16 @@ impl Topic {
 impl Display for Topic {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Topic::Heartbeat => write!(f, "Heartbeat"),
-            Topic::ExtrapolatedClock => write!(f, "ExtrapolatedClock"),
-            Topic::TimingStats => write!(f, "TimingStats"),
-            Topic::TimingAppData => write!(f, "TimingAppData"),
-            Topic::WeatherData => write!(f, "WeatherData"),
-            Topic::TrackStatus => write!(f, "TrackStatus"),
             Topic::DriverList => write!(f, "DriverList"),
-            Topic::RaceControlMessages => write!(f, "RaceControlMessages"),
-            Topic::SessionInfo => write!(f, "SessionInfo"),
-            Topic::SessionData => write!(f, "SessionData"),
+            Topic::ExtrapolatedClock => write!(f, "ExtrapolatedClock"),
             Topic::LapCount => write!(f, "LapCount"),
+            Topic::RaceControlMessages => write!(f, "RaceControlMessages"),
+            Topic::SessionData => write!(f, "SessionData"),
+            Topic::SessionInfo => write!(f, "SessionInfo"),
+            Topic::TimingAppData => write!(f, "TimingAppData"),
             Topic::TimingData => write!(f, "TimingData"),
-            Topic::TeamRadio => write!(f, "TeamRadio"),
-            Topic::CarDataZ => write!(f, "CarData.z"),
-            Topic::PositionZ => write!(f, "Position.z"),
-            Topic::ChampionshipPrediction => write!(f, "ChampionshipPrediction"),
-            Topic::PitLaneTimeCollection => write!(f, "PitLaneTimeCollection"),
-            Topic::PitStopSeries => write!(f, "PitStopSeries"),
+            Topic::TrackStatus => write!(f, "TrackStatus"),
+            Topic::WeatherData => write!(f, "WeatherData"),
         }
     }
 }
@@ -77,24 +77,16 @@ impl TryFrom<&str> for Topic {
 
     fn try_from(value: &str) -> Result<Self, Self::Error> {
         match value {
-            "Heartbeat" => Ok(Topic::Heartbeat),
-            "ExtrapolatedClock" => Ok(Topic::ExtrapolatedClock),
-            "TimingStats" => Ok(Topic::TimingStats),
-            "TimingAppData" => Ok(Topic::TimingAppData),
-            "WeatherData" => Ok(Topic::WeatherData),
-            "TrackStatus" => Ok(Topic::TrackStatus),
             "DriverList" => Ok(Topic::DriverList),
-            "RaceControlMessages" => Ok(Topic::RaceControlMessages),
-            "SessionInfo" => Ok(Topic::SessionInfo),
-            "SessionData" => Ok(Topic::SessionData),
+            "ExtrapolatedClock" => Ok(Topic::ExtrapolatedClock),
             "LapCount" => Ok(Topic::LapCount),
+            "RaceControlMessages" => Ok(Topic::RaceControlMessages),
+            "SessionData" => Ok(Topic::SessionData),
+            "SessionInfo" => Ok(Topic::SessionInfo),
+            "TimingAppData" => Ok(Topic::TimingAppData),
             "TimingData" => Ok(Topic::TimingData),
-            "TeamRadio" => Ok(Topic::TeamRadio),
-            "CarData.z" => Ok(Topic::CarDataZ),
-            "Position.z" => Ok(Topic::PositionZ),
-            "ChampionshipPrediction" => Ok(Topic::ChampionshipPrediction),
-            "PitLaneTimeCollection" => Ok(Topic::PitLaneTimeCollection),
-            "PitStopSeries" => Ok(Topic::PitStopSeries),
+            "TrackStatus" => Ok(Topic::TrackStatus),
+            "WeatherData" => Ok(Topic::WeatherData),
             _ => Err(format!("Unknown topic {}", value).into()),
         }
     }
