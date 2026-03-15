@@ -122,10 +122,21 @@ impl TryFrom<&RawTimingData> for LiveTiming {
             to_position_ahead: time_diff_to_position_ahead,
         };
 
-        let quali_stats = payload
-            .Stats
-            .as_ref()
-            .map(|s| s.iter().map(|stat| stat.into()).collect::<Vec<TimeDiffs>>());
+        let mut q1_diffs = None;
+        let mut q2_diffs = None;
+        let mut q3_diffs = None;
+
+        if let Some(stats) = &payload.Stats {
+            if let Some(stat) = stats.first() {
+                q1_diffs = Some(stat.into());
+            }
+            if let Some(stat) = stats.get(1) {
+                q2_diffs = Some(stat.into());
+            }
+            if let Some(stat) = stats.get(2) {
+                q3_diffs = Some(stat.into());
+            }
+        }
 
         let lap_data = f1_term_core::timing::LapData {
             best_lap_time,
@@ -139,16 +150,20 @@ impl TryFrom<&RawTimingData> for LiveTiming {
             number_of_pit_stops: payload.NumberOfPitStops,
         };
 
-        let quali_stats =
-            if payload.Cutoff.is_some() || payload.KnockedOut.is_some() || quali_stats.is_some() {
-                Some(f1_term_core::timing::QualiStats {
-                    cutoff: payload.Cutoff,
-                    knocked_out: payload.KnockedOut,
-                    diffs: quali_stats,
-                })
-            } else {
-                None
-            };
+        let quali_stats = if payload.Cutoff.is_some()
+            || payload.KnockedOut.is_some()
+            || payload.Stats.is_some()
+        {
+            Some(f1_term_core::timing::QualiStats {
+                cutoff: payload.Cutoff,
+                knocked_out: payload.KnockedOut,
+                q1_diffs,
+                q2_diffs,
+                q3_diffs,
+            })
+        } else {
+            None
+        };
 
         Ok(LiveTiming {
             driver_number,

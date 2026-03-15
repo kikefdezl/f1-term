@@ -32,7 +32,9 @@ pub struct PitData {
 pub struct QualiStats {
     pub cutoff: Option<bool>,
     pub knocked_out: Option<bool>,
-    pub diffs: Option<Vec<TimeDiffs>>,
+    pub q1_diffs: Option<TimeDiffs>,
+    pub q2_diffs: Option<TimeDiffs>,
+    pub q3_diffs: Option<TimeDiffs>,
 }
 
 #[derive(Debug, Default, Clone, PartialEq)]
