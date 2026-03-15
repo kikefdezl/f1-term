@@ -19,12 +19,6 @@ pub struct DashboardPage {
 }
 
 impl Component for DashboardPage {
-    fn init(&mut self) -> Result<(), Box<dyn std::error::Error>> {
-        self.table.init()?;
-        self.message_log.init()?;
-        Ok(())
-    }
-
     fn update(&mut self, action: Action) -> Result<Option<Action>, Box<dyn std::error::Error>> {
         let mut should_render = false;
         if let Some(Action::Render) = self.title_bar.update(action.clone())? {

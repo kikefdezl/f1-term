@@ -15,6 +15,7 @@ use crate::action::Action;
 use crate::components::Component;
 use crate::pages::ActivePage;
 use crate::pages::dashboard::DashboardPage;
+use crate::pages::stints::StintsPage;
 
 const REFRESH_RATE_MILLIS: u64 = 100;
 
@@ -23,6 +24,7 @@ pub struct App {
     engine_tx: UnboundedSender<TelemetryEngineCommand>,
     active_page: ActivePage,
     live_timing_page: DashboardPage,
+    stint_page: StintsPage,
     exit: bool,
 }
 
@@ -36,6 +38,7 @@ impl App {
             engine_tx,
             active_page: ActivePage::default(),
             live_timing_page: DashboardPage::default(),
+            stint_page: StintsPage::default(),
             exit: false,
         }
     }
@@ -47,8 +50,6 @@ impl App {
         let mut render_interval = interval(Duration::from_millis(REFRESH_RATE_MILLIS));
 
         let (action_tx, mut action_rx) = mpsc::unbounded_channel();
-
-        self.live_timing_page.init()?;
 
         let mut last_update_version = u64::MAX;
 
@@ -125,12 +126,14 @@ impl App {
 
         match self.active_page {
             ActivePage::LiveTiming => self.live_timing_page.update(action),
+            ActivePage::Stints => self.stint_page.update(action),
         }
     }
 
     fn render(&mut self, frame: &mut Frame) -> Result<(), Box<dyn std::error::Error>> {
         match self.active_page {
             ActivePage::LiveTiming => self.live_timing_page.draw(frame, frame.area())?,
+            ActivePage::Stints => self.stint_page.draw(frame, frame.area())?,
         }
         Ok(())
     }
