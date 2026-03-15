@@ -1,20 +1,14 @@
-use std::{
-    collections::VecDeque,
-    sync::{Arc, RwLock},
-    time::Duration,
-};
+use std::collections::VecDeque;
+use std::sync::{Arc, RwLock};
+use std::time::Duration;
 
 use log::info;
-use tokio::{
-    sync::mpsc::UnboundedReceiver,
-    time::{Instant, sleep},
-};
+use tokio::sync::mpsc::UnboundedReceiver;
+use tokio::time::{Instant, sleep};
 
-use super::{
-    circuit::CircuitLayoutProvider,
-    telemetry_provider::{TelemetryProvider, TelemetryUpdate},
-    telemetry_state::TelemetryState,
-};
+use super::circuit::CircuitLayoutProvider;
+use super::telemetry_provider::{TelemetryProvider, TelemetryUpdate};
+use super::telemetry_state::TelemetryState;
 use crate::circuit::CircuitKey;
 
 pub enum TelemetryEngineCommand {
@@ -148,13 +142,12 @@ impl<T: TelemetryProvider, C: CircuitLayoutProvider + 'static> TelemetryEngine<T
 
 #[cfg(test)]
 mod tests {
-    use tokio::{sync::mpsc, time::advance};
+    use tokio::sync::mpsc;
+    use tokio::time::advance;
 
     use super::*;
-    use crate::{
-        circuit::{Circuit, MockCircuitLayoutProvider},
-        telemetry_provider::{MockTelemetryProvider, TelemetryUpdate},
-    };
+    use crate::circuit::{Circuit, MockCircuitLayoutProvider};
+    use crate::telemetry_provider::{MockTelemetryProvider, TelemetryUpdate};
 
     struct TestFixture {
         state_ref: Arc<RwLock<TelemetryState>>,

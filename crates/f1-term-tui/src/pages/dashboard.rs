@@ -1,15 +1,13 @@
-use ratatui::{
-    Frame,
-    layout::{Constraint, Layout, Rect},
-};
+use ratatui::Frame;
+use ratatui::layout::{Constraint, Layout, Rect};
 
-use crate::{
-    action::Action,
-    components::{
-        Component, circuit_canvas::CircuitCanvas, help_popup::HelpPopup, message_log::MessageLog,
-        timing_table::TimingTable, title_bar::TitleBar,
-    },
-};
+use crate::action::Action;
+use crate::components::Component;
+use crate::components::circuit_canvas::CircuitCanvas;
+use crate::components::help_popup::HelpPopup;
+use crate::components::message_log::MessageLog;
+use crate::components::timing_table::TimingTable;
+use crate::components::title_bar::TitleBar;
 
 #[derive(Default)]
 pub struct DashboardPage {

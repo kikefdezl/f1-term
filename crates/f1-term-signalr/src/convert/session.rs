@@ -1,15 +1,11 @@
 use chrono::{DateTime, FixedOffset, NaiveDateTime, Utc};
-use f1_term_core::{
-    circuit::CircuitKey,
-    session_info::{
-        ArchiveStatus, Country, Meeting, QualiPhase, SessionInfo, SessionStatus, SessionType,
-    },
+use f1_term_core::circuit::CircuitKey;
+use f1_term_core::session_info::{
+    ArchiveStatus, Country, Meeting, QualiPhase, SessionInfo, SessionStatus, SessionType,
 };
 
-use crate::parsing::{
-    session_data::RawSessionData,
-    session_info::{RawCountry, RawMeeting, RawSessionInfo},
-};
+use crate::parsing::session_data::RawSessionData;
+use crate::parsing::session_info::{RawCountry, RawMeeting, RawSessionInfo};
 
 impl TryFrom<&RawCountry> for Country {
     type Error = Box<dyn std::error::Error>;

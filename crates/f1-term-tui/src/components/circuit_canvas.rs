@@ -4,12 +4,10 @@ use crossterm::event::KeyCode;
 use f1_term_core::circuit::{
     Bounds, CircuitKey, CircuitLayout, CircuitScope, CircuitStatus, Corner,
 };
-use ratatui::{
-    Frame,
-    layout::Rect,
-    style::Color,
-    widgets::canvas::{Canvas, Line},
-};
+use ratatui::Frame;
+use ratatui::layout::Rect;
+use ratatui::style::Color;
+use ratatui::widgets::canvas::{Canvas, Line};
 
 use super::{Action, Component};
 

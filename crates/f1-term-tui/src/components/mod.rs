@@ -1,4 +1,5 @@
-use ratatui::{Frame, layout::Rect};
+use ratatui::Frame;
+use ratatui::layout::Rect;
 
 use crate::action::Action;
 

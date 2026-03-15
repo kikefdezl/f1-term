@@ -1,19 +1,15 @@
 use crossterm::event::KeyCode;
-use ratatui::{
-    Frame,
-    layout::{Alignment, Constraint, Flex, Layout, Rect},
-    style::{Color, Modifier, Style},
-    text::{Line, Span},
-    widgets::{Block, Borders, Clear, Paragraph},
-};
+use ratatui::Frame;
+use ratatui::layout::{Alignment, Constraint, Flex, Layout, Rect};
+use ratatui::style::{Color, Modifier, Style};
+use ratatui::text::{Line, Span};
+use ratatui::widgets::{Block, Borders, Clear, Paragraph};
 
-use crate::{
-    action::Action,
-    components::Component,
-    constants::{
-        COLOR_ABORTED, COLOR_IN_PIT, COLOR_OVERALL_FASTEST, COLOR_PERSONAL_FASTEST, COLOR_SLOWER,
-        SEGMENTS,
-    },
+use crate::action::Action;
+use crate::components::Component;
+use crate::constants::{
+    COLOR_ABORTED, COLOR_IN_PIT, COLOR_OVERALL_FASTEST, COLOR_PERSONAL_FASTEST, COLOR_SLOWER,
+    SEGMENTS,
 };
 
 #[derive(Default)]

@@ -1,38 +1,41 @@
 use std::collections::HashMap;
 
-use f1_term_core::{
-    circuit::Circuit,
-    clock::Clock,
-    driver::{Driver, DriverNumber},
-    laps::Laps,
-    race_control_message::RaceControlMessage,
-    session_info::SessionInfo,
-    stint::Stints,
-    team::{Team, TeamName},
-    telemetry_provider::TelemetryUpdate,
-    timing::LiveTiming,
-    track_status::TrackStatus,
-    weather::Weather,
-};
+use f1_term_core::circuit::Circuit;
+use f1_term_core::clock::Clock;
+use f1_term_core::driver::{Driver, DriverNumber};
+use f1_term_core::laps::Laps;
+use f1_term_core::race_control_message::RaceControlMessage;
+use f1_term_core::session_info::SessionInfo;
+use f1_term_core::stint::Stints;
+use f1_term_core::team::{Team, TeamName};
+use f1_term_core::telemetry_provider::TelemetryUpdate;
+use f1_term_core::timing::LiveTiming;
+use f1_term_core::track_status::TrackStatus;
+use f1_term_core::weather::Weather;
 use log::error;
 
-use crate::{
-    convert::{
-        circuit::convert_circuit, clock::convert_clock, driver::convert_drivers,
-        lap_count::convert_lap_count, race_control_message::convert_race_control_messages,
-        session::convert_session_info, stint::convert_stints, team::convert_teams,
-        timing::convert_timing_data, track_status::convert_track_status,
-        weather::convert_weather_data,
-    },
-    parsing::{
-        driver_list::parse_driver_list, extrapolated_clock::parse_extrapolated_clock,
-        lap_count::parse_raw_lap_count, race_control_messages::parse_raw_race_control_messages,
-        session_data::parse_raw_session_data, session_info::parse_raw_session_info,
-        stints::parse_raw_stints, timing_data::parse_raw_timing_data,
-        track_status::parse_raw_track_status, weather_data::parse_raw_weather_data,
-    },
-    topic::Topic,
-};
+use crate::convert::circuit::convert_circuit;
+use crate::convert::clock::convert_clock;
+use crate::convert::driver::convert_drivers;
+use crate::convert::lap_count::convert_lap_count;
+use crate::convert::race_control_message::convert_race_control_messages;
+use crate::convert::session::convert_session_info;
+use crate::convert::stint::convert_stints;
+use crate::convert::team::convert_teams;
+use crate::convert::timing::convert_timing_data;
+use crate::convert::track_status::convert_track_status;
+use crate::convert::weather::convert_weather_data;
+use crate::parsing::driver_list::parse_driver_list;
+use crate::parsing::extrapolated_clock::parse_extrapolated_clock;
+use crate::parsing::lap_count::parse_raw_lap_count;
+use crate::parsing::race_control_messages::parse_raw_race_control_messages;
+use crate::parsing::session_data::parse_raw_session_data;
+use crate::parsing::session_info::parse_raw_session_info;
+use crate::parsing::stints::parse_raw_stints;
+use crate::parsing::timing_data::parse_raw_timing_data;
+use crate::parsing::track_status::parse_raw_track_status;
+use crate::parsing::weather_data::parse_raw_weather_data;
+use crate::topic::Topic;
 
 pub fn extract_updates(
     canonical_state: &serde_json::Value,

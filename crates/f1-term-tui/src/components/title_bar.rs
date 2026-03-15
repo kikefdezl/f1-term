@@ -2,17 +2,16 @@ use std::time::Duration;
 
 use chrono::{DateTime, Datelike, Utc};
 use crossterm::event::KeyCode;
-use f1_term_core::{
-    clock::Clock, laps::Laps, telemetry_state::TelemetryState, track_status::TrackStatus,
-    weather::Weather,
-};
-use ratatui::{
-    Frame,
-    layout::{Alignment, Constraint, Layout, Rect},
-    style::{Color, Style, Stylize},
-    text::{Line, Span},
-    widgets::{Block, Borders, Paragraph},
-};
+use f1_term_core::clock::Clock;
+use f1_term_core::laps::Laps;
+use f1_term_core::telemetry_state::TelemetryState;
+use f1_term_core::track_status::TrackStatus;
+use f1_term_core::weather::Weather;
+use ratatui::Frame;
+use ratatui::layout::{Alignment, Constraint, Layout, Rect};
+use ratatui::style::{Color, Style, Stylize};
+use ratatui::text::{Line, Span};
+use ratatui::widgets::{Block, Borders, Paragraph};
 
 use super::{Action, Component};
 

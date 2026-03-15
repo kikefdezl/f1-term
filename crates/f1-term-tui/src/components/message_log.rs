@@ -1,14 +1,10 @@
-use f1_term_core::{
-    flag::FlagColor,
-    race_control_message::{MessageCategory, RaceControlMessage},
-};
-use ratatui::{
-    Frame,
-    layout::Rect,
-    style::{Color, Style},
-    text::{Line, Span},
-    widgets::{Block, Borders, Paragraph, Wrap},
-};
+use f1_term_core::flag::FlagColor;
+use f1_term_core::race_control_message::{MessageCategory, RaceControlMessage};
+use ratatui::Frame;
+use ratatui::layout::Rect;
+use ratatui::style::{Color, Style};
+use ratatui::text::{Line, Span};
+use ratatui::widgets::{Block, Borders, Paragraph, Wrap};
 
 use super::Component;
 use crate::action::Action;

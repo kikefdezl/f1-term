@@ -1,20 +1,16 @@
 use std::fmt::Display;
 
 use crossterm::event::KeyCode;
-use f1_term_core::{
-    driver::Driver,
-    stint::{Compound, Stints},
-    team::Team,
-    telemetry_state::TelemetryState,
-    timing::{LiveTiming, Sector, Segment, SegmentStatus},
-};
-use ratatui::{
-    Frame,
-    layout::{Constraint, Rect},
-    style::{Color, Modifier, Style},
-    text::{Line, Span},
-    widgets::{Cell, Row, Table as RatatuiTable, TableState},
-};
+use f1_term_core::driver::Driver;
+use f1_term_core::stint::{Compound, Stints};
+use f1_term_core::team::Team;
+use f1_term_core::telemetry_state::TelemetryState;
+use f1_term_core::timing::{LiveTiming, Sector, Segment, SegmentStatus};
+use ratatui::Frame;
+use ratatui::layout::{Constraint, Rect};
+use ratatui::style::{Color, Modifier, Style};
+use ratatui::text::{Line, Span};
+use ratatui::widgets::{Cell, Row, Table as RatatuiTable, TableState};
 
 use super::{Action, Component};
 use crate::constants::{

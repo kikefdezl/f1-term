@@ -3,7 +3,8 @@ use std::collections::HashSet;
 use chrono::Datelike;
 use f1_term_core::circuit::{Circuit, CircuitKey, CircuitScope, CircuitStatus};
 
-use crate::parsing::{race_control_messages::RawRaceControlMessages, session_info::RawSessionInfo};
+use crate::parsing::race_control_messages::RawRaceControlMessages;
+use crate::parsing::session_info::RawSessionInfo;
 
 pub fn convert_circuit(raw_info: &RawSessionInfo, rcm: Option<&RawRaceControlMessages>) -> Circuit {
     let year = chrono::DateTime::parse_from_rfc3339(&raw_info.StartDate)

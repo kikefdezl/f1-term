@@ -1,9 +1,7 @@
 use std::collections::HashMap;
 
-use f1_term_core::{
-    driver::DriverNumber,
-    stint::{Compound, Stint, Stints},
-};
+use f1_term_core::driver::DriverNumber;
+use f1_term_core::stint::{Compound, Stint, Stints};
 use log::warn;
 
 use crate::parsing::stints::{RawDriverStints, RawStint};

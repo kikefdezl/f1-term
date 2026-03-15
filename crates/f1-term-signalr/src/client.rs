@@ -1,25 +1,24 @@
-use std::{
-    fs::{self, OpenOptions},
-    io::Write,
-    time::{SystemTime, UNIX_EPOCH},
+use std::fs::{
+    OpenOptions, {self},
 };
+use std::io::Write;
+use std::time::{SystemTime, UNIX_EPOCH};
 
 use f1_term_core::telemetry_provider::{TelemetryProvider, TelemetryUpdate};
-use futures_util::{
-    SinkExt, StreamExt,
-    stream::{SplitSink, SplitStream},
-};
+use futures_util::stream::{SplitSink, SplitStream};
+use futures_util::{SinkExt, StreamExt};
 use log::{debug, error, info, warn};
 use reqwest::Url;
 use serde::Deserialize;
 use serde_json::json;
 use tokio::net::TcpStream;
-use tokio_tungstenite::{
-    MaybeTlsStream, WebSocketStream, connect_async,
-    tungstenite::{Message, client::IntoClientRequest},
-};
+use tokio_tungstenite::tungstenite::Message;
+use tokio_tungstenite::tungstenite::client::IntoClientRequest;
+use tokio_tungstenite::{MaybeTlsStream, WebSocketStream, connect_async};
 
-use crate::{extract::extract_updates, merge_patch::merge_patch, topic::Topic};
+use crate::extract::extract_updates;
+use crate::merge_patch::merge_patch;
+use crate::topic::Topic;
 
 const URL: &str = "livetiming.formula1.com/signalr";
 const HUB: &str = "Streaming";

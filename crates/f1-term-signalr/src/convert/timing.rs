@@ -1,8 +1,8 @@
 use std::collections::HashMap;
 
-use f1_term_core::{
-    driver::DriverNumber,
-    timing::{Lap, LiveTiming, Sector, Segment, SegmentStatus, Speed, Speeds, TimeDiffs},
+use f1_term_core::driver::DriverNumber;
+use f1_term_core::timing::{
+    Lap, LiveTiming, Sector, Segment, SegmentStatus, Speed, Speeds, TimeDiffs,
 };
 use log::{info, warn};
 

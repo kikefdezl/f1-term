@@ -1,22 +1,19 @@
-use std::{collections::HashMap, time::Duration};
+use std::collections::HashMap;
+use std::time::Duration;
 
-use super::{
-    clock::Clock,
-    driver::{Driver, DriverNumber},
-    laps::Laps,
-    session_info::QualiPhase,
-    stint::Stints,
-    team::{Team, TeamName},
-    timing::LiveTiming,
-    track_status::TrackStatus,
-    weather::Weather,
-};
-use crate::{
-    circuit::Circuit,
-    race_control_message::RaceControlMessage,
-    session_info::{SessionInfo, SessionType},
-    telemetry_provider::TelemetryUpdate,
-};
+use super::clock::Clock;
+use super::driver::{Driver, DriverNumber};
+use super::laps::Laps;
+use super::session_info::QualiPhase;
+use super::stint::Stints;
+use super::team::{Team, TeamName};
+use super::timing::LiveTiming;
+use super::track_status::TrackStatus;
+use super::weather::Weather;
+use crate::circuit::Circuit;
+use crate::race_control_message::RaceControlMessage;
+use crate::session_info::{SessionInfo, SessionType};
+use crate::telemetry_provider::TelemetryUpdate;
 
 #[derive(Debug, Default, Clone)]
 pub struct TelemetryState {
@@ -194,12 +191,10 @@ impl TelemetryState {
 #[cfg(test)]
 mod time_diff_tests {
     use super::*;
-    use crate::{
-        driver::{Driver, DriverNumber},
-        session_info::{QualiPhase, SessionType},
-        team::{Team, TeamColor, TeamName},
-        timing::{Lap, LapData, LiveTiming, PitData, QualiStats, TimeDiffs},
-    };
+    use crate::driver::{Driver, DriverNumber};
+    use crate::session_info::{QualiPhase, SessionType};
+    use crate::team::{Team, TeamColor, TeamName};
+    use crate::timing::{Lap, LapData, LiveTiming, PitData, QualiStats, TimeDiffs};
 
     fn create_context(timing: Option<LiveTiming>) -> ParticipantContext<'static> {
         let driver = Box::new(Driver {

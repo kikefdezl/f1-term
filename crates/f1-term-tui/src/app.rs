@@ -1,22 +1,20 @@
-use std::{
-    sync::{Arc, RwLock},
-    time::Duration,
-};
+use std::sync::{Arc, RwLock};
+use std::time::Duration;
 
 use crossterm::event::{Event as CrosstermEvent, EventStream, KeyCode};
-use f1_term_core::{telemetry_engine::TelemetryEngineCommand, telemetry_state::TelemetryState};
+use f1_term_core::telemetry_engine::TelemetryEngineCommand;
+use f1_term_core::telemetry_state::TelemetryState;
 use futures::StreamExt;
 use ratatui::{DefaultTerminal, Frame};
-use tokio::{
-    sync::mpsc::{self, UnboundedSender},
-    time::interval,
+use tokio::sync::mpsc::{
+    UnboundedSender, {self},
 };
+use tokio::time::interval;
 
-use crate::{
-    action::Action,
-    components::Component,
-    pages::{ActivePage, dashboard::DashboardPage},
-};
+use crate::action::Action;
+use crate::components::Component;
+use crate::pages::ActivePage;
+use crate::pages::dashboard::DashboardPage;
 
 const REFRESH_RATE_MILLIS: u64 = 100;
 

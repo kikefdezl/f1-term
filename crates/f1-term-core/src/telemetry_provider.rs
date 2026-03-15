@@ -1,18 +1,17 @@
-use std::{collections::HashMap, future::Future};
+use std::collections::HashMap;
+use std::future::Future;
 
-use crate::{
-    circuit::{Circuit, CircuitLayout},
-    clock::Clock,
-    driver::{Driver, DriverNumber},
-    laps::Laps,
-    race_control_message::RaceControlMessage,
-    session_info::SessionInfo,
-    stint::Stints,
-    team::{Team, TeamName},
-    timing::LiveTiming,
-    track_status::TrackStatus,
-    weather::Weather,
-};
+use crate::circuit::{Circuit, CircuitLayout};
+use crate::clock::Clock;
+use crate::driver::{Driver, DriverNumber};
+use crate::laps::Laps;
+use crate::race_control_message::RaceControlMessage;
+use crate::session_info::SessionInfo;
+use crate::stint::Stints;
+use crate::team::{Team, TeamName};
+use crate::timing::LiveTiming;
+use crate::track_status::TrackStatus;
+use crate::weather::Weather;
 
 #[derive(Debug, Default, Clone)]
 pub struct TelemetryUpdate {

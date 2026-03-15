@@ -1,4 +1,6 @@
-use std::{fmt::Display, future::Future, ops::Range};
+use std::fmt::Display;
+use std::future::Future;
+use std::ops::Range;
 
 #[derive(Copy, Debug, Default, Clone, PartialEq)]
 pub struct CircuitKey(pub u32);
