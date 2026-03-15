@@ -189,9 +189,9 @@ fn pad_bounds_to_area(bounds: &Bounds, area: Rect) -> Bounds {
         let buffer_y = (new_height - height) / 2.0;
         Bounds {
             x_min: bounds.x_min,
-            y_min: (bounds.y_min as f32 - buffer_y).round() as i32,
+            y_min: (bounds.y_min as f32 - (2.0 * buffer_y)).round() as i32,
             x_max: bounds.x_max,
-            y_max: (bounds.y_max as f32 + buffer_y).round() as i32,
+            y_max: bounds.y_max,
         }
     } else {
         // Circuit is vertical, Pad the width

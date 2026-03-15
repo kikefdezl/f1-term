@@ -1,5 +1,4 @@
-use ratatui::{
-    Frame,
+use ratatui::{ Frame,
     layout::{Constraint, Layout, Rect},
 };
 
@@ -60,12 +59,9 @@ impl Component for DashboardPage {
         ])
         .areas(area);
 
-        let [circuit_canvas, messages] = Layout::horizontal([
-            // width = 4 x height produces a nice ratio
-            Constraint::Length(bottom.height * 4),
-            Constraint::Fill(1),
-        ])
-        .areas(bottom);
+        let [circuit_canvas, messages] =
+            Layout::horizontal([Constraint::Percentage(33), Constraint::Percentage(67)])
+                .areas(bottom);
 
         self.title_bar.draw(frame, title)?;
         self.table.draw(frame, table)?;
