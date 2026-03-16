@@ -490,7 +490,6 @@ dependencies = [
 name = "f1-term"
 version = "0.1.0"
 dependencies = [
- "crossterm",
  "directories",
  "f1-term-core",
  "f1-term-multiviewer",
@@ -499,7 +498,6 @@ dependencies = [
  "ratatui",
  "simplelog",
  "tokio",
- "unicode-width",
 ]
 
 [[package]]
@@ -515,7 +513,6 @@ dependencies = [
 name = "f1-term-multiviewer"
 version = "0.1.0"
 dependencies = [
- "anyhow",
  "f1-term-core",
  "reqwest",
  "serde",
@@ -529,12 +526,10 @@ dependencies = [
  "chrono",
  "f1-term-core",
  "futures-util",
- "http",
  "log",
  "reqwest",
  "serde",
  "serde_json",
- "thiserror 2.0.18",
  "tokio",
  "tokio-tungstenite",
 ]
