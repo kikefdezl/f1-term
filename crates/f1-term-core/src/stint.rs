@@ -18,4 +18,11 @@ pub struct Stint {
     pub start_laps: u8,
     pub total_laps: u8,
     pub tires_not_changed: u8,
+    pub best_lap: Option<BestLap>,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct BestLap {
+    pub number: u8,
+    pub time: String,
 }

@@ -11,7 +11,6 @@ pub enum Action {
     Resize,
     KeyPress(crossterm::event::KeyEvent),
     StateUpdate(Arc<RwLock<TelemetryState>>),
-    #[allow(unused)] // will be used later
     Navigate(ActivePage),
     Quit,
 }

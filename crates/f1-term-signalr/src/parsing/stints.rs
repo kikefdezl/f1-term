@@ -15,6 +15,8 @@ pub struct RawStint {
     pub StartLaps: u8,
     pub TotalLaps: u8,
     pub TyresNotChanged: String,
+    pub LapNumber: Option<u8>,
+    pub LapTime: Option<String>,
 }
 
 #[derive(Deserialize, Debug, Default)]
@@ -66,7 +68,9 @@ mod tests {
                             "New": "true",
                             "StartLaps": 0,
                             "TotalLaps": 15,
-                            "TyresNotChanged": "0"
+                            "TyresNotChanged": "0",
+                            "LapNumber": 4,
+                            "LapTime": "1:38.298",
                         },
                         {
                             "Compound": "MEDIUM",
@@ -74,7 +78,9 @@ mod tests {
                             "New": "false",
                             "StartLaps": 3,
                             "TotalLaps": 25,
-                            "TyresNotChanged": "0"
+                            "TyresNotChanged": "0",
+                            "LapNumber": 8,
+                            "LapTime": "1:28.892",
                         }
                     ]
                 }
@@ -91,11 +97,21 @@ mod tests {
         assert_eq!(driver_stints.Stints[0].New, "true");
         assert_eq!(driver_stints.Stints[0].StartLaps, 0);
         assert_eq!(driver_stints.Stints[0].TotalLaps, 15);
+        assert_eq!(driver_stints.Stints[0].LapNumber, Some(4));
+        assert_eq!(
+            driver_stints.Stints[0].LapTime,
+            Some("1:38.298".to_string())
+        );
 
         assert_eq!(driver_stints.Stints[1].Compound, "MEDIUM");
         assert_eq!(driver_stints.Stints[1].New, "false");
         assert_eq!(driver_stints.Stints[1].StartLaps, 3);
         assert_eq!(driver_stints.Stints[1].TotalLaps, 25);
+        assert_eq!(driver_stints.Stints[1].LapNumber, Some(8));
+        assert_eq!(
+            driver_stints.Stints[1].LapTime,
+            Some("1:28.892".to_string())
+        );
     }
 
     #[test]
@@ -128,5 +144,7 @@ mod tests {
         assert_eq!(driver_stints.Stints.len(), 1);
         assert_eq!(driver_stints.Stints[0].TyresNotChanged, "");
         assert_eq!(driver_stints.Stints[0].LapFlags, 0);
+        assert_eq!(driver_stints.Stints[0].LapNumber, None);
+        assert_eq!(driver_stints.Stints[0].LapTime, None);
     }
 }

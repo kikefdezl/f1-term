@@ -1,16 +1,21 @@
 use std::error::Error;
 
 use f1_term_core::driver::DriverNumber;
-use f1_term_core::stint::Stints;
+use f1_term_core::stint::{Compound, Stints};
 use f1_term_core::telemetry_state::TelemetryState;
 use ratatui::Frame;
 use ratatui::layout::{Constraint, Rect};
 use ratatui::style::{Color, Style};
-use ratatui::text::Span;
+use ratatui::text::{Line, Span};
 use ratatui::widgets::{Cell, Row, Table};
 
 use crate::action::Action;
 use crate::components::Component;
+use crate::constants::{
+    COLOR_HARD, COLOR_INTERMEDIATE, COLOR_MEDIUM, COLOR_SOFT, COLOR_UNKNOWN, COLOR_WET,
+};
+
+const BLOCK: &str = "█";
 
 #[derive(Default)]
 pub struct StintTableData {
@@ -36,9 +41,30 @@ impl StintTableData {
         Cell::new(format!("{}", self.driver_number.value))
     }
 
-    // TODO: properly
     fn stint_cell(&self) -> Cell<'_> {
-        Cell::new(format!("{}", self.stints.len()))
+        let mut spans = Vec::new();
+        for stint in &self.stints {
+            let (letter, color) = match stint.compound {
+                Compound::Soft => ("S", COLOR_SOFT),
+                Compound::Medium => ("M", COLOR_MEDIUM),
+                Compound::Hard => ("H", COLOR_HARD),
+                Compound::Wet => ("W", COLOR_WET),
+                Compound::Intermediate => ("I", COLOR_INTERMEDIATE),
+                Compound::Unknown => ("?", COLOR_UNKNOWN),
+            };
+
+            let laps_done = stint.total_laps - stint.start_laps;
+            if laps_done > 0 {
+                spans.push(Span::styled(
+                    letter,
+                    Style::default().bold().fg(color).reversed(),
+                ));
+                for _ in 0..(laps_done - 1) {
+                    spans.push(Span::styled(BLOCK, Style::default().bold().fg(color)));
+                }
+            }
+        }
+        Cell::from(Line::from(spans))
     }
 }
 
@@ -59,13 +85,15 @@ impl Component for StintTable {
 
     fn draw(&mut self, f: &mut Frame, area: Rect) -> Result<(), Box<dyn Error>> {
         let rows = self.rows();
+        // TODO: Header jrow with the lap numbers, mark every 5 laps and based on how many laps have
+        // elapsed.
         let t = Table::new(
             rows,
             [
-                Constraint::Length(3), // #
-                Constraint::Length(4), // driver
-                Constraint::Length(3), // num
-                Constraint::Length(3), // stint
+                Constraint::Length(3),  // #
+                Constraint::Length(4),  // driver
+                Constraint::Length(3),  // num
+                Constraint::Length(80), // stints
             ],
         );
         f.render_widget(t, area);
@@ -106,7 +134,7 @@ impl StintTable {
 
 #[cfg(test)]
 mod tests {
-    use f1_term_core::stint::{Compound, Stint};
+    use f1_term_core::stint::{BestLap, Compound, Stint};
 
     use super::*;
 
@@ -122,6 +150,10 @@ mod tests {
                 start_laps: 8,
                 total_laps: 10,
                 tires_not_changed: 2,
+                best_lap: Some(BestLap {
+                    number: 4,
+                    time: "1:23.456".to_string(),
+                }),
             }],
         }
     }
@@ -137,8 +169,10 @@ mod tests {
     fn test_tla_cell() {
         let data = test_data();
         let cell = data.tla_cell();
-        assert_eq!(cell, Cell::new("1"));
-        Cell::new(Span::styled("ALO", Style::default().bold().fg(Color::Red)));
+        assert_eq!(
+            cell,
+            Cell::new(Span::styled("ALO", Style::default().bold().fg(Color::Red)))
+        );
     }
 
     #[test]
@@ -146,5 +180,18 @@ mod tests {
         let data = test_data();
         let cell = data.driver_number_cell();
         assert_eq!(cell, Cell::new("14"));
+    }
+
+    #[test]
+    fn test_stint_cell() {
+        let data = test_data();
+        let cell = data.stint_cell();
+        assert_eq!(
+            cell,
+            Cell::new(Line::from(vec![
+                Span::styled("S", Style::default().bold().fg(Color::Red)),
+                Span::styled(BLOCK, Style::default().bold().fg(Color::Red))
+            ]))
+        );
     }
 }

@@ -16,11 +16,12 @@ pub struct StintsPage {
 
 impl Component for StintsPage {
     fn update(&mut self, action: Action) -> Result<Option<Action>, Box<dyn Error>> {
+        log::debug!("{:?}", action);
         let mut should_render = false;
-        if let Ok(Some(Action::Render)) = self.title_bar.update(action.clone()) {
+        if let Some(Action::Render) = self.title_bar.update(action.clone())? {
             should_render = true;
         }
-        if let Ok(Some(Action::Render)) = self.stint_table.update(action) {
+        if let Some(Action::Render) = self.stint_table.update(action)? {
             should_render = true;
         }
         if should_render {

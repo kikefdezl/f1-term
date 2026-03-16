@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
 use f1_term_core::driver::DriverNumber;
-use f1_term_core::stint::{Compound, Stint, Stints};
+use f1_term_core::stint::{BestLap, Compound, Stint, Stints};
 use log::warn;
 
 use crate::parsing::stints::{RawDriverStints, RawStint};
@@ -19,6 +19,17 @@ impl TryFrom<&RawStint> for Stint {
             _ => Compound::Unknown,
         };
 
+        let best_lap = if let Some(number) = payload.LapNumber
+            && let Some(time) = &payload.LapTime
+        {
+            Some(BestLap {
+                number,
+                time: time.to_string(),
+            })
+        } else {
+            None
+        };
+
         Ok(Stint {
             compound,
             lap_flags: payload.LapFlags,
@@ -26,6 +37,7 @@ impl TryFrom<&RawStint> for Stint {
             start_laps: payload.StartLaps,
             total_laps: payload.TotalLaps,
             tires_not_changed: payload.TyresNotChanged.parse().unwrap_or(0),
+            best_lap,
         })
     }
 }
@@ -77,6 +89,8 @@ mod tests {
                         StartLaps: 0,
                         TotalLaps: 15,
                         TyresNotChanged: "0".to_string(),
+                        LapNumber: Some(4),
+                        LapTime: Some("1:23.456".to_string()),
                     },
                     RawStint {
                         Compound: "MEDIUM".to_string(),
@@ -85,6 +99,8 @@ mod tests {
                         StartLaps: 3,
                         TotalLaps: 25,
                         TyresNotChanged: "0".to_string(),
+                        LapNumber: Some(8),
+                        LapTime: Some("1:45.456".to_string()),
                     },
                 ],
             },
@@ -102,11 +118,25 @@ mod tests {
         assert!(stints[0].new);
         assert_eq!(stints[0].start_laps, 0);
         assert_eq!(stints[0].total_laps, 15);
+        assert_eq!(
+            stints[0].best_lap,
+            Some(BestLap {
+                number: 4,
+                time: "1:23.456".to_string()
+            })
+        );
 
         assert!(matches!(stints[1].compound, Compound::Medium));
         assert!(!stints[1].new);
         assert_eq!(stints[1].start_laps, 3);
         assert_eq!(stints[1].total_laps, 25);
+        assert_eq!(
+            stints[1].best_lap,
+            Some(BestLap {
+                number: 8,
+                time: "1:45.456".to_string()
+            })
+        );
     }
 
     #[test]
@@ -131,5 +161,6 @@ mod tests {
         assert_eq!(stints.len(), 1);
         assert_eq!(stints[0].tires_not_changed, 0);
         assert_eq!(stints[0].lap_flags, 0);
+        assert_eq!(stints[0].best_lap, None);
     }
 }

@@ -14,8 +14,9 @@ use ratatui::widgets::{Cell, Row, Table as RatatuiTable, TableState};
 
 use super::{Action, Component};
 use crate::constants::{
-    COLOR_ABORTED, COLOR_IN_PIT, COLOR_OVERALL_FASTEST, COLOR_PERSONAL_FASTEST, COLOR_SLOWER,
-    SEGMENT_WIDTH, SEGMENTS,
+    COLOR_ABORTED, COLOR_HARD, COLOR_IN_PIT, COLOR_INTERMEDIATE, COLOR_MEDIUM,
+    COLOR_OVERALL_FASTEST, COLOR_PERSONAL_FASTEST, COLOR_SLOWER, COLOR_SOFT, COLOR_UNKNOWN,
+    COLOR_WET, SEGMENT_WIDTH, SEGMENTS,
 };
 
 #[derive(Default)]
@@ -123,12 +124,12 @@ impl TimingTableData {
         match (&self.tire_compound, self.tire_laps) {
             (Some(compound), Some(laps)) => {
                 let (letter, color) = match compound {
-                    Compound::Soft => ("S", Color::Red),
-                    Compound::Medium => ("M", Color::Yellow),
-                    Compound::Hard => ("H", Color::White),
-                    Compound::Wet => ("W", Color::Blue),
-                    Compound::Intermediate => ("I", Color::Green),
-                    Compound::Unknown => ("?", Color::DarkGray),
+                    Compound::Soft => ("S", COLOR_SOFT),
+                    Compound::Medium => ("M", COLOR_MEDIUM),
+                    Compound::Hard => ("H", COLOR_HARD),
+                    Compound::Wet => ("W", COLOR_WET),
+                    Compound::Intermediate => ("I", COLOR_INTERMEDIATE),
+                    Compound::Unknown => ("?", COLOR_UNKNOWN),
                 };
                 Cell::from(format!("{} ({})", letter, laps)).style(Style::default().fg(color))
             }

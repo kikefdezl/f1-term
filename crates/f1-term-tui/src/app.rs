@@ -109,10 +109,14 @@ impl App {
             }
             Action::Navigate(page) => {
                 self.active_page = *page;
-                return Ok(Some(Action::Render));
+                // Force data updates when changing page since they don't load the
+                // data until they are active.
+                return Ok(Some(Action::StateUpdate(Arc::clone(&self.state))));
             }
             Action::KeyPress(key) => match key.code {
                 KeyCode::Char('q') => return Ok(Some(Action::Quit)),
+                KeyCode::F(1) => return Ok(Some(Action::Navigate(ActivePage::LiveTiming))),
+                KeyCode::F(2) => return Ok(Some(Action::Navigate(ActivePage::Stints))),
                 KeyCode::Left => self.engine_tx.send(TelemetryEngineCommand::IncreaseDelay(
                     Duration::from_secs(1),
                 ))?,
