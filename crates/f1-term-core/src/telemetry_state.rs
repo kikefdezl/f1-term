@@ -194,7 +194,7 @@ mod time_diff_tests {
     use crate::driver::{Driver, DriverNumber};
     use crate::session_info::{QualiPhase, SessionType};
     use crate::team::{Team, TeamColor, TeamName};
-    use crate::timing::{Lap, LapData, LiveTiming, PitData, QualiStats, TimeDiffs};
+    use crate::timing::{BestLap, Lap, LapData, LiveTiming, PitData, QualiStats, TimeDiffs};
 
     fn create_context(timing: Option<LiveTiming>) -> ParticipantContext<'static> {
         let driver = Box::new(Driver {
@@ -233,7 +233,10 @@ mod time_diff_tests {
             driver_number: DriverNumber { value: 1 },
             position: 1,
             lap_data: LapData {
-                best_lap_time: None,
+                best_lap: BestLap {
+                    time: None,
+                    overall_fastest: false,
+                },
                 last_lap: Lap::default(),
                 number_of_laps: None,
             },

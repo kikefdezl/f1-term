@@ -189,7 +189,7 @@ mod tests {
         assert_eq!(
             cell,
             Cell::new(Line::from(vec![
-                Span::styled("S", Style::default().bold().fg(Color::Red)),
+                Span::styled("S", Style::default().bold().fg(Color::Red).reversed()),
                 Span::styled(BLOCK, Style::default().bold().fg(Color::Red))
             ]))
         );

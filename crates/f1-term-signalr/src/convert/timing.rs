@@ -1,8 +1,9 @@
 use std::collections::HashMap;
 
 use f1_term_core::driver::DriverNumber;
+use f1_term_core::race_time::RaceTime;
 use f1_term_core::timing::{
-    Lap, LiveTiming, Sector, Segment, SegmentStatus, Speed, Speeds, TimeDiffs,
+    BestLap, Lap, LapData, LiveTiming, Sector, Segment, SegmentStatus, Speed, Speeds, TimeDiffs,
 };
 use log::{info, warn};
 
@@ -78,6 +79,9 @@ impl From<&RawStats> for TimeDiffs {
     }
 }
 
+// TODO: This should be a private/hidden function since we can't really infer the status
+// of the best lap (whether it's overall fastest or not). This forces us to then loop
+// through all the drivers to determine the fastest, so this function is not a self-contained.
 impl TryFrom<&RawTimingData> for LiveTiming {
     type Error = Box<dyn std::error::Error>;
 
@@ -87,7 +91,10 @@ impl TryFrom<&RawTimingData> for LiveTiming {
         };
 
         // API returns empty strings, we convert those to None
-        let best_lap_time = Some(payload.BestLapTime.Value.clone()).filter(|s| !s.is_empty());
+        let best_lap_time = Some(payload.BestLapTime.Value.clone())
+            .filter(|s| !s.is_empty())
+            .map(|blp| RaceTime::try_from(blp.as_str()))
+            .transpose()?;
         let last_lap_time = Some(payload.LastLapTime.Value.clone()).filter(|s| !s.is_empty());
 
         let time_diff_to_fastest = payload
@@ -138,8 +145,13 @@ impl TryFrom<&RawTimingData> for LiveTiming {
             }
         }
 
-        let lap_data = f1_term_core::timing::LapData {
-            best_lap_time,
+        let lap_data = LapData {
+            best_lap: BestLap {
+                time: best_lap_time,
+                // NOTE: This cannot be checked from the raw payload directly so it must be
+                // compared with all other drivers after and set to true
+                overall_fastest: false,
+            },
             last_lap,
             number_of_laps: payload.NumberOfLaps,
         };
@@ -184,6 +196,11 @@ pub fn convert_timing_data(
 ) -> HashMap<DriverNumber, LiveTiming> {
     let mut timing_data: HashMap<DriverNumber, LiveTiming> = HashMap::new();
 
+    let mut fastest_time = RaceTime {
+        minutes: 999,
+        ..Default::default()
+    };
+
     for (num_str, payload) in raw_timing_data {
         let Ok(number) = num_str.parse::<u8>() else {
             warn!("Failed to parse timing data line {}", num_str);
@@ -194,6 +211,11 @@ pub fn convert_timing_data(
 
         match LiveTiming::try_from(payload) {
             Ok(lt) => {
+                if let Some(time) = &lt.lap_data.best_lap.time
+                    && *time < fastest_time
+                {
+                    fastest_time = time.clone()
+                }
                 timing_data.insert(driver_number, lt);
             }
             Err(e) => {
@@ -202,6 +224,14 @@ pub fn convert_timing_data(
                     num_str, e
                 );
             }
+        }
+    }
+
+    for timing in timing_data.values_mut() {
+        if let Some(time) = &timing.lap_data.best_lap.time
+            && *time == fastest_time
+        {
+            timing.lap_data.best_lap.overall_fastest = true;
         }
     }
 
@@ -279,7 +309,15 @@ mod tests {
         let timing = data.get(&driver_number).unwrap();
 
         assert_eq!(timing.position, 1);
-        assert_eq!(timing.lap_data.best_lap_time.as_deref(), Some("1:23.456"));
+        assert_eq!(
+            timing.lap_data.best_lap.time,
+            Some(RaceTime {
+                minutes: 1,
+                seconds: 23,
+                millis: 456
+            })
+        );
+        assert!(timing.lap_data.best_lap.overall_fastest);
         assert_eq!(timing.lap_data.last_lap.time.as_deref(), Some("1:24.000"));
         assert!(timing.lap_data.last_lap.personal_fastest);
 
@@ -333,7 +371,8 @@ mod tests {
         let map = convert_timing_data(&raw);
         let driver_timing = map.get(&DriverNumber { value: 44 }).unwrap();
 
-        assert_eq!(driver_timing.lap_data.best_lap_time, None);
+        assert_eq!(driver_timing.lap_data.best_lap.time, None);
+        assert!(!driver_timing.lap_data.best_lap.overall_fastest);
         assert_eq!(driver_timing.lap_data.last_lap.time, None);
         assert_eq!(driver_timing.time_diffs.to_fastest, None);
     }

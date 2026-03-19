@@ -1,4 +1,5 @@
 use super::driver::DriverNumber;
+use crate::race_time::RaceTime;
 
 #[derive(Debug, Default, Clone, PartialEq)]
 pub struct LiveTiming {
@@ -16,9 +17,26 @@ pub struct LiveTiming {
 
 #[derive(Debug, Default, Clone, PartialEq)]
 pub struct LapData {
-    pub best_lap_time: Option<String>,
+    pub best_lap: BestLap,
     pub last_lap: Lap,
     pub number_of_laps: Option<u8>,
+}
+
+#[derive(Debug, Default, Clone, PartialEq)]
+pub struct BestLap {
+    pub time: Option<RaceTime>,
+    pub overall_fastest: bool,
+}
+
+#[derive(Debug, Default, Clone, PartialEq)]
+pub struct Lap {
+    pub overall_fastest: bool,
+    pub personal_fastest: bool,
+    pub status: u32,
+    pub time: Option<String>,
+    pub sectors: Vec<Sector>,
+    pub show_position: bool,
+    pub speeds: Speeds,
 }
 
 #[derive(Debug, Default, Clone, PartialEq)]
@@ -35,17 +53,6 @@ pub struct QualiStats {
     pub q1_diffs: Option<TimeDiffs>,
     pub q2_diffs: Option<TimeDiffs>,
     pub q3_diffs: Option<TimeDiffs>,
-}
-
-#[derive(Debug, Default, Clone, PartialEq)]
-pub struct Lap {
-    pub overall_fastest: bool,
-    pub personal_fastest: bool,
-    pub status: u32,
-    pub time: Option<String>,
-    pub sectors: Vec<Sector>,
-    pub show_position: bool,
-    pub speeds: Speeds,
 }
 
 #[derive(Debug, Default, Clone, PartialEq)]

@@ -4,6 +4,7 @@ pub mod driver;
 pub mod flag;
 pub mod laps;
 pub mod race_control_message;
+pub mod race_time;
 pub mod session_info;
 pub mod stint;
 pub mod team;

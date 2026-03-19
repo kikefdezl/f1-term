@@ -2,6 +2,7 @@ use std::fmt::Display;
 
 use crossterm::event::KeyCode;
 use f1_term_core::driver::Driver;
+use f1_term_core::race_time::RaceTime;
 use f1_term_core::stint::{Compound, Stints};
 use f1_term_core::team::Team;
 use f1_term_core::telemetry_state::TelemetryState;
@@ -29,7 +30,8 @@ pub struct TimingTableData {
     retired: bool,
     stopped: bool,
     in_pit: bool,
-    best_lap_time: Option<String>,
+    best_lap_time: Option<RaceTime>,
+    best_lap_overall_fastest: bool,
     last_lap_time: Option<String>,
     last_lap_overall_fastest: bool,
     last_lap_personal_fastest: bool,
@@ -72,14 +74,18 @@ impl TimingTableData {
         self.best_lap_time.clone_from(
             &args
                 .live_timing
-                .and_then(|lt| lt.lap_data.best_lap_time.clone()),
+                .and_then(|lt| lt.lap_data.best_lap.time.clone()),
         );
+        self.best_lap_overall_fastest = args
+            .live_timing
+            .map(|lt| lt.lap_data.best_lap.overall_fastest)
+            .unwrap_or(false);
+
         self.last_lap_time.clone_from(
             &args
                 .live_timing
                 .and_then(|lt| lt.lap_data.last_lap.time.clone()),
         );
-
         self.last_lap_overall_fastest = args
             .live_timing
             .map(|lt| lt.lap_data.last_lap.overall_fastest)
@@ -149,27 +155,36 @@ impl TimingTableData {
     }
 
     fn best_lap_cell(&self) -> Cell<'_> {
-        match &self.best_lap_time {
-            Some(ll) => Cell::from(ll.as_str()),
-            None => Cell::from("-:--.---"),
-        }
+        let (best_lap, color) = match &self.best_lap_time {
+            Some(ll) => {
+                let color = match self.best_lap_overall_fastest {
+                    true => COLOR_OVERALL_FASTEST,
+                    false => COLOR_PERSONAL_FASTEST,
+                };
+                (ll.to_string(), color)
+            }
+            None => ("-:--.---".to_string(), Color::default()),
+        };
+
+        Cell::from(best_lap).style(Style::default().fg(color))
     }
 
     fn last_lap_cell(&self) -> Cell<'_> {
-        let last_lap = match &self.last_lap_time {
-            Some(ll) => ll.as_str(),
-            None => "-:--.---",
+        let (last_lap, color) = match &self.last_lap_time {
+            Some(ll) => {
+                let color = if self.last_lap_overall_fastest {
+                    COLOR_OVERALL_FASTEST
+                } else if self.last_lap_personal_fastest {
+                    COLOR_PERSONAL_FASTEST
+                } else {
+                    COLOR_SLOWER
+                };
+                (ll.as_str(), color)
+            }
+            None => ("-:--.---", Color::default()),
         };
 
-        let last_lap_style = if self.last_lap_overall_fastest {
-            Style::default().fg(COLOR_OVERALL_FASTEST)
-        } else if self.last_lap_personal_fastest {
-            Style::default().fg(COLOR_PERSONAL_FASTEST)
-        } else {
-            Style::default().fg(COLOR_SLOWER)
-        };
-
-        Cell::from(last_lap).style(last_lap_style)
+        Cell::from(last_lap).style(Style::default().fg(color))
     }
 
     fn gap_cell(&self, is_leader: bool, gap_mode: GapMode) -> Cell<'_> {
@@ -564,17 +579,27 @@ mod tests {
         let mut data = TimingTableData::default();
 
         // No lap times
-        assert_eq!(data.best_lap_cell(), Cell::from("-:--.---"));
+        assert_eq!(
+            data.best_lap_cell(),
+            Cell::from("-:--.---").style(Style::default().fg(Color::default()))
+        );
         assert_eq!(
             data.last_lap_cell(),
-            Cell::from("-:--.---").style(Style::default().fg(COLOR_SLOWER))
+            Cell::from("-:--.---").style(Style::default().fg(Color::default()))
         );
 
         // With lap times
-        data.best_lap_time = Some("1:20.000".to_string());
+        data.best_lap_time = Some(RaceTime {
+            minutes: 1,
+            seconds: 20,
+            millis: 0,
+        });
         data.last_lap_time = Some("1:21.000".to_string());
 
-        assert_eq!(data.best_lap_cell(), Cell::from("1:20.000"));
+        assert_eq!(
+            data.best_lap_cell(),
+            Cell::from("1:20.000").style(Style::default().fg(COLOR_PERSONAL_FASTEST))
+        );
 
         // Last lap is default color
         assert_eq!(
