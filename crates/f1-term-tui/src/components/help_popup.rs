@@ -42,50 +42,11 @@ impl Component for HelpPopup {
             return Ok(());
         }
 
-        let shortcuts = [
-            ("Q", "Quit"),
-            ("?", "Toggle Help"),
-            ("G", "Toggle Gap/Int"),
-            ("N", "Toggle Corner Numbers"),
-            ("←", "Increase Live Delay"),
-            ("→", "Decrease Live Delay"),
-            // TODO: These are not useful for anything yet:
-            // ("↑/↓", "Select Driver (in Timing Table)"),
-            // ("Esc", "Deselect / Close Help"),
-        ];
-
-        let segment_helps = [
-            (COLOR_SLOWER, "Slower"),
-            (COLOR_PERSONAL_FASTEST, "Personal Fastest"),
-            (COLOR_OVERALL_FASTEST, "Overall Fastest"),
-            (COLOR_IN_PIT, "In Pit"),
-            (COLOR_ABORTED, "Aborted"),
-        ];
-
-        let mut lines = vec![];
-        for (key, desc) in shortcuts {
-            lines.push(Line::from(vec![
-                Span::styled(
-                    format!("{:>5}  ", key),
-                    Style::default()
-                        .fg(Color::LightRed)
-                        .add_modifier(Modifier::BOLD),
-                ),
-                Span::styled("- ", Style::default().fg(Color::DarkGray)),
-                Span::styled(desc.to_string(), Style::default().fg(Color::White)),
-            ]));
-        }
+        let mut lines = self.pages();
         lines.push(Line::default());
-        for (color, desc) in segment_helps {
-            lines.push(Line::from(vec![
-                Span::styled(
-                    format!("{:>6} ", SEGMENTS.to_string()),
-                    Style::default().fg(color),
-                ),
-                Span::styled("- ", Style::default().fg(Color::DarkGray)),
-                Span::styled(desc.to_string(), Style::default().fg(Color::White)),
-            ]))
-        }
+        lines.extend(self.shortcuts());
+        lines.push(Line::default());
+        lines.extend(self.segments());
 
         let popup_width = 45;
         let popup_height = lines.len() as u16 + 2;
@@ -110,5 +71,72 @@ impl Component for HelpPopup {
         frame.render_widget(p, popup_area);
 
         Ok(())
+    }
+}
+impl HelpPopup {
+    fn pages(&self) -> Vec<Line<'_>> {
+        let pages = [("F1", "Dashboard"), ("F2", "Tire Stints")];
+        let mut lines = Vec::new();
+        for (key, desc) in pages {
+            lines.push(Line::from(vec![
+                Span::styled(
+                    format!("{:>6} ", key),
+                    Style::default().fg(Color::LightRed).bold(),
+                ),
+                Span::styled("- ", Style::default().fg(Color::DarkGray)),
+                Span::styled(desc, Style::default().fg(Color::White)),
+            ]));
+        }
+        lines
+    }
+
+    fn shortcuts(&self) -> Vec<Line<'_>> {
+        let shortcuts = [
+            ("Q", "Quit"),
+            ("?", "Toggle Help"),
+            ("G", "Toggle Gap/Int"),
+            ("N", "Toggle Corner Numbers"),
+            ("←", "Increase Live Delay"),
+            ("→", "Decrease Live Delay"),
+            // TODO: These are not useful for anything yet:
+            // ("↑/↓", "Select Driver (in Timing Table)"),
+            // ("Esc", "Deselect / Close Help"),
+        ];
+
+        let mut lines = vec![];
+        for (key, desc) in shortcuts {
+            lines.push(Line::from(vec![
+                Span::styled(
+                    format!("{:>5}  ", key),
+                    Style::default().fg(Color::LightRed).bold(),
+                ),
+                Span::styled("- ", Style::default().fg(Color::DarkGray)),
+                Span::styled(desc, Style::default().fg(Color::White)),
+            ]));
+        }
+        lines
+    }
+
+    fn segments(&self) -> Vec<Line<'_>> {
+        let mut lines = Vec::new();
+        let segment_helps = [
+            (COLOR_SLOWER, "Slower"),
+            (COLOR_PERSONAL_FASTEST, "Personal Fastest"),
+            (COLOR_OVERALL_FASTEST, "Overall Fastest"),
+            (COLOR_IN_PIT, "In Pit"),
+            (COLOR_ABORTED, "Aborted"),
+        ];
+
+        for (color, desc) in segment_helps {
+            lines.push(Line::from(vec![
+                Span::styled(
+                    format!("{:>5}  ", SEGMENTS.to_string()),
+                    Style::default().fg(color),
+                ),
+                Span::styled("- ", Style::default().fg(Color::DarkGray)),
+                Span::styled(desc, Style::default().fg(Color::White)),
+            ]))
+        }
+        lines
     }
 }
