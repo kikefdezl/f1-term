@@ -1,9 +1,9 @@
 use std::collections::HashMap;
 
 use f1_term_core::driver::DriverNumber;
-use f1_term_core::race_time::RaceTime;
+use f1_term_core::lap_time::LapTime;
 use f1_term_core::timing::{
-    BestLap, Lap, LapData, LiveTiming, Sector, Segment, SegmentStatus, Speed, Speeds, TimeDiffs,
+    BestLap, LapData, LastLap, LiveTiming, Sector, Segment, SegmentStatus, Speed, Speeds, TimeDiffs,
 };
 use log::{info, warn};
 
@@ -90,12 +90,15 @@ impl TryFrom<&RawTimingData> for LiveTiming {
             value: payload.RacingNumber.parse()?,
         };
 
-        // API returns empty strings, we convert those to None
+        // API returns empty strings, we convert those to None via filter
         let best_lap_time = Some(payload.BestLapTime.Value.clone())
             .filter(|s| !s.is_empty())
-            .map(|blp| RaceTime::try_from(blp.as_str()))
+            .map(|blp| LapTime::try_from(blp.as_str()))
             .transpose()?;
-        let last_lap_time = Some(payload.LastLapTime.Value.clone()).filter(|s| !s.is_empty());
+        let last_lap_time = Some(payload.LastLapTime.Value.clone())
+            .filter(|s| !s.is_empty())
+            .map(|llt| LapTime::try_from(llt.as_str()))
+            .transpose()?;
 
         let time_diff_to_fastest = payload
             .TimeDiffToFastest
@@ -114,7 +117,7 @@ impl TryFrom<&RawTimingData> for LiveTiming {
                     .filter(|s| !s.is_empty())
             });
 
-        let last_lap = Lap {
+        let last_lap = LastLap {
             overall_fastest: payload.LastLapTime.OverallFastest,
             personal_fastest: payload.LastLapTime.PersonalFastest,
             status: payload.LastLapTime.Status,
@@ -196,8 +199,8 @@ pub fn convert_timing_data(
 ) -> HashMap<DriverNumber, LiveTiming> {
     let mut timing_data: HashMap<DriverNumber, LiveTiming> = HashMap::new();
 
-    let mut fastest_time = RaceTime {
-        minutes: 999,
+    let mut fastest_time = LapTime {
+        minutes: u32::MAX,
         ..Default::default()
     };
 
@@ -311,14 +314,10 @@ mod tests {
         assert_eq!(timing.position, 1);
         assert_eq!(
             timing.lap_data.best_lap.time,
-            Some(RaceTime {
-                minutes: 1,
-                seconds: 23,
-                millis: 456
-            })
+            Some(LapTime::new(1, 23, 456))
         );
         assert!(timing.lap_data.best_lap.overall_fastest);
-        assert_eq!(timing.lap_data.last_lap.time.as_deref(), Some("1:24.000"));
+        assert_eq!(timing.lap_data.last_lap.time, Some(LapTime::new(1, 24, 0)));
         assert!(timing.lap_data.last_lap.personal_fastest);
 
         assert_eq!(timing.lap_data.last_lap.sectors.len(), 1);

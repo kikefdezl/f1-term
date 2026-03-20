@@ -2,7 +2,7 @@ use std::fmt::Display;
 
 use crossterm::event::KeyCode;
 use f1_term_core::driver::Driver;
-use f1_term_core::race_time::RaceTime;
+use f1_term_core::lap_time::LapTime;
 use f1_term_core::stint::{Compound, Stints};
 use f1_term_core::team::Team;
 use f1_term_core::telemetry_state::TelemetryState;
@@ -30,9 +30,9 @@ pub struct TimingTableData {
     retired: bool,
     stopped: bool,
     in_pit: bool,
-    best_lap_time: Option<RaceTime>,
+    best_lap_time: Option<LapTime>,
     best_lap_overall_fastest: bool,
-    last_lap_time: Option<String>,
+    last_lap_time: Option<LapTime>,
     last_lap_overall_fastest: bool,
     last_lap_personal_fastest: bool,
     sectors: Vec<Sector>,
@@ -179,9 +179,9 @@ impl TimingTableData {
                 } else {
                     COLOR_SLOWER
                 };
-                (ll.as_str(), color)
+                (ll.to_string(), color)
             }
-            None => ("-:--.---", Color::default()),
+            None => ("-:--.---".to_string(), Color::default()),
         };
 
         Cell::from(last_lap).style(Style::default().fg(color))
@@ -589,12 +589,8 @@ mod tests {
         );
 
         // With lap times
-        data.best_lap_time = Some(RaceTime {
-            minutes: 1,
-            seconds: 20,
-            millis: 0,
-        });
-        data.last_lap_time = Some("1:21.000".to_string());
+        data.best_lap_time = Some(LapTime::new(1, 20, 0));
+        data.last_lap_time = Some(LapTime::new(1, 21, 0));
 
         assert_eq!(
             data.best_lap_cell(),
