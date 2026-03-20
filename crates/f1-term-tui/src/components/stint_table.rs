@@ -1,4 +1,5 @@
 use std::error::Error;
+use std::fmt::Write;
 
 use f1_term_core::driver::DriverNumber;
 use f1_term_core::stint::{Compound, Stints};
@@ -85,23 +86,43 @@ impl Component for StintTable {
 
     fn draw(&mut self, f: &mut Frame, area: Rect) -> Result<(), Box<dyn Error>> {
         let rows = self.rows();
-        // TODO: Header jrow with the lap numbers, mark every 5 laps and based on how many laps have
-        // elapsed.
         let t = Table::new(
             rows,
             [
-                Constraint::Length(3),  // #
-                Constraint::Length(4),  // driver
-                Constraint::Length(3),  // num
-                Constraint::Length(80), // stints
+                Constraint::Length(3),                              // #
+                Constraint::Length(4),                              // driver
+                Constraint::Length(3),                              // num
+                Constraint::Length(self.current_laps() as u16 + 2), // stints
             ],
-        );
+        )
+        .header(self.header());
         f.render_widget(t, area);
         Ok(())
     }
 }
 
 impl StintTable {
+    fn header(&self) -> Row<'_> {
+        let total_laps = self.current_laps() + 1;
+        let mut lapline = String::with_capacity(total_laps as usize);
+        let mut i = 1;
+        while i <= total_laps {
+            if i % 5 == 0 {
+                let _ = write!(&mut lapline, "{}", i);
+                i += i.ilog10() as u8; // to offset the char width
+            } else {
+                lapline.push(' ');
+            }
+            i += 1;
+        }
+        Row::new([
+            Cell::from("#"),
+            Cell::from("Drv"),
+            Cell::from("Num"),
+            Cell::from(lapline),
+        ])
+    }
+
     fn update_data(&mut self, state: &TelemetryState) {
         let participants = state.participants();
         self.data = participants
@@ -129,6 +150,17 @@ impl StintTable {
                 ])
             })
             .collect()
+    }
+
+    fn current_laps(&self) -> u8 {
+        let mut max_laps = 0;
+        for driver in &self.data {
+            let laps_done = driver.stints.iter().map(|s| s.laps_done()).sum();
+            if laps_done > max_laps {
+                max_laps = laps_done;
+            }
+        }
+        max_laps
     }
 }
 
@@ -193,5 +225,41 @@ mod tests {
                 Span::styled(BLOCK, Style::default().bold().fg(Color::Red))
             ]))
         );
+    }
+
+    #[test]
+    fn test_header_lapline() {
+        let mut table = StintTable::default();
+        table.data.push(StintTableData {
+            driver_tla: "VER".to_string(),
+            driver_number: DriverNumber { value: 1 },
+            team_color: Color::Blue,
+            stints: vec![Stint {
+                compound: Compound::Soft,
+                lap_flags: 0,
+                new: true,
+                start_laps: 0,
+                total_laps: 12,
+                tires_not_changed: 0,
+                best_lap: None,
+            }],
+        });
+
+        assert_eq!(table.current_laps(), 12);
+        let row = table.header();
+        let debug_str = format!("{:?}", row);
+        assert!(debug_str.contains("    5    10  "));
+    }
+
+    #[test]
+    fn test_header_lapline_no_laps() {
+        let table = StintTable::default();
+        assert_eq!(table.current_laps(), 0);
+        // Verify header doesn't panic and produces something.
+        let row = table.header();
+        let debug_str = format!("{:?}", row);
+        assert!(debug_str.contains("#"));
+        assert!(debug_str.contains("Drv"));
+        assert!(debug_str.contains("Num"));
     }
 }
