@@ -31,6 +31,7 @@ pub struct SignalRF1Client {
     topics: Vec<Topic>,
     canonical_state: serde_json::Value,
     log_dir: Option<String>,
+    base_url: String,
 }
 
 impl Default for SignalRF1Client {
@@ -41,6 +42,7 @@ impl Default for SignalRF1Client {
             topics: Topic::all(),
             canonical_state: json!({}),
             log_dir: None,
+            base_url: URL.to_string(),
         }
     }
 }
@@ -63,11 +65,17 @@ impl TelemetryProvider for SignalRF1Client {
 
         let client = reqwest::Client::builder().user_agent("BestHTTP").build()?;
 
-        let (negotiate_data, cookie) = Self::negotiate(&client).await?;
+        let (negotiate_data, cookie) = Self::negotiate(&client, &self.base_url).await?;
 
         let connection_data = json!([{"name": HUB}]).to_string();
+        let ws_scheme =
+            if self.base_url.starts_with("localhost") || self.base_url.starts_with("127.0.0.1") {
+                "ws"
+            } else {
+                "wss"
+            };
         let ws_url = Url::parse_with_params(
-            &format!("wss://{}/connect", URL),
+            &format!("{}://{}/connect", ws_scheme, self.base_url),
             &[
                 ("clientProtocol", "1.5"),
                 ("transport", "webSockets"),
@@ -88,7 +96,13 @@ impl TelemetryProvider for SignalRF1Client {
 
         let (ws_stream, _response) = connect_async(req).await?;
 
-        Self::start_connection(&client, &negotiate_data.connection_token, &cookie).await?;
+        Self::start_connection(
+            &client,
+            &negotiate_data.connection_token,
+            &cookie,
+            &self.base_url,
+        )
+        .await?;
 
         let (writer, reader) = ws_stream.split();
         self.writer = Some(writer);
@@ -147,12 +161,23 @@ impl SignalRF1Client {
         self
     }
 
+    pub fn with_base_url(mut self, url: String) -> Self {
+        self.base_url = url;
+        self
+    }
+
     async fn negotiate(
         client: &reqwest::Client,
+        base_url: &str,
     ) -> Result<(NegotiateResponse, String), Box<dyn std::error::Error>> {
+        let scheme = if base_url.starts_with("localhost") || base_url.starts_with("127.0.0.1") {
+            "http"
+        } else {
+            "https"
+        };
         let connection_data = json!([{"name": HUB}]).to_string();
         let negotiate_url = Url::parse_with_params(
-            &format!("https://{}/negotiate", URL),
+            &format!("{}://{}/negotiate", scheme, base_url),
             &[
                 ("clientProtocol", "1.5"),
                 ("connectionData", &connection_data),
@@ -181,13 +206,19 @@ impl SignalRF1Client {
         client: &reqwest::Client,
         connection_token: &str,
         cookie: &str,
+        base_url: &str,
     ) -> Result<(), Box<dyn std::error::Error>> {
+        let scheme = if base_url.starts_with("localhost") || base_url.starts_with("127.0.0.1") {
+            "http"
+        } else {
+            "https"
+        };
         let connection_data = json!([{"name": HUB}]).to_string();
 
         // ASP.NET SignalR 1.5 specification requires a /start HTTP request after the
         // WebSocket connection is established before the server will flush the message buffer.
         let start_url = Url::parse_with_params(
-            &format!("https://{}/start", URL),
+            &format!("{}://{}/start", scheme, base_url),
             &[
                 ("clientProtocol", "1.5"),
                 ("transport", "webSockets"),

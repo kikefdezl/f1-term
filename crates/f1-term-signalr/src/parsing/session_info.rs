@@ -17,7 +17,6 @@ pub struct RawSessionInfo {
     pub EndDate: String,
     pub GmtOffset: String,
     pub Path: String,
-    pub _kf: bool,
 }
 
 #[derive(Deserialize, Debug)]
@@ -113,7 +112,6 @@ mod tests {
         assert_eq!(result.EndDate, "2024-03-02T17:00:00Z");
         assert_eq!(result.GmtOffset, "03:00:00");
         assert_eq!(result.Path, "2024/2024-03-02_Race");
-        assert!(result._kf);
         assert_eq!(result.SessionStatus, "Active");
         assert_eq!(result.ArchiveStatus.Status, "Generating");
         assert_eq!(result.Meeting.Key, 1234);
