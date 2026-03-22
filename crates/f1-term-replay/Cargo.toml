@@ -13,3 +13,4 @@ axum = { version = "0.8.1", features = ["ws"] }
 ratatui = "0.30.0"
 crossterm = { version = "0.28.1", features = ["event-stream"] }
 log = "0.4.26"
+async-trait = "0.1.89"
