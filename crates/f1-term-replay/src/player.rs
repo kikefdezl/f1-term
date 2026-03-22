@@ -12,27 +12,53 @@ pub struct TimelineMessage {
     pub delta: Value,
 }
 
+#[derive(Default)]
+pub enum TimelineStatus {
+    #[default]
+    Unloaded,
+    Loading,
+    Loaded,
+}
+
+#[derive(Default)]
+pub struct Timeline {
+    pub messages: BTreeMap<Duration, Vec<TimelineMessage>>,
+    pub status: TimelineStatus,
+}
+
+impl Timeline {
+    pub fn mark(&mut self, status: TimelineStatus) {
+        self.status = status;
+    }
+}
+
+#[derive(Default)]
 pub struct Player {
     pub current_time: Duration,
     pub duration: Duration,
     pub canonical_state: Value,
-    pub timeline: BTreeMap<Duration, Vec<TimelineMessage>>,
+    pub timeline: Timeline,
     pub base_state: Value,
     pub is_playing: bool,
     pub seek_counter: u64,
 }
 
 impl Player {
-    pub fn new(base_state: Value) -> Self {
+    pub fn new() -> Self {
         Self {
             current_time: Duration::ZERO,
             duration: Duration::ZERO,
-            canonical_state: base_state.clone(),
-            timeline: BTreeMap::new(),
-            base_state,
+            canonical_state: serde_json::json!({}),
+            timeline: Timeline::default(),
+            base_state: serde_json::json!({}),
             is_playing: true,
             seek_counter: 0,
         }
+    }
+
+    pub fn init_state(&mut self, state: Value) {
+        self.base_state = state.clone();
+        self.canonical_state = state;
     }
 
     pub fn toggle_pause(&mut self) {
@@ -58,7 +84,11 @@ impl Player {
                         topic: topic.to_string(),
                         delta,
                     };
-                    self.timeline.entry(duration).or_default().push(msg);
+                    self.timeline
+                        .messages
+                        .entry(duration)
+                        .or_default()
+                        .push(msg);
                 } else {
                     warn!("Failed to parse JSON for {}: {}", topic, json_str);
                 }
@@ -117,7 +147,7 @@ impl Player {
 
         let range = (start_bound, Included(to_time));
 
-        for (_time, msgs) in self.timeline.range(range) {
+        for (_time, msgs) in self.timeline.messages.range(range) {
             for msg in msgs {
                 if !self.canonical_state.is_object() {
                     self.canonical_state = serde_json::json!({});
@@ -181,14 +211,13 @@ mod tests {
 
     #[test]
     fn test_player_parsing() {
-        let base_state = json!({});
-        let mut player = Player::new(base_state);
+        let mut player = Player::new();
 
         let stream_data = "00:00:01.000{\"Value\": 1}\n00:00:02.000{\"Value\": 2}\n";
         player.parse_stream("TestTopic", stream_data);
 
         assert_eq!(player.duration, Duration::from_secs(2));
-        assert_eq!(player.timeline.len(), 2);
+        assert_eq!(player.timeline.messages.len(), 2);
 
         let dt = Duration::from_secs(1);
         let msgs = player.tick(dt);
@@ -203,8 +232,8 @@ mod tests {
 
     #[test]
     fn test_player_seek() {
-        let base_state = json!({"TestTopic": {"Initial": true}});
-        let mut player = Player::new(base_state);
+        let mut player = Player::new();
+        player.init_state(json!({"TestTopic": {"Initial": true}}));
 
         let stream_data = "00:00:01.000{\"Value\": 1}\n00:00:02.000{\"Value\": 2}\n";
         player.parse_stream("TestTopic", stream_data);

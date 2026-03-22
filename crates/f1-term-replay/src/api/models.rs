@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -63,7 +65,7 @@ pub struct SessionIndex {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "PascalCase")]
 pub struct SessionRootIndex {
-    pub feeds: std::collections::HashMap<String, FeedIndex>,
+    pub feeds: HashMap<String, FeedIndex>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
