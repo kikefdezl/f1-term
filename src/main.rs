@@ -1,46 +1,19 @@
-use std::fs::File;
+mod args;
+mod logger;
 
-use clap::Parser;
-use directories::ProjectDirs;
 use f1_term_core::telemetry_engine::TelemetryEngine;
 use f1_term_multiviewer::client::MultiviewerClient;
 use f1_term_signalr::client::SignalRF1Client;
 use f1_term_tui::app::App;
-use simplelog::{Config, LevelFilter, WriteLogger};
 use tokio::sync::mpsc;
 
-const APP: &str = "f1-term";
-const LOGFILE: &str = "f1-term.log";
 const REPLAY_URL: &str = "localhost:5000";
-
-#[derive(Parser, Debug)]
-#[command(version, about, long_about = None)]
-struct Args {
-    #[arg(long)]
-    replay: bool,
-}
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let args = Args::parse();
+    let args = args::Args::parse();
 
-    let log_dir = if let Some(proj_dirs) = ProjectDirs::from("", "", APP) {
-        let dir = proj_dirs
-            .state_dir()
-            .unwrap_or_else(|| proj_dirs.data_local_dir());
-        std::fs::create_dir_all(dir).unwrap();
-        dir.to_path_buf()
-    } else {
-        std::env::current_dir().unwrap_or_else(|_| std::path::PathBuf::from("."))
-    };
-
-    let log_path = log_dir.join(LOGFILE);
-
-    let _ = WriteLogger::init(
-        LevelFilter::Debug,
-        Config::default(),
-        File::create(&log_path).unwrap(),
-    );
+    let log_dir = logger::init();
 
     let mut telemetry_provider =
         SignalRF1Client::new().with_log_dir(log_dir.to_string_lossy().into_owned());

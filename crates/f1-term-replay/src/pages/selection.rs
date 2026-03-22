@@ -1,4 +1,3 @@
-use async_trait::async_trait;
 use crossterm::event::{self, Event, KeyCode};
 use log::error;
 use ratatui::DefaultTerminal;
@@ -18,7 +17,6 @@ pub struct SelectionPage {
     sessions: Vec<SessionIndex>,
 }
 
-#[async_trait]
 impl Page for SelectionPage {
     async fn run(&mut self, terminal: &mut DefaultTerminal) -> Result<Action> {
         if self.sessions.is_empty() {

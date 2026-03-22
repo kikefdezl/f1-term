@@ -1,6 +1,5 @@
 use std::sync::Arc;
 
-use async_trait::async_trait;
 use crossterm::event::{self, Event, KeyCode};
 use log::error;
 use ratatui::DefaultTerminal;
@@ -69,7 +68,6 @@ impl PlaybackPage {
     }
 }
 
-#[async_trait]
 impl Page for PlaybackPage {
     async fn run(&mut self, terminal: &mut DefaultTerminal) -> Result<Action> {
         let player = match &self.player {

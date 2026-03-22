@@ -1,7 +1,6 @@
 pub mod playback;
 pub mod selection;
 
-use async_trait::async_trait;
 use ratatui::DefaultTerminal;
 
 use crate::Result;
@@ -14,7 +13,9 @@ pub enum ActivePage {
     Playback,
 }
 
-#[async_trait]
 pub trait Page {
-    async fn run(&mut self, terminal: &mut DefaultTerminal) -> Result<Action>;
+    fn run(
+        &mut self,
+        terminal: &mut DefaultTerminal,
+    ) -> impl std::future::Future<Output = Result<Action>> + Send;
 }
