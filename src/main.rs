@@ -1,5 +1,6 @@
 use std::fs::File;
 
+use clap::Parser;
 use directories::ProjectDirs;
 use f1_term_core::telemetry_engine::TelemetryEngine;
 use f1_term_multiviewer::client::MultiviewerClient;
@@ -11,8 +12,17 @@ use tokio::sync::mpsc;
 const APP: &str = "f1-term";
 const LOGFILE: &str = "f1-term.log";
 
+#[derive(Parser, Debug)]
+#[command(version, about, long_about = None)]
+struct Args {
+    #[arg(long)]
+    replay: bool,
+}
+
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let args = Args::parse();
+
     let log_dir = if let Some(proj_dirs) = ProjectDirs::from("", "", APP) {
         let dir = proj_dirs
             .state_dir()
@@ -31,8 +41,13 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         File::create(&log_path).unwrap(),
     );
 
-    let telemetry_provider =
+    let mut telemetry_provider =
         SignalRF1Client::new().with_log_dir(log_dir.to_string_lossy().into_owned());
+
+    if args.replay {
+        telemetry_provider = telemetry_provider.with_base_url("localhost:5000".to_string());
+    }
+
     let circuit_provider = MultiviewerClient::new();
 
     let mut engine = TelemetryEngine::new(telemetry_provider, circuit_provider);

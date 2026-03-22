@@ -6,9 +6,7 @@ use f1_term_core::telemetry_engine::TelemetryEngineCommand;
 use f1_term_core::telemetry_state::TelemetryState;
 use futures::StreamExt;
 use ratatui::{DefaultTerminal, Frame};
-use tokio::sync::mpsc::{
-    UnboundedSender, {self},
-};
+use tokio::sync::mpsc::{self, UnboundedSender};
 use tokio::time::interval;
 
 use crate::action::Action;

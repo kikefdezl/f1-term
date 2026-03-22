@@ -119,7 +119,6 @@ mod tests {
             EndDate: "2024-07-07T16:00:00Z".into(),
             GmtOffset: "+01:00".into(),
             Path: "path".into(),
-            _kf: true,
         };
 
         let circuit = convert_circuit(&raw_info, None);

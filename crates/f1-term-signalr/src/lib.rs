@@ -1,6 +1,6 @@
 pub mod client;
 pub mod convert;
-mod extract;
-mod merge_patch;
-mod parsing;
-mod topic;
+pub mod extract;
+pub mod merge_patch;
+pub mod parsing;
+pub mod topic;
