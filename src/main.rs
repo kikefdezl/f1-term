@@ -11,6 +11,7 @@ use tokio::sync::mpsc;
 
 const APP: &str = "f1-term";
 const LOGFILE: &str = "f1-term.log";
+const REPLAY_URL: &str = "localhost:5000";
 
 #[derive(Parser, Debug)]
 #[command(version, about, long_about = None)]
@@ -45,7 +46,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         SignalRF1Client::new().with_log_dir(log_dir.to_string_lossy().into_owned());
 
     if args.replay {
-        telemetry_provider = telemetry_provider.with_base_url("localhost:5000".to_string());
+        telemetry_provider = telemetry_provider.with_base_url(REPLAY_URL.to_string());
     }
 
     let circuit_provider = MultiviewerClient::new();

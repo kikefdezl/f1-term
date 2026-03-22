@@ -28,7 +28,7 @@ pub struct StintTableData {
 
 impl StintTableData {
     fn position_cell(&self, pos: usize) -> Cell<'_> {
-        Cell::new(format!("{}", pos))
+        Cell::new(format!("{:>3}", pos))
     }
 
     fn tla_cell(&self) -> Cell<'_> {
@@ -116,7 +116,7 @@ impl StintTable {
             i += 1;
         }
         Row::new([
-            Cell::from("#"),
+            Cell::from("  #"),
             Cell::from("Drv"),
             Cell::from("Num"),
             Cell::from(lapline),
