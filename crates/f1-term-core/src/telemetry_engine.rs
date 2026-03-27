@@ -4,7 +4,7 @@ use std::time::Duration;
 
 use log::info;
 use tokio::sync::mpsc::UnboundedReceiver;
-use tokio::time::{Instant, sleep};
+use tokio::time::{interval, Instant};
 
 use super::circuit::CircuitLayoutProvider;
 use super::telemetry_provider::{TelemetryProvider, TelemetryUpdate};
@@ -46,6 +46,7 @@ impl<T: TelemetryProvider, C: CircuitLayoutProvider + 'static> TelemetryEngine<T
         }
 
         let mut queue: VecDeque<StoredUpdate> = VecDeque::new();
+        let mut interval = interval(Duration::from_millis(100));
 
         loop {
             tokio::select! {
@@ -69,12 +70,16 @@ impl<T: TelemetryProvider, C: CircuitLayoutProvider + 'static> TelemetryEngine<T
                     }
                 }
 
-                _ = sleep(Duration::from_millis(100)) => {
-                    while let Some(update) = queue.front() &&
-                        update.timestamp.elapsed() >= self.state.read().unwrap().delay &&
-                        let Some(mut u) = queue.pop_front() {
-                            self.check_and_fetch_circuit_layout(&mut u.update);
-                            self.apply_updates(u.update);
+                _ = interval.tick() => {
+                    while let Some(update) = queue.front() {
+                        if update.timestamp.elapsed() >= self.state.read().unwrap().delay {
+                            if let Some(mut u) = queue.pop_front() {
+                                self.check_and_fetch_circuit_layout(&mut u.update);
+                                self.apply_updates(u.update);
+                            }
+                        } else {
+                            break;
+                        }
                     }
                 }
             }
