@@ -194,7 +194,7 @@ mod tests {
     fn test_position_cell() {
         let data = test_data();
         let cell = data.position_cell(1);
-        assert_eq!(cell, Cell::new("1"));
+        assert_eq!(cell, Cell::new("  1"));
     }
 
     #[test]

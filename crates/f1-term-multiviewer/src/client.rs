@@ -78,16 +78,16 @@ struct MultiviewerCircuitResponse {
     pub location: String,
     pub marshal_lights: Vec<CircuitFeature>,
     pub marshal_sectors: Vec<CircuitFeature>,
-    pub meeting_key: String,
-    pub meeting_name: String,
+    pub meeting_key: Option<String>,
+    pub meeting_name: Option<String>,
     pub meeting_official_name: Option<String>,
     #[serde(default)]
     pub mini_sectors_indexes: Vec<usize>,
     pub race_date: String,
     pub rotation: f64,
     pub round: u32,
-    pub x: Vec<i32>,
-    pub y: Vec<i32>,
+    pub x: Vec<f32>,
+    pub y: Vec<f32>,
     pub year: u32,
 }
 
@@ -157,7 +157,6 @@ impl CircuitLayoutProvider for MultiviewerClient {
 #[cfg(test)]
 mod tests {
     use super::*;
-
     #[tokio::test]
     async fn test_fetch_circuit_layout() {
         let client = MultiviewerClient::new();
@@ -177,12 +176,13 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn test_fetch_circuit_layout_china() {
+    async fn test_fetch_circuit_layout_japan() {
         let client = MultiviewerClient::new();
-        // Shanghai (circuit key 49) for 2024 - doesn't include miniSectorIndexes
-        let _layout = client
-            .fetch(CircuitKey(49), 2024)
+        // Suzuka - missing some fields, coords are float, doesn't include miniSectorIndexes
+        let layout = client
+            .fetch(CircuitKey(46), 2026)
             .await
             .expect("Failed to fetch layout");
+        assert_eq!(layout.coords.len(), 335);
     }
 }
