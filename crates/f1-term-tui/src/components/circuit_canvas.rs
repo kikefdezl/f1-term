@@ -34,12 +34,12 @@ impl Component for CircuitCanvas {
                         || self.circuit_status != circuit.status
                         || self.segments.is_empty())
                 {
-                    let rotated = layout.rotate();
+                    let layout = layout.rotate();
                     self.circuit_key = circuit.key;
                     self.circuit_status = circuit.status.clone();
-                    self.bounds = rotated.bounds();
-                    self.corners = rotated.corners.clone();
-                    self.segments = segments_from_layout(&rotated, &self.circuit_status);
+                    self.bounds = layout.bounds();
+                    self.corners = layout.corners.clone();
+                    self.segments = segments_from_layout(&layout, &self.circuit_status);
                 }
             }
             Action::KeyPress(key) => {
@@ -144,7 +144,8 @@ fn segments_from_layout(layout: &CircuitLayout, status: &CircuitStatus) -> Vec<L
             CircuitStatus::Yellow(CircuitScope::Sectors(sectors)) => {
                 for &sector in sectors {
                     let ms_idx = sector.saturating_sub(1) as usize;
-                    if let Some(range) = layout.mini_sectors.get(ms_idx)
+                    if let Some(mini_sectors) = &layout.mini_sectors
+                        && let Some(range) = mini_sectors.get(ms_idx)
                         && range.contains(&i)
                     {
                         color = Color::Yellow;

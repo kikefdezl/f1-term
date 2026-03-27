@@ -2,7 +2,7 @@ use std::sync::{Arc, RwLock};
 use std::time::Duration;
 
 use crossterm::event::{Event as CrosstermEvent, EventStream, KeyCode};
-use f1_term_core::telemetry_engine::TelemetryEngineCommand;
+use f1_term_core::telemetry_engine::EngineCommand;
 use f1_term_core::telemetry_state::TelemetryState;
 use futures::StreamExt;
 use ratatui::{DefaultTerminal, Frame};
@@ -19,7 +19,7 @@ const REFRESH_RATE_MILLIS: u64 = 100;
 
 pub struct App {
     state: Arc<RwLock<TelemetryState>>,
-    engine_tx: UnboundedSender<TelemetryEngineCommand>,
+    engine_tx: UnboundedSender<EngineCommand>,
     active_page: ActivePage,
     live_timing_page: DashboardPage,
     stint_page: StintsPage,
@@ -29,7 +29,7 @@ pub struct App {
 impl App {
     pub fn new(
         state: Arc<RwLock<TelemetryState>>,
-        engine_tx: UnboundedSender<TelemetryEngineCommand>,
+        engine_tx: UnboundedSender<EngineCommand>,
     ) -> Self {
         Self {
             state,
@@ -115,12 +115,12 @@ impl App {
                 KeyCode::Char('q') => return Ok(Some(Action::Quit)),
                 KeyCode::F(1) => return Ok(Some(Action::Navigate(ActivePage::LiveTiming))),
                 KeyCode::F(2) => return Ok(Some(Action::Navigate(ActivePage::Stints))),
-                KeyCode::Left => self.engine_tx.send(TelemetryEngineCommand::IncreaseDelay(
-                    Duration::from_secs(1),
-                ))?,
-                KeyCode::Right => self.engine_tx.send(TelemetryEngineCommand::DecreaseDelay(
-                    Duration::from_secs(1),
-                ))?,
+                KeyCode::Left => self
+                    .engine_tx
+                    .send(EngineCommand::IncreaseDelay(Duration::from_secs(1)))?,
+                KeyCode::Right => self
+                    .engine_tx
+                    .send(EngineCommand::DecreaseDelay(Duration::from_secs(1)))?,
                 _ => {}
             },
             _ => {}

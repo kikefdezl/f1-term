@@ -81,8 +81,7 @@ struct MultiviewerCircuitResponse {
     pub meeting_key: Option<String>,
     pub meeting_name: Option<String>,
     pub meeting_official_name: Option<String>,
-    #[serde(default)]
-    pub mini_sectors_indexes: Vec<usize>,
+    pub mini_sectors_indexes: Option<Vec<usize>>,
     pub race_date: String,
     pub rotation: f64,
     pub round: u32,
@@ -130,20 +129,7 @@ impl CircuitLayoutProvider for MultiviewerClient {
                 })
                 .collect();
 
-            let mut mini_sectors = Vec::with_capacity(response.mini_sectors_indexes.len());
-            if !response.mini_sectors_indexes.is_empty() {
-                mini_sectors.push(Range {
-                    start: 0,
-                    end: response.mini_sectors_indexes[0],
-                });
-                for i in 1..response.mini_sectors_indexes.len() {
-                    mini_sectors.push(Range {
-                        start: mini_sectors[i - 1].end + 1,
-                        end: response.mini_sectors_indexes[i],
-                    })
-                }
-            }
-
+            let mini_sectors = response.mini_sectors_indexes.map(parse_mini_sectors);
             Ok(CircuitLayout {
                 coords,
                 rotation: response.rotation,
@@ -152,6 +138,23 @@ impl CircuitLayoutProvider for MultiviewerClient {
             })
         }
     }
+}
+
+fn parse_mini_sectors(indexes: Vec<usize>) -> Vec<Range<usize>> {
+    let mut mini_sectors = Vec::with_capacity(indexes.len());
+    if !indexes.is_empty() {
+        mini_sectors.push(Range {
+            start: 0,
+            end: indexes[0],
+        });
+        for i in 1..indexes.len() {
+            mini_sectors.push(Range {
+                start: mini_sectors[i - 1].end + 1,
+                end: indexes[i],
+            })
+        }
+    }
+    mini_sectors
 }
 
 #[cfg(test)]
@@ -167,12 +170,12 @@ mod tests {
             .expect("Failed to fetch layout");
 
         assert_eq!(layout.coords.len(), 1005);
-
-        assert_eq!(layout.mini_sectors.len(), 27);
-        assert_eq!(layout.mini_sectors[0].start, 0);
-        assert_eq!(layout.mini_sectors[0].end, 40);
-        assert_eq!(layout.mini_sectors[26].start, 955);
-        assert_eq!(layout.mini_sectors[26].end, 1004);
+        let mini_sectors = layout.mini_sectors.expect("No mini sectors");
+        assert_eq!(mini_sectors.len(), 27);
+        assert_eq!(mini_sectors[0].start, 0);
+        assert_eq!(mini_sectors[0].end, 40);
+        assert_eq!(mini_sectors[26].start, 955);
+        assert_eq!(mini_sectors[26].end, 1004);
     }
 
     #[tokio::test]

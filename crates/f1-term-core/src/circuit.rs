@@ -42,7 +42,7 @@ pub struct CircuitLayout {
     pub rotation: f64,
     pub corners: Vec<Corner>,
     // Each mini sector is a range of indexes of the coords that it contains
-    pub mini_sectors: Vec<Range<usize>>,
+    pub mini_sectors: Option<Vec<Range<usize>>>,
 }
 
 impl CircuitLayout {
@@ -94,6 +94,25 @@ impl CircuitLayout {
             y_min: y_min.floor() as i32,
             x_max: x_max.ceil() as i32,
             y_max: y_max.ceil() as i32,
+        }
+    }
+
+    /// Calculates an approximation of the mini sector indexes
+    /// by simply dividing the total distance by N sectors.
+    /// Useful for when the real indexes are unknown.
+    pub fn interpolate_mini_sectors(&self, number_of_sectors: usize) -> CircuitLayout {
+        let coords_per_sector = self.coords.len() / number_of_sectors;
+        let ranges: Vec<Range<usize>> = (0..number_of_sectors)
+            .map(|x| Range {
+                start: coords_per_sector * x,
+                end: coords_per_sector * (x + 1) - 1,
+            })
+            .collect();
+        CircuitLayout {
+            coords: self.coords.clone(),
+            rotation: self.rotation,
+            corners: self.corners.clone(),
+            mini_sectors: Some(ranges),
         }
     }
 }
@@ -164,7 +183,7 @@ mod tests {
             ],
             rotation: 90.0,
             corners: Vec::new(),
-            mini_sectors: vec![Range { start: 0, end: 3 }],
+            mini_sectors: Some(vec![Range { start: 0, end: 3 }]),
         };
 
         let rotated = layout.rotate();
@@ -187,5 +206,28 @@ mod tests {
         // (0, -100) -> (100, 0)
         assert!((rotated.coords[3].x - 100.0).abs() < 1e-6);
         assert!((rotated.coords[3].y - 0.0).abs() < 1e-6);
+    }
+
+    #[test]
+    fn test_interpolate_mini_sectors() {
+        let layout = CircuitLayout {
+            coords: vec![
+                Coord { x: 0.0, y: 0.0 },
+                Coord { x: 1.0, y: 1.0 },
+                Coord { x: 2.0, y: 2.0 },
+                Coord { x: 3.0, y: 3.0 },
+            ],
+            rotation: 0.0,
+            corners: Vec::new(),
+            mini_sectors: None,
+        };
+
+        let interpolated = layout.interpolate_mini_sectors(2);
+        let mini_sectors = interpolated.mini_sectors.unwrap();
+        assert_eq!(mini_sectors.len(), 2);
+        assert_eq!(mini_sectors[0].start, 0);
+        assert_eq!(mini_sectors[0].end, 1);
+        assert_eq!(mini_sectors[1].start, 2);
+        assert_eq!(mini_sectors[1].end, 3);
     }
 }

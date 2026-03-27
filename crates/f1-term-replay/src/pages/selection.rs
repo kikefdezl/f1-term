@@ -59,6 +59,7 @@ impl SelectionPage {
                 }
                 Err(e) => {
                     log::error!("Failed to fetch index for year {}: {}", year, e);
+                    println!("Failed to fetch index for year {}: {}", year, e);
                 }
             }
         }

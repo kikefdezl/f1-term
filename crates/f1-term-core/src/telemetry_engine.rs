@@ -4,14 +4,21 @@ use std::time::Duration;
 
 use log::info;
 use tokio::sync::mpsc::UnboundedReceiver;
-use tokio::time::{interval, Instant};
+use tokio::time::{Instant, interval};
 
 use super::circuit::CircuitLayoutProvider;
 use super::telemetry_provider::{TelemetryProvider, TelemetryUpdate};
 use super::telemetry_state::TelemetryState;
+use crate::aggregators::TelemetryAggregator;
+use crate::aggregators::layout_fetch::LayoutFetchAggregator;
+use crate::aggregators::sector_count::SectorCountAggregator;
 use crate::circuit::CircuitKey;
 
-pub enum TelemetryEngineCommand {
+pub enum EngineTask {
+    FetchCircuitLayout,
+}
+
+pub enum EngineCommand {
     IncreaseDelay(Duration),
     DecreaseDelay(Duration),
 }
@@ -20,6 +27,7 @@ pub struct TelemetryEngine<T: TelemetryProvider, C: CircuitLayoutProvider> {
     pub state: Arc<RwLock<TelemetryState>>,
     pub telemetry_provider: T,
     pub circuit_provider: Arc<C>,
+    aggregators: Vec<Box<dyn TelemetryAggregator>>,
 }
 
 impl<T: TelemetryProvider, C: CircuitLayoutProvider + 'static> TelemetryEngine<T, C> {
@@ -28,6 +36,10 @@ impl<T: TelemetryProvider, C: CircuitLayoutProvider + 'static> TelemetryEngine<T
             state: Arc::new(RwLock::new(TelemetryState::default())),
             telemetry_provider: f1_client,
             circuit_provider: Arc::new(circuit_layout_provider),
+            aggregators: vec![
+                Box::new(LayoutFetchAggregator),
+                Box::new(SectorCountAggregator),
+            ],
         }
     }
 
@@ -39,7 +51,7 @@ impl<T: TelemetryProvider, C: CircuitLayoutProvider + 'static> TelemetryEngine<T
         Arc::clone(&self.state)
     }
 
-    pub async fn run(&mut self, mut cmd_rx: UnboundedReceiver<TelemetryEngineCommand>) {
+    pub async fn run(&mut self, mut cmd_rx: UnboundedReceiver<EngineCommand>) {
         struct StoredUpdate {
             timestamp: Instant,
             update: TelemetryUpdate,
@@ -53,28 +65,48 @@ impl<T: TelemetryProvider, C: CircuitLayoutProvider + 'static> TelemetryEngine<T
                 cmd_opt = cmd_rx.recv() => {
                     match cmd_opt {
                         Some(cmd) => match cmd {
-                            TelemetryEngineCommand::IncreaseDelay(a) => self.increase_delay(a),
-                            TelemetryEngineCommand::DecreaseDelay(a) => self.decrease_delay(a),
+                            EngineCommand::IncreaseDelay(a) => self.increase_delay(a),
+                            EngineCommand::DecreaseDelay(a) => self.decrease_delay(a),
                         },
                         None => break,
                     }
                 }
 
+
                 update_opt = self.telemetry_provider.next_updates() => {
-                    if let Some(update) = update_opt {
-                            let stored = StoredUpdate {
-                                timestamp: Instant::now(),
-                                update: update.clone()
-                            };
-                            queue.push_back(stored);
+
+                    if let Some(mut update) = update_opt {
+
+                        // 1) Pass through the aggregators
+                        let mut tasks = vec![];
+                        for aggregator in &self.aggregators {
+                            tasks.extend(aggregator.process(&self.state.read().unwrap(), &mut update));
+                        }
+
+                        // 2) Spawn all requested background tasks
+                        for task in tasks {
+                            match task {
+                                EngineTask::FetchCircuitLayout => {
+                                    if let Some(ref circuit) = update.circuit {
+                                        self.spawn_layout_fetch(circuit.key, circuit.year)
+                                    }
+                                }
+                            }
+                        }
+
+                        // 3) Apply Updates
+                        let stored = StoredUpdate {
+                            timestamp: Instant::now(),
+                            update: update.clone()
+                        };
+                        queue.push_back(stored);
                     }
                 }
 
                 _ = interval.tick() => {
                     while let Some(update) = queue.front() {
                         if update.timestamp.elapsed() >= self.state.read().unwrap().delay {
-                            if let Some(mut u) = queue.pop_front() {
-                                self.check_and_fetch_circuit_layout(&mut u.update);
+                            if let Some(u) = queue.pop_front() {
                                 self.apply_updates(u.update);
                             }
                         } else {
@@ -82,18 +114,6 @@ impl<T: TelemetryProvider, C: CircuitLayoutProvider + 'static> TelemetryEngine<T
                         }
                     }
                 }
-            }
-        }
-    }
-
-    fn check_and_fetch_circuit_layout(&self, update: &mut TelemetryUpdate) {
-        if let Some(circuit_update) = &update.circuit {
-            if let Some(prev_circuit) = &self.state.read().unwrap().circuit {
-                if circuit_update.key != prev_circuit.key {
-                    self.spawn_layout_fetch(circuit_update.key, circuit_update.year);
-                }
-            } else {
-                self.spawn_layout_fetch(circuit_update.key, circuit_update.year);
             }
         }
     }
@@ -157,7 +177,7 @@ mod tests {
     struct TestFixture {
         state_ref: Arc<RwLock<TelemetryState>>,
         update_tx: mpsc::UnboundedSender<TelemetryUpdate>,
-        cmd_tx: mpsc::UnboundedSender<TelemetryEngineCommand>,
+        cmd_tx: mpsc::UnboundedSender<EngineCommand>,
         engine_task: tokio::task::JoinHandle<()>,
     }
 
@@ -258,9 +278,7 @@ mod tests {
 
         fixture
             .cmd_tx
-            .send(TelemetryEngineCommand::IncreaseDelay(Duration::from_secs(
-                2,
-            )))
+            .send(EngineCommand::IncreaseDelay(Duration::from_secs(2)))
             .unwrap();
 
         tokio::task::yield_now().await;
@@ -279,9 +297,7 @@ mod tests {
 
         fixture
             .cmd_tx
-            .send(TelemetryEngineCommand::DecreaseDelay(Duration::from_secs(
-                2,
-            )))
+            .send(EngineCommand::DecreaseDelay(Duration::from_secs(2)))
             .unwrap();
 
         tokio::task::yield_now().await;
@@ -300,9 +316,7 @@ mod tests {
 
         fixture
             .cmd_tx
-            .send(TelemetryEngineCommand::DecreaseDelay(Duration::from_secs(
-                5,
-            )))
+            .send(EngineCommand::DecreaseDelay(Duration::from_secs(5)))
             .unwrap();
 
         tokio::task::yield_now().await;

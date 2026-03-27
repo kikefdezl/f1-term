@@ -8,7 +8,6 @@ pub struct LiveTiming {
     pub status: u32,
     pub retired: bool,
     pub stopped: bool,
-
     pub lap_data: LapData,
     pub pit_data: PitData,
     pub time_diffs: TimeDiffs,

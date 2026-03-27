@@ -1,3 +1,4 @@
+pub mod aggregators;
 pub mod circuit;
 pub mod clock;
 pub mod driver;
