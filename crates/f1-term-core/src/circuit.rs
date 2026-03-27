@@ -105,7 +105,7 @@ impl CircuitLayout {
         let ranges: Vec<Range<usize>> = (0..number_of_sectors)
             .map(|x| Range {
                 start: coords_per_sector * x,
-                end: coords_per_sector * (x + 1) - 1,
+                end: coords_per_sector * (x + 1),
             })
             .collect();
         CircuitLayout {

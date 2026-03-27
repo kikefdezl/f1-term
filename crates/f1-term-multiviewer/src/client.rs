@@ -149,7 +149,7 @@ fn parse_mini_sectors(indexes: Vec<usize>) -> Vec<Range<usize>> {
         });
         for i in 1..indexes.len() {
             mini_sectors.push(Range {
-                start: mini_sectors[i - 1].end + 1,
+                start: mini_sectors[i - 1].end,
                 end: indexes[i],
             })
         }

@@ -74,3 +74,15 @@ impl F1ApiClient {
         Ok(resp)
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use crate::api::client::F1ApiClient;
+
+    #[tokio::test]
+    async fn test_fetch_index() {
+        let client = F1ApiClient::new();
+        let response = client.get_index(2026).await.unwrap();
+        assert_eq!(response.year, 2026);
+    }
+}
