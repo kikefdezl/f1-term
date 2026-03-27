@@ -140,22 +140,22 @@ impl TelemetryState {
         }
 
         if let Some(drivers) = update.drivers {
-            self.drivers = drivers;
+            self.drivers.extend(drivers);
             changed = true;
         }
 
         if let Some(teams) = update.teams {
-            self.teams = teams;
+            self.teams.extend(teams);
             changed = true;
         }
 
         if let Some(timing_data) = update.timing_data {
-            self.timing_data = timing_data;
+            self.timing_data.extend(timing_data);
             changed = true;
         }
 
         if let Some(stints) = update.stints {
-            self.stints = stints;
+            self.stints.extend(stints);
             changed = true;
         }
 
