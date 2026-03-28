@@ -67,7 +67,7 @@ pub struct RawSpeeds {
 #[serde(default)]
 pub struct RawStats {
     pub TimeDiffToFastest: String,
-    pub TimeDiffToPositionAhead: String,
+    pub TimeDifftoPositionAhead: String, // lowercase 't' important!
 }
 
 #[derive(Deserialize, Debug, Default, Clone)]
@@ -245,7 +245,7 @@ mod tests {
                     "Stats": [
                         {
                             "TimeDiffToFastest": "+0.123",
-                            "TimeDiffToPositionAhead": "+0.050"
+                            "TimeDifftoPositionAhead": "+0.050"
                         }
                     ],
                     "BestLapTime": {
@@ -278,6 +278,6 @@ mod tests {
         let stats = timing.Stats.as_ref().unwrap();
         assert_eq!(stats.len(), 1);
         assert_eq!(stats[0].TimeDiffToFastest, "+0.123");
-        assert_eq!(stats[0].TimeDiffToPositionAhead, "+0.050");
+        assert_eq!(stats[0].TimeDifftoPositionAhead, "+0.050");
     }
 }
