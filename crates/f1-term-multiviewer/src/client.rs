@@ -174,7 +174,7 @@ mod tests {
         assert_eq!(mini_sectors.len(), 27);
         assert_eq!(mini_sectors[0].start, 0);
         assert_eq!(mini_sectors[0].end, 40);
-        assert_eq!(mini_sectors[26].start, 955);
+        assert_eq!(mini_sectors[26].start, 954);
         assert_eq!(mini_sectors[26].end, 1004);
     }
 

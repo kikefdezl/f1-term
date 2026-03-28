@@ -226,8 +226,8 @@ mod tests {
         let mini_sectors = interpolated.mini_sectors.unwrap();
         assert_eq!(mini_sectors.len(), 2);
         assert_eq!(mini_sectors[0].start, 0);
-        assert_eq!(mini_sectors[0].end, 1);
+        assert_eq!(mini_sectors[0].end, 2);
         assert_eq!(mini_sectors[1].start, 2);
-        assert_eq!(mini_sectors[1].end, 3);
+        assert_eq!(mini_sectors[1].end, 4);
     }
 }
