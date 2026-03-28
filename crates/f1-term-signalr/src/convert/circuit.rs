@@ -20,6 +20,8 @@ pub fn convert_circuit(raw_info: &RawSessionInfo, rcm: Option<&RawRaceControlMes
     }
 }
 
+// TODO: We should probably do this in the core using aggregators from the RaceControlMessage
+// structs
 pub fn compute_circuit_status(rcm: Option<&RawRaceControlMessages>) -> CircuitStatus {
     let mut status = CircuitStatus::Clear;
     let mut yellow_sectors: HashSet<u8> = HashSet::new();
@@ -73,6 +75,9 @@ pub fn compute_circuit_status(rcm: Option<&RawRaceControlMessages>) -> CircuitSt
                     }
                     _ => {}
                 }
+            } else if msg.Category == "SafetyCar" {
+                status = CircuitStatus::Yellow(CircuitScope::Full);
+                yellow_sectors.clear();
             } else if msg.Message.contains("RED FLAG") {
                 status = CircuitStatus::Red;
                 yellow_sectors.clear();
@@ -195,5 +200,21 @@ mod rcm_tests {
         } else {
             panic!("Expected Yellow with sectors 11 and 12");
         }
+    }
+
+    #[test]
+    fn test_track_status_safety_car() {
+        let rcm = RawRaceControlMessages {
+            Messages: vec![RawRaceControlMessage {
+                Utc: "time".into(),
+                Category: "SafetyCar".into(),
+                Message: "Safety Car has been deployed".into(),
+                Flag: None,
+                Scope: None,
+                Sector: None,
+            }],
+        };
+        let status = compute_circuit_status(Some(&rcm));
+        assert!(matches!(status, CircuitStatus::Yellow(CircuitScope::Full)));
     }
 }
