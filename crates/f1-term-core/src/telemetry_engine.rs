@@ -75,29 +75,10 @@ impl<T: TelemetryProvider, C: CircuitLayoutProvider + 'static> TelemetryEngine<T
 
                 update_opt = self.telemetry_provider.next_updates() => {
 
-                    if let Some(mut update) = update_opt {
-
-                        // 1) Pass through the aggregators
-                        let mut tasks = vec![];
-                        for aggregator in &self.aggregators {
-                            tasks.extend(aggregator.process(&self.state.read().unwrap(), &mut update));
-                        }
-
-                        // 2) Spawn all requested background tasks
-                        for task in tasks {
-                            match task {
-                                EngineTask::FetchCircuitLayout => {
-                                    if let Some(ref circuit) = update.circuit {
-                                        self.spawn_layout_fetch(circuit.key, circuit.year)
-                                    }
-                                }
-                            }
-                        }
-
-                        // 3) Apply Updates
+                    if let Some(update) = update_opt {
                         let stored = StoredUpdate {
                             timestamp: Instant::now(),
-                            update: update.clone()
+                            update,
                         };
                         queue.push_back(stored);
                     }
@@ -106,8 +87,28 @@ impl<T: TelemetryProvider, C: CircuitLayoutProvider + 'static> TelemetryEngine<T
                 _ = interval.tick() => {
                     while let Some(update) = queue.front() {
                         if update.timestamp.elapsed() >= self.state.read().unwrap().delay {
-                            if let Some(u) = queue.pop_front() {
-                                self.apply_updates(u.update);
+                            if let Some(mut u) = queue.pop_front() {
+                                // 1) Pass through the aggregators
+                                let mut tasks = vec![];
+                                for aggregator in &self.aggregators {
+                                    tasks.extend(
+                                        aggregator.process(&self.state.read().unwrap(), &mut u.update),
+                                    );
+                                }
+
+                                // 2) Apply Updates
+                                self.apply_updates(u.update.clone());
+
+                                // 3) Spawn all requested background tasks
+                                for task in tasks {
+                                    match task {
+                                        EngineTask::FetchCircuitLayout => {
+                                            if let Some(ref circuit) = u.update.circuit {
+                                                self.spawn_layout_fetch(circuit.key, circuit.year)
+                                            }
+                                        }
+                                    }
+                                }
                             }
                         } else {
                             break;
