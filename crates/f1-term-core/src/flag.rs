@@ -12,6 +12,7 @@ pub enum FlagColor {
     Red,
     Chequered,
     Blue,
+    BlackAndWhite,
     Clear,
 }
 

@@ -27,6 +27,7 @@ impl TryFrom<&RawRaceControlMessage> for RaceControlMessage {
                     "CLEAR" => FlagColor::Clear,
                     "CHEQUERED" => FlagColor::Chequered,
                     "BLUE" => FlagColor::Blue,
+                    "BLACK AND WHITE" => FlagColor::BlackAndWhite,
                     _ => return Err(format!("Unknown flag color: {}", color_str).into()),
                 };
 
