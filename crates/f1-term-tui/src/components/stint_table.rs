@@ -42,6 +42,10 @@ impl StintTableData {
         Cell::new(format!("{}", self.driver_number.value))
     }
 
+    fn pits_cell(&self) -> Cell<'_> {
+        Cell::new(format!("{}", self.stints.len() - 1))
+    }
+
     fn stint_cell(&self) -> Cell<'_> {
         let mut spans = Vec::new();
         for stint in &self.stints {
@@ -93,6 +97,7 @@ impl Component for StintTable {
                 Constraint::Length(4),                              // driver
                 Constraint::Length(3),                              // num
                 Constraint::Length(self.current_laps() as u16 + 2), // stints
+                Constraint::Length(4),                              // pits
             ],
         )
         .header(self.header());
@@ -104,14 +109,14 @@ impl Component for StintTable {
 impl StintTable {
     fn header(&self) -> Row<'_> {
         let total_laps = self.current_laps() + 1;
-        let mut lapline = String::with_capacity(total_laps as usize);
+        let mut lap_count = String::with_capacity(total_laps as usize);
         let mut i = 1;
         while i <= total_laps {
             if i % 5 == 0 {
-                let _ = write!(&mut lapline, "{}", i);
+                let _ = write!(&mut lap_count, "{}", i);
                 i += i.ilog10() as u8; // to offset the char width
             } else {
-                lapline.push(' ');
+                lap_count.push(' ');
             }
             i += 1;
         }
@@ -119,7 +124,8 @@ impl StintTable {
             Cell::from("  #"),
             Cell::from("Drv"),
             Cell::from("Num"),
-            Cell::from(lapline),
+            Cell::from(lap_count),
+            Cell::from("Pits"),
         ])
     }
 
@@ -147,6 +153,7 @@ impl StintTable {
                     data.tla_cell(),
                     data.driver_number_cell(),
                     data.stint_cell(),
+                    data.pits_cell(),
                 ])
             })
             .collect()
@@ -212,6 +219,13 @@ mod tests {
         let data = test_data();
         let cell = data.driver_number_cell();
         assert_eq!(cell, Cell::new("14"));
+    }
+
+    #[test]
+    fn test_pits_cell() {
+        let data = test_data();
+        let cell = data.pits_cell();
+        assert_eq!(cell, Cell::new("0"));
     }
 
     #[test]
