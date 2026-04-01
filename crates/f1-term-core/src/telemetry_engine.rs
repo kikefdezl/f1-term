@@ -74,7 +74,6 @@ impl<T: TelemetryProvider, C: CircuitLayoutProvider + 'static> TelemetryEngine<T
 
 
                 update_opt = self.telemetry_provider.next_updates() => {
-
                     if let Some(update) = update_opt {
                         let stored = StoredUpdate {
                             timestamp: Instant::now(),
@@ -87,32 +86,36 @@ impl<T: TelemetryProvider, C: CircuitLayoutProvider + 'static> TelemetryEngine<T
                 _ = interval.tick() => {
                     while let Some(update) = queue.front() {
                         if update.timestamp.elapsed() >= self.state.read().unwrap().delay {
-                            if let Some(mut u) = queue.pop_front() {
-                                // 1) Pass through the aggregators
-                                let mut tasks = vec![];
-                                for aggregator in &self.aggregators {
-                                    tasks.extend(
-                                        aggregator.process(&self.state.read().unwrap(), &mut u.update),
-                                    );
-                                }
-
-                                // 2) Apply Updates
-                                self.apply_updates(u.update.clone());
-
-                                // 3) Spawn all requested background tasks
-                                for task in tasks {
-                                    match task {
-                                        EngineTask::FetchCircuitLayout => {
-                                            if let Some(ref circuit) = u.update.circuit {
-                                                self.spawn_layout_fetch(circuit.key, circuit.year)
-                                            }
-                                        }
-                                    }
-                                }
+                            if let Some(ready_update) = queue.pop_front() {
+                                self.process_pipeline(ready_update.update);
                             }
                         } else {
                             break;
                         }
+                    }
+                }
+            }
+        }
+    }
+
+    fn process_pipeline(&self, mut update: TelemetryUpdate) {
+        let mut tasks = vec![];
+        for aggregator in &self.aggregators {
+            tasks.extend(aggregator.process(&self.state.read().unwrap(), &mut update));
+        }
+
+        let circuit_info = update.circuit.as_ref().map(|c| (c.key, c.year));
+
+        self.apply_updates(update);
+        self.execute_tasks(tasks, circuit_info);
+    }
+
+    fn execute_tasks(&self, tasks: Vec<EngineTask>, circuit_info: Option<(CircuitKey, u32)>) {
+        for task in tasks {
+            match task {
+                EngineTask::FetchCircuitLayout => {
+                    if let Some((key, year)) = circuit_info {
+                        self.spawn_layout_fetch(key, year)
                     }
                 }
             }
