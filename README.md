@@ -1,5 +1,9 @@
 # f1-term
 
+![f1-term demo](assets/f1-term.gif)
+
+<video src="https://raw.githubusercontent.com/kikefdezl/f1-term/main/assets/f1-term.mp4" controls width="100%"></video>
+
 A terminal user interface for Formula 1 telemetry and live timing.
 
 ## Overview
