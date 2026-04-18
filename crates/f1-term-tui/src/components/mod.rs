@@ -6,6 +6,7 @@ use crate::action::Action;
 pub mod circuit_canvas;
 pub mod help_popup;
 pub mod message_log;
+pub mod spread_bar;
 pub mod stint_table;
 pub mod timing_table;
 pub mod title_bar;
