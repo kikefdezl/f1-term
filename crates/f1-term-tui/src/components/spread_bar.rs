@@ -24,16 +24,17 @@ impl Component for SpreadBar {
     fn update(&mut self, action: Action) -> Result<Option<Action>, Box<dyn std::error::Error>> {
         if let Action::StateUpdate(ref state_lock) = action {
             let state = state_lock.read().unwrap();
-            self.drivers = state
-                .drivers
-                .values()
-                .filter_map(|driver| {
-                    let team = state.teams.get(&driver.team_name)?;
-                    let timing = state.timing_data.get(&driver.number)?;
-                    let diff_to_fastest = timing.time_diffs.to_fastest.clone();
+            let participants = state.participants();
+            self.drivers = participants
+                .iter()
+                .filter_map(|participant| {
+                    let team = state.teams.get(&participant.driver.team_name)?;
+                    let timing = state.timing_data.get(&participant.driver.number)?;
+                    let session_type = state.info.as_ref().map(|info| &info.type_);
+                    let diff_to_fastest = participant.time_diff_to_fastest(session_type);
                     let position = timing.position;
                     Some(DriverData {
-                        tla: driver.tla.clone(),
+                        tla: participant.driver.tla.clone(),
                         team_color: Color::from_u32(team.color.u32),
                         diff_to_fastest,
                         position,

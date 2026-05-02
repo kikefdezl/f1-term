@@ -54,6 +54,19 @@ pub struct QualiStats {
     pub q3_diffs: Option<TimeDiffs>,
 }
 
+impl QualiStats {
+    pub fn last_diffs(self) -> Option<TimeDiffs> {
+        if self.q1_diffs.is_some() {
+            return self.q1_diffs;
+        } else if self.q2_diffs.is_some() {
+            return self.q2_diffs;
+        } else if self.q3_diffs.is_some() {
+            return self.q3_diffs;
+        }
+        None
+    }
+}
+
 #[derive(Debug, Default, Clone, PartialEq)]
 pub struct Sector {
     pub overall_fastest: bool,
