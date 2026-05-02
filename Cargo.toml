@@ -15,4 +15,3 @@ tokio = { version = "1.49.0", features = ["full"] }
 f1-term-multiviewer = { version = "0.1.0", path = "crates/f1-term-multiviewer" }
 log = { version = "0.4", features = ["std"] }
 chrono = "0.4"
-

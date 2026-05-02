@@ -4,7 +4,7 @@ use ratatui::Frame;
 use ratatui::layout::Rect;
 use ratatui::style::{Color, Style};
 use ratatui::text::{Line, Span};
-use ratatui::widgets::{Block, Borders, Paragraph, Wrap};
+use ratatui::widgets::{Block, BorderType, Paragraph, Wrap};
 
 use super::Component;
 use crate::action::Action;
@@ -68,8 +68,8 @@ impl Component for MessageLog {
 
         let block = Block::default()
             .title(" Race Control Messages ")
-            .borders(Borders::LEFT)
-            .border_style(Style::default().fg(Color::DarkGray));
+            .border_style(Style::default().fg(Color::Gray))
+            .border_type(BorderType::Rounded);
 
         let p = Paragraph::new(lines).block(block).wrap(Wrap { trim: true });
 
