@@ -82,7 +82,7 @@ impl SpreadBar {
     }
 
     fn driver_markers(&self, area: Rect) -> Vec<DriverMarker> {
-        let mut parsed_drivers = Vec::new();
+        let mut parsed_drivers = Vec::with_capacity(self.drivers.len());
         let mut max_diff = 0.0_f64;
 
         for driver in &self.drivers {
@@ -101,7 +101,7 @@ impl SpreadBar {
             }
         }
 
-        let mut driver_markers = Vec::new();
+        let mut driver_markers = Vec::with_capacity(self.drivers.len());
         for (driver, diff) in parsed_drivers {
             let normalized_diff = if max_diff == 0.0 {
                 1.0
