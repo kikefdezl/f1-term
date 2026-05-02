@@ -25,11 +25,9 @@ impl Component for HelpPopup {
                     self.visible = !self.visible;
                     return Ok(Some(Action::Render));
                 }
-                KeyCode::Esc => {
-                    if self.visible {
-                        self.visible = false;
-                        return Ok(Some(Action::Render));
-                    }
+                KeyCode::Esc if self.visible => {
+                    self.visible = false;
+                    return Ok(Some(Action::Render));
                 }
                 _ => {}
             }

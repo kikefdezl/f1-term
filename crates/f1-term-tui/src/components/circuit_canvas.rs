@@ -7,7 +7,8 @@ use f1_term_core::circuit::{
 use ratatui::Frame;
 use ratatui::layout::Rect;
 use ratatui::style::Color;
-use ratatui::widgets::canvas::{Canvas, Line};
+use ratatui::symbols::Marker;
+use ratatui::widgets::canvas::{Canvas, Context, Line};
 
 use super::{Action, Component};
 
@@ -61,7 +62,7 @@ impl Component for CircuitCanvas {
         let bounds = pad_bounds_to_area(&self.bounds, area);
 
         let canvas = Canvas::default()
-            .marker(ratatui::symbols::Marker::Braille)
+            .marker(Marker::Braille)
             .paint(|ctx| self.draw_circuit(ctx, bounds, area))
             .x_bounds([bounds.x_min as f64, bounds.x_max as f64])
             .y_bounds([bounds.y_min as f64, bounds.y_max as f64]);
@@ -77,12 +78,7 @@ impl CircuitCanvas {
     /// To create a simulated line thickness, we draw each segment multiple times,
     /// slightly offset in the X and Y coordinate spaces.
     /// This effectively creates a thicker "brush" around the true coordinate path.
-    fn draw_circuit(
-        &self,
-        ctx: &mut ratatui::widgets::canvas::Context<'_>,
-        bounds: Bounds,
-        area: Rect,
-    ) {
+    fn draw_circuit(&self, ctx: &mut Context<'_>, bounds: Bounds, area: Rect) {
         // This calculates the coordinate size of a single braille dot.
         let dot_size_x = if area.width > 0 {
             (bounds.x_max - bounds.x_min) as f64 / (area.width as f64 * 2.0)

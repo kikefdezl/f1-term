@@ -68,7 +68,6 @@ impl Component for MessageLog {
 
         let block = Block::default()
             .title(" Race Control Messages ")
-            .borders(Borders::LEFT | Borders::BOTTOM)
             .border_style(Style::default().fg(Color::Gray))
             .border_type(BorderType::Rounded);
 
