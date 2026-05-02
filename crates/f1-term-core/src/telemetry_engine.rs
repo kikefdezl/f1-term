@@ -100,12 +100,16 @@ impl<T: TelemetryProvider, C: CircuitLayoutProvider + 'static> TelemetryEngine<T
 
     fn process_pipeline(&self, mut update: TelemetryUpdate) {
         let mut tasks = vec![];
+        let state = self.state.read().unwrap();
         for aggregator in &self.aggregators {
-            tasks.extend(aggregator.process(&self.state.read().unwrap(), &mut update));
+            tasks.extend(aggregator.process(&state, &mut update));
         }
+        drop(state);
 
+        // TODO: It's not right that the execute_tasks() knows about fields that are required by
+        // some of the aggregators (circuit_info), it should be generic.
+        // This should be refactored.
         let circuit_info = update.circuit.as_ref().map(|c| (c.key, c.year));
-
         self.apply_updates(update);
         self.execute_tasks(tasks, circuit_info);
     }
