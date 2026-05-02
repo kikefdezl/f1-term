@@ -8,6 +8,13 @@ use ratatui::widgets::canvas::{Canvas, Context, Line};
 use super::Component;
 use crate::action::Action;
 
+const MIN_X: f64 = 0.0;
+const MIN_Y: f64 = 0.0;
+const MAX_X: f64 = 1.0;
+const MAX_Y: f64 = 1.0;
+
+const MID_Y: f64 = (MAX_Y - MIN_Y) / 2.0;
+
 #[derive(Default)]
 pub struct SpreadBar {
     drivers: Vec<DriverData>,
@@ -48,33 +55,33 @@ impl Component for SpreadBar {
 
     fn draw(&mut self, f: &mut Frame, area: Rect) -> Result<(), Box<dyn std::error::Error>> {
         let canvas = Canvas::default()
-            .x_bounds([-0.02, 1.02]) // small margin on the sides of the spread bar
-            .y_bounds([0.0, 1.0])
+            .x_bounds([MIN_X - 0.02, MAX_X + 0.02]) // small margin on the sides of the spread bar
+            .y_bounds([MIN_Y, MAX_Y])
             .marker(Marker::Braille)
-            .paint(|ctx| self.paint(ctx));
+            .paint(|ctx| self.paint(ctx, area));
         f.render_widget(canvas, area);
         Ok(())
     }
 }
 
 impl SpreadBar {
-    fn paint(&self, ctx: &mut Context) {
-        let line = Line::new(0.0, 0.5, 1.0, 0.5, Color::White);
+    fn paint(&self, ctx: &mut Context, area: Rect) {
+        let line = Line::new(MIN_X, MID_Y, MAX_X, MID_Y, Color::White);
         ctx.draw(&line);
-        let driver_markers = self.driver_markers();
+        let driver_markers = self.driver_markers(area);
         for marker in driver_markers {
-            let draw_x = marker.normalized_diff;
-            let tick = Line::new(draw_x, 0.45, draw_x, 0.55, marker.color);
+            let draw_x = marker.x_pos;
+            let tick = Line::new(draw_x, MID_Y - 0.05, draw_x, MID_Y + 0.05, marker.color);
             ctx.draw(&tick);
             ctx.print(
                 draw_x,
-                marker.y_offset,
+                marker.y_pos,
                 Span::styled(marker.tla.clone(), Style::default().fg(marker.color)),
             );
         }
     }
 
-    fn driver_markers(&self) -> Vec<DriverMarker> {
+    fn driver_markers(&self, area: Rect) -> Vec<DriverMarker> {
         let mut parsed_drivers = Vec::new();
         let mut max_diff = 0.0_f64;
 
@@ -87,10 +94,10 @@ impl SpreadBar {
             };
 
             if let Some(d) = diff {
+                parsed_drivers.push((driver, d));
                 if d > max_diff {
                     max_diff = d;
                 }
-                parsed_drivers.push((driver, d));
             }
         }
 
@@ -102,33 +109,36 @@ impl SpreadBar {
                 1.0 - (diff / max_diff)
             };
             driver_markers.push(DriverMarker {
-                normalized_diff,
+                x_pos: normalized_diff,
+                y_pos: 0.0,
                 tla: driver.tla.clone(),
                 color: driver.team_color,
-                y_offset: 1.0,
             });
         }
 
         driver_markers.sort_by(|a, b| {
-            b.normalized_diff
-                .partial_cmp(&a.normalized_diff)
+            b.x_pos
+                .partial_cmp(&a.x_pos)
                 .unwrap_or(std::cmp::Ordering::Equal)
         });
 
+        let cell_width = (MAX_X - MIN_X) / area.width as f64;
+        let cell_height = (MAX_Y - MIN_Y) / area.height as f64;
         let mut levels = [-1.0; 4];
         for marker in &mut driver_markers {
             let mut chosen_level = None;
             for (i, last_x) in levels.iter().enumerate() {
-                if *last_x < 0.0 || *last_x - marker.normalized_diff > 0.05 {
+                // 3x cell width to account for TLA width
+                if *last_x < 0.0 || *last_x - marker.x_pos > (cell_width * 3.0) {
                     chosen_level = Some(i);
                     break;
                 }
             }
 
-            marker.y_offset = 0.6;
+            marker.y_pos = MID_Y + cell_height;
             if let Some(l) = chosen_level {
-                levels[l] = marker.normalized_diff;
-                marker.y_offset += l as f64 * 0.05;
+                levels[l] = marker.x_pos;
+                marker.y_pos += l as f64 * cell_height;
             }
         }
 
@@ -162,14 +172,16 @@ impl SpreadBar {
 }
 
 struct DriverMarker {
-    normalized_diff: f64,
+    x_pos: f64,
+    y_pos: f64,
     tla: String,
     color: Color,
-    y_offset: f64,
 }
 
 #[cfg(test)]
 mod tests {
+    use approx::relative_eq;
+
     use super::*;
 
     #[test]
@@ -196,7 +208,7 @@ mod tests {
             },
             DriverData {
                 tla: "HAM".to_string(),
-                team_color: Color::Green,
+                team_color: Color::Red,
                 diff_to_fastest: Some("+10.0".to_string()),
                 position: 2,
             },
@@ -207,26 +219,26 @@ mod tests {
                 position: 3,
             },
             DriverData {
-                tla: "SAI".to_string(),
-                team_color: Color::Red,
+                tla: "OCO".to_string(),
+                team_color: Color::Magenta,
                 diff_to_fastest: Some("1L".to_string()), // Should be ignored
                 position: 4,
             },
         ];
 
         let spread_bar = SpreadBar { drivers };
-        let markers = spread_bar.driver_markers();
+        let markers = spread_bar.driver_markers(Rect::new(0, 0, 80, 40));
 
         assert_eq!(markers.len(), 3);
 
         let ver = markers.iter().find(|m| m.tla == "VER").unwrap();
-        assert_eq!(ver.normalized_diff, 1.0); // 0.0 diff -> 1.0
+        assert_eq!(ver.x_pos, 1.0); // 0.0 diff -> 1.0
 
         let ham = markers.iter().find(|m| m.tla == "HAM").unwrap();
-        assert_eq!(ham.normalized_diff, 0.5); // 10.0 / 20.0 = 0.5 -> 1.0 - 0.5 = 0.5
+        assert_eq!(ham.x_pos, 0.5); // 10.0 / 20.0 = 0.5 -> 1.0 - 0.5 = 0.5
 
         let nor = markers.iter().find(|m| m.tla == "NOR").unwrap();
-        assert_eq!(nor.normalized_diff, 0.0); // 20.0 / 20.0 = 1.0 -> 1.0 - 1.0 = 0.0
+        assert_eq!(nor.x_pos, 0.0); // 20.0 / 20.0 = 1.0 -> 1.0 - 1.0 = 0.0
     }
 
     #[test]
@@ -240,7 +252,7 @@ mod tests {
             },
             DriverData {
                 tla: "HAM".to_string(),
-                team_color: Color::Green,
+                team_color: Color::Red,
                 diff_to_fastest: Some("".to_string()),
                 position: 2, // Should be ignored because empty and not pos 1
             },
@@ -251,7 +263,7 @@ mod tests {
                 position: 1,
             },
             DriverData {
-                tla: "SAI".to_string(),
+                tla: "OCO".to_string(),
                 team_color: Color::Red,
                 diff_to_fastest: Some("GARBAGE".to_string()),
                 position: 1, // Should be forced to 0.0 diff and included
@@ -259,30 +271,29 @@ mod tests {
         ];
 
         let spread_bar = SpreadBar { drivers };
-        let markers = spread_bar.driver_markers();
+        let markers = spread_bar.driver_markers(Rect::new(0, 0, 80, 40));
 
         // VER, NOR, and SAI should be included because they have position 1
         assert_eq!(markers.len(), 3);
 
         // All are 0.0 diff, so all should have 1.0 normalized_diff
         for marker in markers {
-            assert_eq!(marker.normalized_diff, 1.0);
+            assert_eq!(marker.x_pos, 1.0);
         }
     }
 
     #[test]
     fn test_driver_markers_overlap_logic() {
-        // Create 5+ DriverData items clustered very closely
         let drivers = vec![
             DriverData {
                 tla: "VER".to_string(),
                 team_color: Color::Blue,
                 diff_to_fastest: None,
-                position: 1, // diff 0.0 -> normalized 1.0
+                position: 1,
             },
             DriverData {
                 tla: "HAM".to_string(),
-                team_color: Color::Green,
+                team_color: Color::Red,
                 diff_to_fastest: Some("+0.01".to_string()),
                 position: 2,
             },
@@ -294,7 +305,7 @@ mod tests {
             },
             DriverData {
                 tla: "SAI".to_string(),
-                team_color: Color::Red,
+                team_color: Color::Blue,
                 diff_to_fastest: Some("+0.03".to_string()),
                 position: 4,
             },
@@ -305,15 +316,16 @@ mod tests {
                 position: 5,
             },
             DriverData {
-                tla: "ALO".to_string(),
-                team_color: Color::Green,
+                tla: "OCO".to_string(),
+                team_color: Color::Magenta,
                 diff_to_fastest: Some("+10.0".to_string()), // large diff to make normalized diffs of the above 5 very close
                 position: 6,
             },
         ];
 
         let spread_bar = SpreadBar { drivers };
-        let markers = spread_bar.driver_markers();
+        let rect = Rect::new(0, 0, 80, 40);
+        let markers = spread_bar.driver_markers(rect);
 
         assert_eq!(markers.len(), 6);
 
@@ -323,15 +335,13 @@ mod tests {
         let sai = markers.iter().find(|m| m.tla == "SAI").unwrap();
         let lec = markers.iter().find(|m| m.tla == "LEC").unwrap();
 
-        // 1st driver
-        assert_eq!(ver.y_offset, 0.6);
-        // 2nd driver
-        assert_eq!(ham.y_offset, 0.65);
-        // 3rd driver
-        assert_eq!(nor.y_offset, 0.70);
-        // 4th driver
-        assert_eq!(sai.y_offset, 0.75);
+        let cell_height = (MAX_Y - MIN_Y) / rect.height as f64;
+
+        let _ = relative_eq!(ver.y_pos, MID_Y + cell_height);
+        let _ = relative_eq!(ham.y_pos, MID_Y + 2.0 * cell_height);
+        let _ = relative_eq!(nor.y_pos, MID_Y + 3.0 * cell_height);
+        let _ = relative_eq!(sai.y_pos, MID_Y + 4.0 * cell_height);
         // 5th driver falls back to level 0 because 4 levels is max
-        assert_eq!(lec.y_offset, 0.6);
+        let _ = relative_eq!(lec.y_pos, MID_Y + cell_height);
     }
 }
