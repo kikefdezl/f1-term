@@ -4,15 +4,21 @@ use crossterm::event::KeyCode;
 use f1_term_core::circuit::{
     Bounds, CircuitKey, CircuitLayout, CircuitScope, CircuitStatus, Corner,
 };
+use f1_term_core::team::TeamColor;
 use ratatui::Frame;
 use ratatui::layout::Rect;
 use ratatui::style::Color;
 use ratatui::symbols::Marker;
-use ratatui::widgets::canvas::{Canvas, Context, Line};
+use ratatui::widgets::canvas::{Canvas, Circle, Context, Line};
 
 use super::{Action, Component};
 
 const CIRCUIT_THICKNESS: f64 = 0.5;
+
+pub struct DriverData {
+    color: TeamColor,
+    percentage_lap_done: Option<f64>,
+}
 
 #[derive(Default)]
 pub struct CircuitCanvas {
@@ -22,6 +28,7 @@ pub struct CircuitCanvas {
     segments: Vec<Line>,
     show_corners: bool,
     corners: Vec<Corner>,
+    driver_datas: Vec<DriverData>,
 }
 
 impl Component for CircuitCanvas {
@@ -42,6 +49,23 @@ impl Component for CircuitCanvas {
                     self.corners = layout.corners.clone();
                     self.segments = segments_from_layout(&layout, &self.circuit_status);
                 }
+                let mut driver_datas = Vec::new();
+                for driver in state.drivers.values() {
+                    let number = driver.number;
+                    let team = state
+                        .teams
+                        .get(&driver.team_name)
+                        .expect("Team should be there");
+                    let timing_data = state
+                        .timing_data
+                        .get(&number)
+                        .expect("Should have timing data");
+                    driver_datas.push(DriverData {
+                        color: team.color,
+                        percentage_lap_done: timing_data.lap_data.last_lap.percentage_lap_done(),
+                    });
+                }
+                self.driver_datas = driver_datas;
             }
             Action::KeyPress(key) => {
                 if let KeyCode::Char('n') = key.code {
@@ -118,6 +142,18 @@ impl CircuitCanvas {
                         ratatui::style::Style::default().fg(Color::White),
                     ),
                 );
+            }
+        }
+
+        for driver in &self.driver_datas {
+            if let Some(pld) = driver.percentage_lap_done {
+                let idx = (pld * self.segments.len() as f64) as usize - 1;
+                ctx.draw(&Circle::new(
+                    self.segments[idx].x1,
+                    self.segments[idx].y1,
+                    20.0,
+                    Color::from_u32(driver.color.u32),
+                ));
             }
         }
     }
