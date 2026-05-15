@@ -1,4 +1,5 @@
-use super::driver::DriverNumber;
+use crate::driver::DriverNumber;
+use crate::gap::Gap;
 use crate::lap_time::LapTime;
 
 #[derive(Debug, Default, Clone, PartialEq)]
@@ -104,8 +105,8 @@ pub struct Sector {
     pub status: u32,
     pub stopped: bool,
     /// value is None if driver is on their next lap
-    pub value: Option<String>,
-    pub previous_value: Option<String>,
+    pub value: Option<LapTime>,
+    pub previous_value: Option<LapTime>,
 }
 
 impl Sector {
@@ -159,6 +160,6 @@ pub struct Speed {
 
 #[derive(Debug, Default, Clone, PartialEq)]
 pub struct TimeDiffs {
-    pub to_fastest: Option<String>,
-    pub to_position_ahead: Option<String>,
+    pub to_fastest: Option<Gap>,
+    pub to_position_ahead: Option<Gap>,
 }

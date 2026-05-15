@@ -1,6 +1,6 @@
 use std::fmt::Display;
 
-#[derive(Debug, Default, Clone)]
+#[derive(Debug, Default, Clone, Eq, PartialEq, Copy)]
 pub struct LapTime {
     pub minutes: u32,
     pub seconds: u32,
@@ -16,7 +16,23 @@ impl LapTime {
         }
     }
 
-    fn total_millis(&self) -> u64 {
+    pub fn from_seconds(seconds: u32) -> Self {
+        LapTime {
+            minutes: 0,
+            seconds,
+            millis: 0,
+        }
+    }
+
+    pub fn from_millis(millis: u32) -> Self {
+        LapTime {
+            minutes: 0,
+            seconds: 0,
+            millis,
+        }
+    }
+
+    pub fn millis(&self) -> u64 {
         self.minutes as u64 * 60 * 1000 + self.seconds as u64 * 1000 + self.millis as u64
     }
 }
@@ -24,13 +40,9 @@ impl LapTime {
 impl Display for LapTime {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         if self.minutes == 0 {
-            write!(f, "{:02}.{:03}", self.seconds, self.millis)
+            write!(f, "{}.{:03}", self.seconds, self.millis)
         } else {
-            write!(
-                f,
-                "{:01}:{:02}.{:03}",
-                self.minutes, self.seconds, self.millis
-            )
+            write!(f, "{}:{:02}.{:03}", self.minutes, self.seconds, self.millis)
         }
     }
 }
@@ -53,14 +65,6 @@ impl TryFrom<&str> for LapTime {
     }
 }
 
-impl PartialEq for LapTime {
-    fn eq(&self, other: &Self) -> bool {
-        self.total_millis() == other.total_millis()
-    }
-}
-
-impl Eq for LapTime {}
-
 impl PartialOrd for LapTime {
     fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
         Some(self.cmp(other))
@@ -69,7 +73,7 @@ impl PartialOrd for LapTime {
 
 impl Ord for LapTime {
     fn cmp(&self, other: &Self) -> std::cmp::Ordering {
-        self.total_millis().cmp(&other.total_millis())
+        self.millis().cmp(&other.millis())
     }
 }
 

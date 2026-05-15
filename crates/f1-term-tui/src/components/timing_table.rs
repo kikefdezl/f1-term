@@ -2,6 +2,7 @@ use std::fmt::Display;
 
 use crossterm::event::KeyCode;
 use f1_term_core::driver::Driver;
+use f1_term_core::gap::Gap;
 use f1_term_core::lap_time::LapTime;
 use f1_term_core::stint::{Compound, Stints};
 use f1_term_core::team::Team;
@@ -36,8 +37,8 @@ pub struct TimingTableData {
     last_lap_overall_fastest: bool,
     last_lap_personal_fastest: bool,
     sectors: Vec<Sector>,
-    time_diff_to_fastest: Option<String>,
-    time_diff_to_position_ahead: Option<String>,
+    time_diff_to_fastest: Option<Gap>,
+    time_diff_to_position_ahead: Option<Gap>,
 }
 
 pub struct TimingTableDataArgs<'a> {
@@ -45,8 +46,8 @@ pub struct TimingTableDataArgs<'a> {
     pub team: &'a Team,
     pub live_timing: Option<&'a LiveTiming>,
     pub stints: Option<&'a Stints>,
-    pub time_diff_to_fastest: Option<String>,
-    pub time_diff_to_position_ahead: Option<String>,
+    pub time_diff_to_fastest: Option<Gap>,
+    pub time_diff_to_position_ahead: Option<Gap>,
 }
 
 impl TimingTableData {
@@ -71,21 +72,15 @@ impl TimingTableData {
             .map(|lt| lt.pit_data.in_pit)
             .unwrap_or(false);
 
-        self.best_lap_time.clone_from(
-            &args
-                .live_timing
-                .and_then(|lt| lt.lap_data.best_lap.time.clone()),
-        );
+        self.best_lap_time
+            .clone_from(&args.live_timing.and_then(|lt| lt.lap_data.best_lap.time));
         self.best_lap_overall_fastest = args
             .live_timing
             .map(|lt| lt.lap_data.best_lap.overall_fastest)
             .unwrap_or(false);
 
-        self.last_lap_time.clone_from(
-            &args
-                .live_timing
-                .and_then(|lt| lt.lap_data.last_lap.time.clone()),
-        );
+        self.last_lap_time
+            .clone_from(&args.live_timing.and_then(|lt| lt.lap_data.last_lap.time));
         self.last_lap_overall_fastest = args
             .live_timing
             .map(|lt| lt.lap_data.last_lap.overall_fastest)
@@ -101,8 +96,8 @@ impl TimingTableData {
             self.sectors.clear();
         }
 
-        self.time_diff_to_fastest = args.time_diff_to_fastest.clone();
-        self.time_diff_to_position_ahead = args.time_diff_to_position_ahead.clone();
+        self.time_diff_to_fastest = args.time_diff_to_fastest;
+        self.time_diff_to_position_ahead = args.time_diff_to_position_ahead;
     }
 
     fn position_cell(&self, pos: usize) -> Cell<'_> {
@@ -196,7 +191,7 @@ impl TimingTableData {
                 GapMode::ToPositionAhead => &self.time_diff_to_position_ahead,
             };
             match diff {
-                Some(t) => Cell::from(t.as_str()),
+                Some(t) => Cell::from(format!("+{}", t)),
                 None => Cell::from(" -.---"),
             }
         }
@@ -442,10 +437,10 @@ impl TimingTable {
 
     fn sector(sector: &Sector) -> Cell<'_> {
         let value = match &sector.value {
-            Some(v) => v,
+            Some(v) => v.to_string(),
             None => match &sector.previous_value {
-                Some(pv) => pv.as_str(),
-                None => "",
+                Some(pv) => pv.to_string(),
+                None => "".to_string(),
             },
         };
 
@@ -543,8 +538,8 @@ mod tests {
     #[test]
     fn test_gap_cell() {
         let mut data = TimingTableData {
-            time_diff_to_fastest: Some("+1.234".to_string()),
-            time_diff_to_position_ahead: Some("+0.500".to_string()),
+            time_diff_to_fastest: Some(Gap::Time(LapTime::new(0, 1, 234))),
+            time_diff_to_position_ahead: Some(Gap::Time(LapTime::new(0, 0, 500))),
             ..Default::default()
         };
 

@@ -3,6 +3,7 @@ pub mod circuit;
 pub mod clock;
 pub mod driver;
 pub mod flag;
+pub mod gap;
 pub mod lap_time;
 pub mod laps;
 pub mod race_control_message;
