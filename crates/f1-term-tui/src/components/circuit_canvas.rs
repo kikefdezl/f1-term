@@ -4,18 +4,21 @@ use crossterm::event::KeyCode;
 use f1_term_core::circuit::{
     Bounds, CircuitKey, CircuitLayout, CircuitScope, CircuitStatus, Corner,
 };
+use f1_term_core::driver::DriverNumber;
 use f1_term_core::team::TeamColor;
 use ratatui::Frame;
 use ratatui::layout::Rect;
-use ratatui::style::Color;
+use ratatui::style::{Color, Style};
 use ratatui::symbols::Marker;
-use ratatui::widgets::canvas::{Canvas, Circle, Context, Line};
+use ratatui::text::Span;
+use ratatui::widgets::canvas::{Canvas, Context, Line};
 
 use super::{Action, Component};
 
 const CIRCUIT_THICKNESS: f64 = 0.3;
 
 pub struct DriverData {
+    number: DriverNumber,
     color: TeamColor,
     percentage_lap_done: Option<f64>,
 }
@@ -61,6 +64,7 @@ impl Component for CircuitCanvas {
                         .get(&number)
                         .expect("Should have timing data");
                     driver_datas.push(DriverData {
+                        number: driver.number,
                         color: team.color,
                         percentage_lap_done: timing_data.lap_data.last_lap.percentage_lap_done(),
                     });
@@ -101,8 +105,9 @@ impl CircuitCanvas {
         self.paint_layout(ctx, bounds, area);
         if self.show_corners {
             self.paint_corner_numbers(ctx);
+        } else {
+            self.paint_drivers(ctx);
         }
-        self.paint_drivers(ctx);
     }
 
     /// Paints the circuit layout on the canvas.
@@ -146,9 +151,9 @@ impl CircuitCanvas {
             ctx.print(
                 corner.coord.x,
                 corner.coord.y,
-                ratatui::text::Span::styled(
+                Span::styled(
                     format!("{}", corner.num),
-                    ratatui::style::Style::default().fg(Color::White),
+                    Style::default().fg(Color::LightBlue),
                 ),
             );
         }
@@ -158,18 +163,20 @@ impl CircuitCanvas {
         for driver in &self.driver_datas {
             if let Some(pld) = driver.percentage_lap_done {
                 let idx = (pld * self.segments.len() as f64) as usize - 1;
-                ctx.draw(&Circle::new(
+                ctx.print(
                     self.segments[idx].x1,
                     self.segments[idx].y1,
-                    20.0,
-                    Color::from_u32(driver.color.u32),
-                ));
+                    Span::styled(
+                        format!("{}", driver.number.value),
+                        Style::default().fg(Color::from_u32(driver.color.u32)),
+                    ),
+                );
             }
         }
     }
 
     fn toggle_show_curve_numbers(&mut self) {
-        self.show_corners = !self.show_corners
+        self.show_corners = !self.show_corners;
     }
 }
 
