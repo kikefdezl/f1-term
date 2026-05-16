@@ -15,7 +15,7 @@ use ratatui::widgets::canvas::{Canvas, Context, Line};
 
 use super::{Action, Component};
 
-const CIRCUIT_THICKNESS: f64 = 0.3;
+const CIRCUIT_THICKNESS: f64 = 0.5;
 
 pub struct DriverData {
     number: DriverNumber,
@@ -55,14 +55,17 @@ impl Component for CircuitCanvas {
                 let mut driver_datas = Vec::new();
                 for driver in state.drivers.values() {
                     let number = driver.number;
-                    let team = state
-                        .teams
-                        .get(&driver.team_name)
-                        .expect("Team should be there");
                     let timing_data = state
                         .timing_data
                         .get(&number)
                         .expect("Should have timing data");
+                    if timing_data.retired || timing_data.stopped {
+                        continue;
+                    }
+                    let team = state
+                        .teams
+                        .get(&driver.team_name)
+                        .expect("Team should be there");
                     driver_datas.push(DriverData {
                         number: driver.number,
                         color: team.color,
