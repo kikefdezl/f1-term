@@ -13,7 +13,7 @@ use ratatui::widgets::canvas::{Canvas, Circle, Context, Line};
 
 use super::{Action, Component};
 
-const CIRCUIT_THICKNESS: f64 = 0.5;
+const CIRCUIT_THICKNESS: f64 = 0.3;
 
 pub struct DriverData {
     color: TeamColor,
@@ -87,7 +87,7 @@ impl Component for CircuitCanvas {
 
         let canvas = Canvas::default()
             .marker(Marker::Braille)
-            .paint(|ctx| self.draw_circuit(ctx, bounds, area))
+            .paint(|ctx| self.paint_circuit(ctx, bounds, area))
             .x_bounds([bounds.x_min as f64, bounds.x_max as f64])
             .y_bounds([bounds.y_min as f64, bounds.y_max as f64]);
 
@@ -97,12 +97,20 @@ impl Component for CircuitCanvas {
 }
 
 impl CircuitCanvas {
-    /// Draws the circuit layout on the canvas.
+    fn paint_circuit(&self, ctx: &mut Context<'_>, bounds: Bounds, area: Rect) {
+        self.paint_layout(ctx, bounds, area);
+        if self.show_corners {
+            self.paint_corner_numbers(ctx);
+        }
+        self.paint_drivers(ctx);
+    }
+
+    /// Paints the circuit layout on the canvas.
     ///
     /// To create a simulated line thickness, we draw each segment multiple times,
     /// slightly offset in the X and Y coordinate spaces.
     /// This effectively creates a thicker "brush" around the true coordinate path.
-    fn draw_circuit(&self, ctx: &mut Context<'_>, bounds: Bounds, area: Rect) {
+    fn paint_layout(&self, ctx: &mut Context<'_>, bounds: Bounds, area: Rect) {
         // This calculates the coordinate size of a single braille dot.
         let dot_size_x = if area.width > 0 {
             (bounds.x_max - bounds.x_min) as f64 / (area.width as f64 * 2.0)
@@ -131,20 +139,22 @@ impl CircuitCanvas {
                 });
             }
         }
+    }
 
-        if self.show_corners {
-            for corner in &self.corners {
-                ctx.print(
-                    corner.coord.x,
-                    corner.coord.y,
-                    ratatui::text::Span::styled(
-                        format!("{}", corner.num),
-                        ratatui::style::Style::default().fg(Color::White),
-                    ),
-                );
-            }
+    fn paint_corner_numbers(&self, ctx: &mut Context<'_>) {
+        for corner in &self.corners {
+            ctx.print(
+                corner.coord.x,
+                corner.coord.y,
+                ratatui::text::Span::styled(
+                    format!("{}", corner.num),
+                    ratatui::style::Style::default().fg(Color::White),
+                ),
+            );
         }
+    }
 
+    fn paint_drivers(&self, ctx: &mut Context<'_>) {
         for driver in &self.driver_datas {
             if let Some(pld) = driver.percentage_lap_done {
                 let idx = (pld * self.segments.len() as f64) as usize - 1;

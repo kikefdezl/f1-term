@@ -69,7 +69,7 @@ impl Component for SpreadBar {
 
     fn draw(&mut self, f: &mut Frame, area: Rect) -> Result<(), Box<dyn std::error::Error>> {
         let canvas = Canvas::default()
-            .x_bounds([MIN_X - 0.02, MAX_X + 0.02]) // small margin on the sides of the spread bar
+            .x_bounds([MIN_X - 0.02, MAX_X + 0.02]) // small margin on the sides to have a bit of space
             .y_bounds([MIN_Y, MAX_Y])
             .marker(Marker::Braille)
             .paint(|ctx| self.paint(ctx, area));
