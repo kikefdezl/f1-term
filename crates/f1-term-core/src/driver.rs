@@ -1,4 +1,5 @@
 use super::team::TeamName;
+use crate::driver_position::DriverPosition;
 
 #[derive(Eq, PartialEq, Hash, Debug, Clone, Copy, Default)]
 pub struct DriverNumber {
@@ -19,4 +20,12 @@ pub struct Driver {
     /// Three Letter Acronym
     pub tla: String,
     pub reference: String,
+    pub position: Option<DriverPosition>,
+}
+
+impl Driver {
+    pub fn with_position(mut self, position: DriverPosition) -> Self {
+        self.position = Some(position);
+        self
+    }
 }

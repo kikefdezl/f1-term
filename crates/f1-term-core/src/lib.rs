@@ -1,7 +1,9 @@
 pub mod aggregators;
 pub mod circuit;
 pub mod clock;
+pub mod coord;
 pub mod driver;
+pub mod driver_position;
 pub mod flag;
 pub mod gap;
 pub mod lap_time;

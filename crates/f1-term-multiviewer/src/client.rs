@@ -1,7 +1,8 @@
 use std::future::Future;
 use std::ops::Range;
 
-use f1_term_core::circuit::{CircuitKey, CircuitLayout, CircuitLayoutProvider, Coord, Corner};
+use f1_term_core::circuit::{CircuitKey, CircuitLayout, CircuitLayoutProvider, Corner};
+use f1_term_core::coord::Coord;
 use reqwest::Client;
 use serde::Deserialize;
 

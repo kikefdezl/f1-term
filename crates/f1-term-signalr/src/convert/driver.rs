@@ -26,6 +26,7 @@ impl TryFrom<&RawDriver> for Driver {
                 value: payload.TeamName.clone(),
             },
             reference: payload.Reference.clone(),
+            position: None,  // this has to be aggregated later
         })
     }
 }

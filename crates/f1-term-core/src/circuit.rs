@@ -2,6 +2,8 @@ use std::fmt::Display;
 use std::future::Future;
 use std::ops::Range;
 
+use crate::coord::Coord;
+
 #[derive(Copy, Debug, Default, Clone, PartialEq)]
 pub struct CircuitKey(pub u32);
 
@@ -137,21 +139,6 @@ pub trait CircuitLayoutProvider: Send + Sync {
 pub struct Corner {
     pub num: u8,
     pub coord: Coord,
-}
-
-#[derive(Debug, Default, Clone)]
-pub struct Coord {
-    pub x: f64,
-    pub y: f64,
-}
-
-impl Coord {
-    fn rotate(&self, cos_a: f64, sin_a: f64) -> Coord {
-        Coord {
-            x: self.x * cos_a - self.y * sin_a,
-            y: self.x * sin_a + self.y * cos_a,
-        }
-    }
 }
 
 #[cfg(test)]
