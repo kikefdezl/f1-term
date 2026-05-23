@@ -4,15 +4,24 @@ use crossterm::event::KeyCode;
 use f1_term_core::circuit::{
     Bounds, CircuitKey, CircuitLayout, CircuitScope, CircuitStatus, Corner,
 };
+use f1_term_core::driver::DriverNumber;
+use f1_term_core::team::TeamColor;
 use ratatui::Frame;
 use ratatui::layout::Rect;
-use ratatui::style::Color;
+use ratatui::style::{Color, Style};
 use ratatui::symbols::Marker;
+use ratatui::text::Span;
 use ratatui::widgets::canvas::{Canvas, Context, Line};
 
 use super::{Action, Component};
 
 const CIRCUIT_THICKNESS: f64 = 0.5;
+
+pub struct DriverData {
+    number: DriverNumber,
+    color: TeamColor,
+    percentage_lap_done: Option<f64>,
+}
 
 #[derive(Default)]
 pub struct CircuitCanvas {
@@ -22,6 +31,7 @@ pub struct CircuitCanvas {
     segments: Vec<Line>,
     show_corners: bool,
     corners: Vec<Corner>,
+    driver_datas: Vec<DriverData>,
 }
 
 impl Component for CircuitCanvas {
@@ -42,6 +52,27 @@ impl Component for CircuitCanvas {
                     self.corners = layout.corners.clone();
                     self.segments = segments_from_layout(&layout, &self.circuit_status);
                 }
+                let mut driver_datas = Vec::new();
+                for driver in state.drivers.values() {
+                    let number = driver.number;
+                    let timing_data = state
+                        .timing_data
+                        .get(&number)
+                        .expect("Should have timing data");
+                    if timing_data.retired || timing_data.stopped {
+                        continue;
+                    }
+                    let team = state
+                        .teams
+                        .get(&driver.team_name)
+                        .expect("Team should be there");
+                    driver_datas.push(DriverData {
+                        number: driver.number,
+                        color: team.color,
+                        percentage_lap_done: timing_data.lap_data.last_lap.percentage_lap_done(),
+                    });
+                }
+                self.driver_datas = driver_datas;
             }
             Action::KeyPress(key) => {
                 if let KeyCode::Char('n') = key.code {
@@ -63,7 +94,7 @@ impl Component for CircuitCanvas {
 
         let canvas = Canvas::default()
             .marker(Marker::Braille)
-            .paint(|ctx| self.draw_circuit(ctx, bounds, area))
+            .paint(|ctx| self.paint_circuit(ctx, bounds, area))
             .x_bounds([bounds.x_min as f64, bounds.x_max as f64])
             .y_bounds([bounds.y_min as f64, bounds.y_max as f64]);
 
@@ -73,12 +104,21 @@ impl Component for CircuitCanvas {
 }
 
 impl CircuitCanvas {
-    /// Draws the circuit layout on the canvas.
+    fn paint_circuit(&self, ctx: &mut Context<'_>, bounds: Bounds, area: Rect) {
+        self.paint_layout(ctx, bounds, area);
+        if self.show_corners {
+            self.paint_corner_numbers(ctx);
+        } else {
+            self.paint_drivers(ctx);
+        }
+    }
+
+    /// Paints the circuit layout on the canvas.
     ///
     /// To create a simulated line thickness, we draw each segment multiple times,
     /// slightly offset in the X and Y coordinate spaces.
     /// This effectively creates a thicker "brush" around the true coordinate path.
-    fn draw_circuit(&self, ctx: &mut Context<'_>, bounds: Bounds, area: Rect) {
+    fn paint_layout(&self, ctx: &mut Context<'_>, bounds: Bounds, area: Rect) {
         // This calculates the coordinate size of a single braille dot.
         let dot_size_x = if area.width > 0 {
             (bounds.x_max - bounds.x_min) as f64 / (area.width as f64 * 2.0)
@@ -107,15 +147,31 @@ impl CircuitCanvas {
                 });
             }
         }
+    }
 
-        if self.show_corners {
-            for corner in &self.corners {
+    fn paint_corner_numbers(&self, ctx: &mut Context<'_>) {
+        for corner in &self.corners {
+            ctx.print(
+                corner.coord.x,
+                corner.coord.y,
+                Span::styled(
+                    format!("{}", corner.num),
+                    Style::default().fg(Color::LightBlue),
+                ),
+            );
+        }
+    }
+
+    fn paint_drivers(&self, ctx: &mut Context<'_>) {
+        for driver in &self.driver_datas {
+            if let Some(pld) = driver.percentage_lap_done {
+                let idx = (pld * self.segments.len() as f64) as usize - 1;
                 ctx.print(
-                    corner.coord.x,
-                    corner.coord.y,
-                    ratatui::text::Span::styled(
-                        format!("{}", corner.num),
-                        ratatui::style::Style::default().fg(Color::White),
+                    self.segments[idx].x1,
+                    self.segments[idx].y1,
+                    Span::styled(
+                        format!("{}", driver.number.value),
+                        Style::default().fg(Color::from_u32(driver.color.u32)),
                     ),
                 );
             }
@@ -123,7 +179,7 @@ impl CircuitCanvas {
     }
 
     fn toggle_show_curve_numbers(&mut self) {
-        self.show_corners = !self.show_corners
+        self.show_corners = !self.show_corners;
     }
 }
 

@@ -1,3 +1,5 @@
+use f1_term_core::gap::Gap;
+use f1_term_core::lap_time::LapTime;
 use ratatui::Frame;
 use ratatui::layout::Rect;
 use ratatui::style::{Color, Style};
@@ -23,8 +25,7 @@ pub struct SpreadBar {
 struct DriverData {
     tla: String,
     team_color: Color,
-    diff_to_fastest: Option<String>,
-    position: u8,
+    diff_to_fastest: LapTime,
 }
 
 impl Component for SpreadBar {
@@ -38,13 +39,26 @@ impl Component for SpreadBar {
                     let team = state.teams.get(&participant.driver.team_name)?;
                     let timing = state.timing_data.get(&participant.driver.number)?;
                     let session_type = state.info.as_ref().map(|info| &info.type_);
-                    let diff_to_fastest = participant.time_diff_to_fastest(session_type);
-                    let position = timing.position;
+
+                    let diff_to_fastest = match participant.time_diff_to_fastest(session_type) {
+                        Some(time_diff) => match time_diff {
+                            Gap::Time(diff) => diff,
+                            // Skip lapped cars (Gap::Laps) since we don't have precise values for them
+                            Gap::Laps(_) => return None,
+                        },
+                        // Skip cars with no time value, unless they are the leader, whose gap is 0.
+                        None => {
+                            if timing.position == 1 {
+                                LapTime::from_millis(0)
+                            } else {
+                                return None;
+                            }
+                        }
+                    };
                     Some(DriverData {
                         tla: participant.driver.tla.clone(),
                         team_color: Color::from_u32(team.color.u32),
                         diff_to_fastest,
-                        position,
                     })
                 })
                 .collect();
@@ -55,7 +69,7 @@ impl Component for SpreadBar {
 
     fn draw(&mut self, f: &mut Frame, area: Rect) -> Result<(), Box<dyn std::error::Error>> {
         let canvas = Canvas::default()
-            .x_bounds([MIN_X - 0.02, MAX_X + 0.02]) // small margin on the sides of the spread bar
+            .x_bounds([MIN_X - 0.02, MAX_X + 0.02]) // small margin on the sides to have a bit of space
             .y_bounds([MIN_Y, MAX_Y])
             .marker(Marker::Braille)
             .paint(|ctx| self.paint(ctx, area));
@@ -83,30 +97,22 @@ impl SpreadBar {
 
     fn driver_markers(&self, area: Rect) -> Vec<DriverMarker> {
         let mut parsed_drivers = Vec::with_capacity(self.drivers.len());
-        let mut max_diff = 0.0_f64;
 
+        let mut max_diff = LapTime::from_millis(0);
         for driver in &self.drivers {
-            let diff = if driver.position == 1 {
-                Some(0.0)
-            } else {
-                let diff_str = driver.diff_to_fastest.as_deref().unwrap_or("");
-                Self::parse_diff(diff_str)
-            };
-
-            if let Some(d) = diff {
-                parsed_drivers.push((driver, d));
-                if d > max_diff {
-                    max_diff = d;
-                }
+            parsed_drivers.push((driver, driver.diff_to_fastest));
+            if driver.diff_to_fastest > max_diff {
+                max_diff = driver.diff_to_fastest;
             }
         }
 
+        let max_diff_millis = max_diff.millis();
         let mut driver_markers = Vec::with_capacity(self.drivers.len());
         for (driver, diff) in parsed_drivers {
-            let normalized_diff = if max_diff == 0.0 {
+            let normalized_diff = if max_diff_millis == 0 {
                 1.0
             } else {
-                1.0 - (diff / max_diff)
+                1.0 - (diff.millis() as f64 / max_diff_millis as f64)
             };
             driver_markers.push(DriverMarker {
                 x_pos: normalized_diff,
@@ -144,31 +150,6 @@ impl SpreadBar {
 
         driver_markers
     }
-
-    fn parse_diff(diff: &str) -> Option<f64> {
-        if diff.is_empty() {
-            return None;
-        }
-
-        if diff.ends_with('L') {
-            return None;
-        }
-
-        let diff = diff.trim_start_matches('+');
-
-        if diff.contains(':') {
-            let parts: Vec<&str> = diff.split(':').collect();
-            if parts.len() == 2 {
-                let minutes = parts[0].parse::<f64>().ok()?;
-                let seconds = parts[1].parse::<f64>().ok()?;
-                Some(minutes * 60.0 + seconds)
-            } else {
-                None
-            }
-        } else {
-            diff.parse::<f64>().ok()
-        }
-    }
 }
 
 struct DriverMarker {
@@ -185,44 +166,22 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_parse_diff() {
-        assert_eq!(SpreadBar::parse_diff("+1.234"), Some(1.234));
-        assert_eq!(SpreadBar::parse_diff("1.234"), Some(1.234));
-        assert_eq!(SpreadBar::parse_diff("+1:23.456"), Some(83.456));
-        assert_eq!(SpreadBar::parse_diff("1:23.456"), Some(83.456));
-        assert_eq!(SpreadBar::parse_diff("0.000"), Some(0.0));
-        assert_eq!(SpreadBar::parse_diff("1L"), None);
-        assert_eq!(SpreadBar::parse_diff("+2L"), None);
-        assert_eq!(SpreadBar::parse_diff("invalid"), None);
-        assert_eq!(SpreadBar::parse_diff(""), None);
-    }
-
-    #[test]
     fn test_driver_markers() {
         let drivers = vec![
             DriverData {
                 tla: "VER".to_string(),
-                team_color: Color::Blue,
-                diff_to_fastest: Some("".to_string()),
-                position: 1,
-            },
-            DriverData {
-                tla: "HAM".to_string(),
                 team_color: Color::Red,
-                diff_to_fastest: Some("+10.0".to_string()),
-                position: 2,
+                diff_to_fastest: LapTime::from_seconds(0),
             },
             DriverData {
                 tla: "NOR".to_string(),
                 team_color: Color::Yellow,
-                diff_to_fastest: Some("+20.0".to_string()),
-                position: 3,
+                diff_to_fastest: LapTime::from_seconds(10),
             },
             DriverData {
-                tla: "OCO".to_string(),
-                team_color: Color::Magenta,
-                diff_to_fastest: Some("1L".to_string()), // Should be ignored
-                position: 4,
+                tla: "HAM".to_string(),
+                team_color: Color::Yellow,
+                diff_to_fastest: LapTime::from_seconds(20),
             },
         ];
 
@@ -233,53 +192,12 @@ mod tests {
 
         let ver = markers.iter().find(|m| m.tla == "VER").unwrap();
         assert_eq!(ver.x_pos, 1.0); // 0.0 diff -> 1.0
-
-        let ham = markers.iter().find(|m| m.tla == "HAM").unwrap();
+        //
+        let ham = markers.iter().find(|m| m.tla == "NOR").unwrap();
         assert_eq!(ham.x_pos, 0.5); // 10.0 / 20.0 = 0.5 -> 1.0 - 0.5 = 0.5
-
-        let nor = markers.iter().find(|m| m.tla == "NOR").unwrap();
-        assert_eq!(nor.x_pos, 0.0); // 20.0 / 20.0 = 1.0 -> 1.0 - 1.0 = 0.0
-    }
-
-    #[test]
-    fn test_driver_markers_empty_or_none() {
-        let drivers = vec![
-            DriverData {
-                tla: "VER".to_string(),
-                team_color: Color::Blue,
-                diff_to_fastest: None,
-                position: 1,
-            },
-            DriverData {
-                tla: "HAM".to_string(),
-                team_color: Color::Red,
-                diff_to_fastest: Some("".to_string()),
-                position: 2, // Should be ignored because empty and not pos 1
-            },
-            DriverData {
-                tla: "NOR".to_string(),
-                team_color: Color::Yellow,
-                diff_to_fastest: Some("0.000".to_string()),
-                position: 1,
-            },
-            DriverData {
-                tla: "OCO".to_string(),
-                team_color: Color::Red,
-                diff_to_fastest: Some("GARBAGE".to_string()),
-                position: 1, // Should be forced to 0.0 diff and included
-            },
-        ];
-
-        let spread_bar = SpreadBar { drivers };
-        let markers = spread_bar.driver_markers(Rect::new(0, 0, 80, 40));
-
-        // VER, NOR, and SAI should be included because they have position 1
-        assert_eq!(markers.len(), 3);
-
-        // All are 0.0 diff, so all should have 1.0 normalized_diff
-        for marker in markers {
-            assert_eq!(marker.x_pos, 1.0);
-        }
+        //
+        let ham = markers.iter().find(|m| m.tla == "HAM").unwrap();
+        assert_eq!(ham.x_pos, 0.0); // max diff -> 0.0
     }
 
     #[test]
@@ -287,39 +205,33 @@ mod tests {
         let drivers = vec![
             DriverData {
                 tla: "VER".to_string(),
-                team_color: Color::Blue,
-                diff_to_fastest: None,
-                position: 1,
+                team_color: Color::Red,
+                diff_to_fastest: LapTime::from_millis(0),
             },
             DriverData {
                 tla: "HAM".to_string(),
                 team_color: Color::Red,
-                diff_to_fastest: Some("+0.01".to_string()),
-                position: 2,
+                diff_to_fastest: LapTime::from_millis(10),
             },
             DriverData {
                 tla: "NOR".to_string(),
                 team_color: Color::Yellow,
-                diff_to_fastest: Some("+0.02".to_string()),
-                position: 3,
+                diff_to_fastest: LapTime::from_millis(20),
             },
             DriverData {
                 tla: "SAI".to_string(),
                 team_color: Color::Blue,
-                diff_to_fastest: Some("+0.03".to_string()),
-                position: 4,
+                diff_to_fastest: LapTime::from_millis(30),
             },
             DriverData {
                 tla: "LEC".to_string(),
                 team_color: Color::Red,
-                diff_to_fastest: Some("+0.04".to_string()),
-                position: 5,
+                diff_to_fastest: LapTime::from_millis(40),
             },
             DriverData {
                 tla: "OCO".to_string(),
                 team_color: Color::Magenta,
-                diff_to_fastest: Some("+10.0".to_string()), // large diff to make normalized diffs of the above 5 very close
-                position: 6,
+                diff_to_fastest: LapTime::from_seconds(10), // large diff to make normalized diffs of the above 5 very close
             },
         ];
 

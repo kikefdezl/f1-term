@@ -3,7 +3,7 @@ pub struct TeamName {
     pub value: String,
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Copy)]
 pub struct TeamColor {
     pub u32: u32, // 0x00RRGGBB
 }

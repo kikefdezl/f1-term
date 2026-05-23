@@ -11,6 +11,7 @@ use super::timing::LiveTiming;
 use super::track_status::TrackStatus;
 use super::weather::Weather;
 use crate::circuit::Circuit;
+use crate::gap::Gap;
 use crate::race_control_message::RaceControlMessage;
 use crate::session_info::{SessionInfo, SessionType};
 use crate::telemetry_provider::TelemetryUpdate;
@@ -41,7 +42,7 @@ pub struct ParticipantContext<'a> {
 }
 
 impl<'a> ParticipantContext<'a> {
-    pub fn time_diff_to_fastest(&self, session_type: Option<&SessionType>) -> Option<String> {
+    pub fn time_diff_to_fastest(&self, session_type: Option<&SessionType>) -> Option<Gap> {
         self.timing.and_then(|lt| {
             if let Some(SessionType::Qualifying(Some(phase))) = session_type {
                 return lt
@@ -52,16 +53,13 @@ impl<'a> ParticipantContext<'a> {
                         QualiPhase::Q2 => qs.q2_diffs.as_ref(),
                         QualiPhase::Q3 => qs.q3_diffs.as_ref(),
                     })
-                    .and_then(|d| d.to_fastest.clone());
+                    .and_then(|d| d.to_fastest);
             }
-            lt.time_diffs.to_fastest.clone()
+            lt.time_diffs.to_fastest
         })
     }
 
-    pub fn time_diff_to_position_ahead(
-        &self,
-        session_type: Option<&SessionType>,
-    ) -> Option<String> {
+    pub fn time_diff_to_position_ahead(&self, session_type: Option<&SessionType>) -> Option<Gap> {
         self.timing.and_then(|lt| {
             if let Some(SessionType::Qualifying(Some(phase))) = session_type {
                 return lt
@@ -72,9 +70,9 @@ impl<'a> ParticipantContext<'a> {
                         QualiPhase::Q2 => qs.q2_diffs.as_ref(),
                         QualiPhase::Q3 => qs.q3_diffs.as_ref(),
                     })
-                    .and_then(|d| d.to_position_ahead.clone());
+                    .and_then(|d| d.to_position_ahead);
             }
-            lt.time_diffs.to_position_ahead.clone()
+            lt.time_diffs.to_position_ahead
         })
     }
 }
@@ -192,6 +190,7 @@ impl TelemetryState {
 mod time_diff_tests {
     use super::*;
     use crate::driver::{Driver, DriverNumber};
+    use crate::lap_time::LapTime;
     use crate::session_info::{QualiPhase, SessionType};
     use crate::team::{Team, TeamColor, TeamName};
     use crate::timing::{BestLap, LapData, LastLap, LiveTiming, PitData, QualiStats, TimeDiffs};
@@ -254,12 +253,12 @@ mod time_diff_tests {
             cutoff: None,
             knocked_out: None,
             q1_diffs: Some(TimeDiffs {
-                to_fastest: Some("+0.100".to_string()),
-                to_position_ahead: Some("+0.050".to_string()),
+                to_fastest: Some(Gap::Time(LapTime::from_millis(100))),
+                to_position_ahead: Some(Gap::Time(LapTime::from_millis(50))),
             }),
             q2_diffs: Some(TimeDiffs {
-                to_fastest: Some("+0.200".to_string()),
-                to_position_ahead: Some("+0.150".to_string()),
+                to_fastest: Some(Gap::Time(LapTime::from_millis(200))),
+                to_position_ahead: Some(Gap::Time(LapTime::from_millis(150))),
             }),
             q3_diffs: None,
         }
@@ -267,8 +266,8 @@ mod time_diff_tests {
 
     fn create_time_diffs() -> TimeDiffs {
         TimeDiffs {
-            to_fastest: Some("+1.000".to_string()),
-            to_position_ahead: Some("+0.500".to_string()),
+            to_fastest: Some(Gap::Time(LapTime::from_seconds(1))),
+            to_position_ahead: Some(Gap::Time(LapTime::from_millis(500))),
         }
     }
 
@@ -284,13 +283,16 @@ mod time_diff_tests {
         let ctx = create_context(Some(timing));
         assert_eq!(
             ctx.time_diff_to_fastest(Some(&SessionType::Practice)),
-            Some("+1.000".to_string())
+            Some(Gap::Time(LapTime::from_seconds(1)))
         );
         assert_eq!(
             ctx.time_diff_to_fastest(Some(&SessionType::Race)),
-            Some("+1.000".to_string())
+            Some(Gap::Time(LapTime::from_seconds(1)))
         );
-        assert_eq!(ctx.time_diff_to_fastest(None), Some("+1.000".to_string()));
+        assert_eq!(
+            ctx.time_diff_to_fastest(None),
+            Some(Gap::Time(LapTime::from_seconds(1)))
+        );
     }
 
     #[test]
@@ -310,11 +312,11 @@ mod time_diff_tests {
 
         assert_eq!(
             ctx.time_diff_to_fastest(Some(&SessionType::Qualifying(Some(QualiPhase::Q1)))),
-            Some("+0.100".to_string())
+            Some(Gap::Time(LapTime::from_millis(100)))
         );
         assert_eq!(
             ctx.time_diff_to_fastest(Some(&SessionType::Qualifying(Some(QualiPhase::Q2)))),
-            Some("+0.200".to_string())
+            Some(Gap::Time(LapTime::from_millis(200)))
         );
         assert_eq!(
             ctx.time_diff_to_fastest(Some(&SessionType::Qualifying(Some(QualiPhase::Q3)))),
@@ -322,7 +324,7 @@ mod time_diff_tests {
         );
         assert_eq!(
             ctx.time_diff_to_fastest(Some(&SessionType::Qualifying(None))),
-            Some("+1.000".to_string())
+            Some(Gap::Time(LapTime::from_seconds(1)))
         );
     }
 
@@ -338,15 +340,15 @@ mod time_diff_tests {
         let ctx = create_context(Some(timing));
         assert_eq!(
             ctx.time_diff_to_position_ahead(Some(&SessionType::Practice)),
-            Some("+0.500".to_string())
+            Some(Gap::Time(LapTime::from_millis(500)))
         );
         assert_eq!(
             ctx.time_diff_to_position_ahead(Some(&SessionType::Race)),
-            Some("+0.500".to_string())
+            Some(Gap::Time(LapTime::from_millis(500)))
         );
         assert_eq!(
             ctx.time_diff_to_position_ahead(None),
-            Some("+0.500".to_string())
+            Some(Gap::Time(LapTime::from_millis(500)))
         );
     }
 
@@ -357,11 +359,11 @@ mod time_diff_tests {
 
         assert_eq!(
             ctx.time_diff_to_position_ahead(Some(&SessionType::Qualifying(Some(QualiPhase::Q1)))),
-            Some("+0.050".to_string())
+            Some(Gap::Time(LapTime::from_millis(50)))
         );
         assert_eq!(
             ctx.time_diff_to_position_ahead(Some(&SessionType::Qualifying(Some(QualiPhase::Q2)))),
-            Some("+0.150".to_string())
+            Some(Gap::Time(LapTime::from_millis(150)))
         );
         assert_eq!(
             ctx.time_diff_to_position_ahead(Some(&SessionType::Qualifying(Some(QualiPhase::Q3)))),
@@ -369,7 +371,7 @@ mod time_diff_tests {
         );
         assert_eq!(
             ctx.time_diff_to_position_ahead(Some(&SessionType::Qualifying(None))),
-            Some("+0.500".to_string())
+            Some(Gap::Time(LapTime::from_millis(500)))
         );
     }
 }

@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 
 use f1_term_core::driver::DriverNumber;
+use f1_term_core::gap::Gap;
 use f1_term_core::lap_time::LapTime;
 use f1_term_core::timing::{
     BestLap, LapData, LastLap, LiveTiming, Sector, Segment, SegmentStatus, Speed, Speeds, TimeDiffs,
@@ -32,7 +33,11 @@ impl From<&RawSegment> for Segment {
 
 impl From<&RawSector> for Sector {
     fn from(p: &RawSector) -> Self {
-        let value = Some(p.Value.clone()).filter(|s| !s.is_empty());
+        let value = LapTime::try_from(p.Value.as_str()).ok();
+        let previous_value = p
+            .PreviousValue
+            .as_deref()
+            .and_then(|pv| LapTime::try_from(pv).ok());
         Sector {
             overall_fastest: p.OverallFastest,
             personal_fastest: p.PersonalFastest,
@@ -40,7 +45,7 @@ impl From<&RawSector> for Sector {
             status: p.Status,
             stopped: p.Stopped,
             value,
-            previous_value: p.PreviousValue.clone(),
+            previous_value,
         }
     }
 }
@@ -69,9 +74,8 @@ impl From<&RawSpeeds> for Speeds {
 
 impl From<&RawStats> for TimeDiffs {
     fn from(value: &RawStats) -> Self {
-        let to_fastest = Some(value.TimeDiffToFastest.clone()).filter(|s| !s.is_empty());
-        let to_position_ahead =
-            Some(value.TimeDifftoPositionAhead.clone()).filter(|s| !s.is_empty());
+        let to_fastest = Gap::try_from(value.TimeDiffToFastest.as_str()).ok();
+        let to_position_ahead = Gap::try_from(value.TimeDifftoPositionAhead.as_str()).ok();
         Self {
             to_fastest,
             to_position_ahead,
@@ -100,22 +104,23 @@ impl TryFrom<&RawTimingData> for LiveTiming {
             .map(|llt| LapTime::try_from(llt.as_str()))
             .transpose()?;
 
-        let time_diff_to_fastest = payload
+        log::debug!("value: {:?}", payload.TimeDiffToFastest);
+        log::debug!("value: {:?}", payload.TimeDiffToPositionAhead);
+        let to_fastest = payload
             .TimeDiffToFastest
-            .clone()
-            .filter(|s| !s.is_empty())
-            .or_else(|| payload.GapToLeader.clone().filter(|s| !s.is_empty()));
-        let time_diff_to_position_ahead = payload
+            .as_deref()
+            .or(payload.GapToLeader.as_deref())
+            .and_then(|gtl| Gap::try_from(gtl).ok());
+        let to_position_ahead = payload
             .TimeDiffToPositionAhead
-            .clone()
-            .filter(|s| !s.is_empty())
+            .as_deref()
             .or_else(|| {
                 payload
                     .IntervalToPositionAhead
                     .as_ref()
-                    .map(|i| i.Value.clone())
-                    .filter(|s| !s.is_empty())
-            });
+                    .map(|i| i.Value.as_str())
+            })
+            .and_then(|s| Gap::try_from(s).ok());
 
         let last_lap = LastLap {
             overall_fastest: payload.LastLapTime.OverallFastest,
@@ -128,8 +133,8 @@ impl TryFrom<&RawTimingData> for LiveTiming {
         };
 
         let time_diffs = TimeDiffs {
-            to_fastest: time_diff_to_fastest,
-            to_position_ahead: time_diff_to_position_ahead,
+            to_fastest,
+            to_position_ahead,
         };
 
         let mut q1_diffs = None;
@@ -217,7 +222,7 @@ pub fn convert_timing_data(
                 if let Some(time) = &lt.lap_data.best_lap.time
                     && *time < fastest_time
                 {
-                    fastest_time = time.clone()
+                    fastest_time = *time
                 }
                 timing_data.insert(driver_number, lt);
             }
@@ -322,8 +327,8 @@ mod tests {
 
         assert_eq!(timing.lap_data.last_lap.sectors.len(), 1);
         assert_eq!(
-            timing.lap_data.last_lap.sectors[0].value.as_deref(),
-            Some("25.1")
+            timing.lap_data.last_lap.sectors[0].value,
+            Some(LapTime::new(0, 25, 1))
         );
         assert!(timing.lap_data.last_lap.sectors[0].personal_fastest);
 
