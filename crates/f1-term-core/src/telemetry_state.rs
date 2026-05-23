@@ -210,6 +210,7 @@ mod time_diff_tests {
             public_id_right: "".to_string(),
             tla: "VER".to_string(),
             reference: "".to_string(),
+            position: None,
         });
 
         let team = Box::new(Team {
