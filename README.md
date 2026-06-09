@@ -2,23 +2,19 @@
 
 ![f1-term demo](assets/f1-term.gif)
 
-<video src="https://raw.githubusercontent.com/kikefdezl/f1-term/main/assets/f1-term.mp4" controls width="100%"></video>
-
 A terminal user interface for Formula 1 telemetry and live timing.
+
+> [!WARNING]
+> **End of Life (EOL) Notice:** Since the 2026 Monaco Grand Prix, Formula 1 no longer offers live telemetry streams for free without an active F1TV subscription. Because the public real-time data API used by this project is no longer accessible, `f1-term` is now at end of life and is no longer actively maintained. You can still use Replay Mode to watch passed events. Thank you to everyone who used this project!
 
 ## Overview
 
 `f1-term` is a TUI application built in Rust. It connects to official live F1
 telemetry streams to display real-time data directly in your terminal.
 
-**NOTE**: `f1-term` is still in early development and might have some bugs.
-
-## Requirements
-
-- Rust
-- Cargo
-
 ## Usage
+
+First, make sure you have to have `cargo` installed.
 
 ### Live Telemetry
 
