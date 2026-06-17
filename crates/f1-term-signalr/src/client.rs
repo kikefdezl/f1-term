@@ -1,3 +1,4 @@
+use std::error::Error;
 use std::fs::{
     OpenOptions, {self},
 };
@@ -20,8 +21,8 @@ use crate::extract::extract_updates;
 use crate::merge_patch::merge_patch;
 use crate::topic::Topic;
 
-const URL: &str = "livetiming.formula1.com/signalr";
-const HUB: &str = "Streaming";
+const URL: &str = "livetiming.formula1.com/signalrcore";
+const RECORD_SEPARATOR: &str = "\u{001E}";
 
 type TcpWebSocketStream = WebSocketStream<MaybeTlsStream<TcpStream>>;
 
@@ -54,9 +55,9 @@ impl SignalRF1Client {
 }
 
 #[derive(Deserialize, Debug)]
-#[serde(rename_all = "PascalCase")]
+#[serde(rename_all = "camelCase")]
 struct NegotiateResponse {
-    connection_token: String,
+    connection_token: Option<String>,
 }
 
 impl TelemetryProvider for SignalRF1Client {
@@ -67,22 +68,16 @@ impl TelemetryProvider for SignalRF1Client {
 
         let (negotiate_data, cookie) = Self::negotiate(&client, &self.base_url).await?;
 
-        let connection_data = json!([{"name": HUB}]).to_string();
         let ws_scheme =
             if self.base_url.starts_with("localhost") || self.base_url.starts_with("127.0.0.1") {
                 "ws"
             } else {
                 "wss"
             };
-        let ws_url = Url::parse_with_params(
-            &format!("{}://{}/connect", ws_scheme, self.base_url),
-            &[
-                ("clientProtocol", "1.5"),
-                ("transport", "webSockets"),
-                ("connectionToken", &negotiate_data.connection_token),
-                ("connectionData", &connection_data),
-            ],
-        )?;
+        let mut ws_url = Url::parse(&format!("{}://{}", ws_scheme, self.base_url))?;
+        if let Some(ref token) = negotiate_data.connection_token {
+            ws_url.query_pairs_mut().append_pair("id", token);
+        }
 
         let mut req = ws_url.to_string().into_client_request()?;
         let headers = req.headers_mut();
@@ -94,15 +89,9 @@ impl TelemetryProvider for SignalRF1Client {
             headers.insert("Cookie", cookie.parse().unwrap());
         }
 
-        let (ws_stream, _response) = connect_async(req).await?;
+        let (mut ws_stream, _response) = connect_async(req).await?;
 
-        Self::start_connection(
-            &client,
-            &negotiate_data.connection_token,
-            &cookie,
-            &self.base_url,
-        )
-        .await?;
+        Self::handshake(&mut ws_stream).await?;
 
         let (writer, reader) = ws_stream.split();
         self.writer = Some(writer);
@@ -125,8 +114,15 @@ impl TelemetryProvider for SignalRF1Client {
                 Ok(Message::Text(text)) => {
                     let mut updated_topics: Vec<Topic> = Vec::new();
 
-                    if let Ok(json) = serde_json::from_str::<serde_json::Value>(&text) {
-                        self.process_signalr_message(json, &mut updated_topics);
+                    for msg_str in text.split(RECORD_SEPARATOR) {
+                        let msg_str = msg_str.trim();
+                        if msg_str.is_empty() {
+                            continue;
+                        }
+
+                        if let Ok(json) = serde_json::from_str::<serde_json::Value>(msg_str) {
+                            self.process_signalr_message(json, &mut updated_topics);
+                        }
                     }
 
                     if !updated_topics.is_empty() {
@@ -169,101 +165,104 @@ impl SignalRF1Client {
     async fn negotiate(
         client: &reqwest::Client,
         base_url: &str,
-    ) -> Result<(NegotiateResponse, String), Box<dyn std::error::Error>> {
+    ) -> Result<(NegotiateResponse, String), Box<dyn Error>> {
         let scheme = if base_url.starts_with("localhost") || base_url.starts_with("127.0.0.1") {
             "http"
         } else {
             "https"
         };
-        let connection_data = json!([{"name": HUB}]).to_string();
-        let negotiate_url = Url::parse_with_params(
-            &format!("{}://{}/negotiate", scheme, base_url),
-            &[
-                ("clientProtocol", "1.5"),
-                ("connectionData", &connection_data),
-            ],
-        )?;
+        let negotiate_url = format!("{}://{}/negotiate", scheme, base_url);
 
-        let negotiate_response = client.get(negotiate_url).send().await?;
-
-        if !negotiate_response.status().is_success() {
-            return Err(format!("Negotiate failed: {}", negotiate_response.status()).into());
-        }
-
-        let cookie = negotiate_response
-            .headers()
-            .get("set-cookie")
-            .and_then(|h| h.to_str().ok())
-            .unwrap_or("")
-            .to_string();
-
-        let negotiate_data: NegotiateResponse = negotiate_response.json().await?;
-
-        Ok((negotiate_data, cookie))
-    }
-
-    async fn start_connection(
-        client: &reqwest::Client,
-        connection_token: &str,
-        cookie: &str,
-        base_url: &str,
-    ) -> Result<(), Box<dyn std::error::Error>> {
-        let scheme = if base_url.starts_with("localhost") || base_url.starts_with("127.0.0.1") {
-            "http"
-        } else {
-            "https"
-        };
-        let connection_data = json!([{"name": HUB}]).to_string();
-
-        // ASP.NET SignalR 1.5 specification requires a /start HTTP request after the
-        // WebSocket connection is established before the server will flush the message buffer.
-        let start_url = Url::parse_with_params(
-            &format!("{}://{}/start", scheme, base_url),
-            &[
-                ("clientProtocol", "1.5"),
-                ("transport", "webSockets"),
-                ("connectionToken", connection_token),
-                ("connectionData", &connection_data),
-            ],
-        )?;
-
-        let start_response = client
-            .get(start_url)
-            .header("Cookie", cookie)
+        debug!("Negotiating via OPTIONS to {}", negotiate_url);
+        let options_res = client
+            .request(reqwest::Method::OPTIONS, &negotiate_url)
             .send()
             .await?;
 
-        if !start_response.status().is_success() {
-            return Err(format!("Start request failed: {}", start_response.status()).into());
+        let mut cookie = String::new();
+        for header in options_res.headers().get_all("set-cookie") {
+            if let Ok(s) = header.to_str()
+                && let Some(cookie_part) = s.split(';').next()
+            {
+                let trimmed = cookie_part.trim();
+                if trimmed.starts_with("AWSALBCORS=") {
+                    cookie = trimmed.to_string();
+                    break;
+                }
+            }
         }
 
-        Ok(())
+        let url = Url::parse_with_params(&negotiate_url, &[("negotiateVersion", "1")])?;
+        let mut req = client.post(url);
+        if !cookie.is_empty() {
+            req = req.header("Cookie", &cookie);
+        }
+
+        let res = req.send().await?;
+        if !res.status().is_success() {
+            return Err(format!("Negotiate failed with status: {}", res.status()).into());
+        }
+
+        let negotiate_data: NegotiateResponse = res.json().await?;
+        Ok((negotiate_data, cookie))
+    }
+
+    async fn handshake(
+        ws_stream: &mut TcpWebSocketStream,
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        let handshake_msg = format!(
+            "{}{}",
+            json!({"protocol": "json", "version": 1}),
+            RECORD_SEPARATOR
+        );
+        ws_stream.send(Message::Text(handshake_msg.into())).await?;
+
+        let handshake_response = ws_stream.next().await.ok_or_else(|| {
+            Box::<dyn std::error::Error>::from("No handshake response received")
+        })??;
+
+        match handshake_response {
+            Message::Text(txt) => {
+                let stripped = txt.trim_end_matches(RECORD_SEPARATOR);
+                let parsed: serde_json::Value = serde_json::from_str(stripped)?;
+                if let Some(err) = parsed.get("error") {
+                    return Err(format!("SignalR handshake error: {}", err).into());
+                }
+                debug!("Handshake successful!");
+                Ok(())
+            }
+            other => Err(format!("Unexpected handshake response: {:?}", other).into()),
+        }
     }
 
     pub async fn subscribe(&mut self) -> Result<(), Box<dyn std::error::Error>> {
-        match &mut self.writer {
-            None => {
-                return Err("Client not connected".into());
-            }
-            Some(w) => {
-                let topics_str = self
-                    .topics
-                    .iter()
-                    .map(|t| t.to_string())
-                    .collect::<Vec<String>>();
+        let writer = self.writer.as_mut().ok_or("Client not connected")?;
 
-                let subscribe_msg = json!({
-                    "H": HUB,
-                    "M": "Subscribe",
-                    "A": [topics_str],
-                    "I": 1
-                });
+        let topics_str = self
+            .topics
+            .iter()
+            .map(|t| t.to_string())
+            .collect::<Vec<String>>();
 
-                let msg_str = subscribe_msg.to_string();
-
-                w.send(Message::Text(msg_str.into())).await?;
-            }
+        #[derive(serde::Serialize, serde::Deserialize)]
+        #[serde(rename_all = "camelCase")]
+        struct InvocationMessage {
+            #[serde(rename = "type")]
+            r#type: i32,
+            invocation_id: String,
+            target: String,
+            arguments: Vec<serde_json::Value>,
         }
+
+        let invoke = InvocationMessage {
+            r#type: 1, // INVOCATION
+            invocation_id: "1".to_string(),
+            target: "Subscribe".to_string(),
+            arguments: vec![json!(topics_str)],
+        };
+
+        let msg_str = format!("{}{}", serde_json::to_string(&invoke)?, RECORD_SEPARATOR);
+        writer.send(Message::Text(msg_str.into())).await?;
         Ok(())
     }
 
@@ -272,29 +271,38 @@ impl SignalRF1Client {
         json: serde_json::Value,
         updated_topics: &mut Vec<Topic>,
     ) {
-        // 1. Initial State (the 'R' field from Subscribe)
-        if let Some(r) = json.get("R") {
-            self.canonical_state.clone_from(r);
+        let Some(msg_type) = json.get("type").and_then(|t| t.as_i64()) else {
+            return;
+        };
 
-            if let Some(obj) = self.canonical_state.as_object() {
-                updated_topics.extend(obj.keys().filter_map(|k| Topic::try_from(k.as_str()).ok()));
-                for (k, v) in obj {
-                    self.log_topic_update(k, v);
+        match msg_type {
+            3 => {
+                // Completion message (contains the initial/canonical state in the 'result' field)
+                if let Some(result) = json.get("result") {
+                    self.canonical_state.clone_from(result);
+
+                    if let Some(obj) = self.canonical_state.as_object() {
+                        updated_topics
+                            .extend(obj.keys().filter_map(|k| Topic::try_from(k.as_str()).ok()));
+                        for (k, v) in obj {
+                            self.log_topic_update(k, v);
+                        }
+                    }
+                }
+                if let Some(err) = json.get("error") {
+                    error!("SignalR Core completion error: {}", err);
                 }
             }
-        }
-
-        // 2. Partial Updates (the 'M' array of messages)
-        if let Some(m_arr) = json.get("M").and_then(|m| m.as_array()) {
-            for msg in m_arr {
-                if msg.get("M").and_then(|m| m.as_str()) == Some("feed")
-                    && let Some(args) = msg.get("A").and_then(|a| a.as_array())
+            1 => {
+                // Invocation message (contains the live streaming feed)
+                if json.get("target").and_then(|t| t.as_str()) == Some("feed")
+                    && let Some(args) = json.get("arguments").and_then(|a| a.as_array())
                     && args.len() >= 2
                 {
                     let topic_str = args[0].as_str().unwrap_or("UnknownTopic");
                     let Ok(topic) = Topic::try_from(topic_str) else {
                         warn!("Unknown topic {}", topic_str);
-                        continue;
+                        return;
                     };
 
                     let delta = &args[1];
@@ -316,6 +324,9 @@ impl SignalRF1Client {
                         updated_topics.push(topic);
                     }
                 }
+            }
+            _ => {
+                debug!("Received other SignalR Core message type: {}", msg_type);
             }
         }
     }
