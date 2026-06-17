@@ -4,9 +4,6 @@
 
 A terminal user interface for Formula 1 telemetry and live timing.
 
-> [!WARNING]
-> **End of Life (EOL) Notice:** Since the 2026 Monaco Grand Prix, Formula 1 no longer offers live telemetry streams for free without an active F1TV subscription. Because the public real-time data API used by this project is no longer accessible, `f1-term` is now at end of life and is no longer actively maintained. You can still use Replay Mode to watch passed events. Thank you to everyone who used this project!
-
 ## Overview
 
 `f1-term` is a TUI application built in Rust. It connects to official live F1
