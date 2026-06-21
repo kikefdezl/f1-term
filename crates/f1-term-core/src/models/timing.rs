@@ -1,6 +1,6 @@
-use crate::driver::DriverNumber;
-use crate::gap::Gap;
-use crate::lap_time::LapTime;
+use crate::models::driver::DriverNumber;
+use crate::models::gap::Gap;
+use crate::models::lap_time::LapTime;
 
 #[derive(Debug, Default, Clone, PartialEq)]
 pub struct LiveTiming {

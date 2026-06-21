@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
-use f1_term_core::driver::DriverNumber;
-use f1_term_core::stint::{BestLap, Compound, Stint, Stints};
+use f1_term_core::models::driver::DriverNumber;
+use f1_term_core::models::stint::{BestLap, Compound, Stint, Stints};
 use log::warn;
 
 use crate::parsing::stints::{RawDriverStints, RawStint};

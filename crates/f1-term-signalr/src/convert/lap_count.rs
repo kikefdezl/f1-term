@@ -1,4 +1,4 @@
-use f1_term_core::laps::Laps;
+use f1_term_core::models::laps::Laps;
 
 use crate::parsing::lap_count::RawLapCount;
 

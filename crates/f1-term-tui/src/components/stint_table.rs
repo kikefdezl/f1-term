@@ -1,8 +1,8 @@
 use std::error::Error;
 use std::fmt::Write;
 
-use f1_term_core::driver::DriverNumber;
-use f1_term_core::stint::{Compound, Stints};
+use f1_term_core::models::driver::DriverNumber;
+use f1_term_core::models::stint::{Compound, Stints};
 use f1_term_core::telemetry_state::TelemetryState;
 use ratatui::Frame;
 use ratatui::layout::{Constraint, Rect};
@@ -173,7 +173,7 @@ impl StintTable {
 
 #[cfg(test)]
 mod tests {
-    use f1_term_core::stint::{BestLap, Compound, Stint};
+    use f1_term_core::models::stint::{BestLap, Compound, Stint};
 
     use super::*;
 

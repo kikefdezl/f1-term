@@ -1,7 +1,7 @@
 use std::cmp::Ordering;
 use std::fmt::Display;
 
-use crate::lap_time::LapTime;
+use crate::models::lap_time::LapTime;
 
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub enum Gap {

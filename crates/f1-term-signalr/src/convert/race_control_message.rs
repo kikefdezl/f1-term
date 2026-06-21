@@ -1,6 +1,6 @@
 use chrono::{DateTime, NaiveDateTime, Utc};
-use f1_term_core::flag::{Flag, FlagColor, FlagScope};
-use f1_term_core::race_control_message::{MessageCategory, RaceControlMessage};
+use f1_term_core::models::flag::{Flag, FlagColor, FlagScope};
+use f1_term_core::models::race_control_message::{MessageCategory, RaceControlMessage};
 
 use crate::parsing::race_control_messages::RawRaceControlMessage;
 
@@ -83,8 +83,8 @@ pub fn convert_race_control_messages(
 #[cfg(test)]
 mod tests {
     use chrono::{TimeZone, Utc};
-    use f1_term_core::flag::{Flag, FlagColor, FlagScope};
-    use f1_term_core::race_control_message::MessageCategory;
+    use f1_term_core::models::flag::{Flag, FlagColor, FlagScope};
+    use f1_term_core::models::race_control_message::MessageCategory;
 
     use super::*;
 

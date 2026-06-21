@@ -1,7 +1,7 @@
 use std::collections::HashSet;
 
 use chrono::Datelike;
-use f1_term_core::circuit::{Circuit, CircuitKey, CircuitScope, CircuitStatus};
+use f1_term_core::models::circuit::{Circuit, CircuitKey, CircuitScope, CircuitStatus};
 
 use crate::parsing::race_control_messages::RawRaceControlMessages;
 use crate::parsing::session_info::RawSessionInfo;

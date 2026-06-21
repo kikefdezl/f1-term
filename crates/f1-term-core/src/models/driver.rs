@@ -1,5 +1,5 @@
 use super::team::TeamName;
-use crate::driver_position::DriverPosition;
+use crate::models::driver_position::DriverPosition;
 
 #[derive(Eq, PartialEq, Hash, Debug, Clone, Copy, Default)]
 pub struct DriverNumber {

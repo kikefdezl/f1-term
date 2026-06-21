@@ -1,19 +1,19 @@
 use std::collections::HashMap;
 use std::time::Duration;
 
-use super::clock::Clock;
-use super::driver::{Driver, DriverNumber};
-use super::laps::Laps;
-use super::session_info::QualiPhase;
-use super::stint::Stints;
-use super::team::{Team, TeamName};
-use super::timing::LiveTiming;
-use super::track_status::TrackStatus;
-use super::weather::Weather;
-use crate::circuit::Circuit;
-use crate::gap::Gap;
-use crate::race_control_message::RaceControlMessage;
-use crate::session_info::{SessionInfo, SessionType};
+use super::models::clock::Clock;
+use super::models::driver::{Driver, DriverNumber};
+use super::models::laps::Laps;
+use super::models::session_info::QualiPhase;
+use super::models::stint::Stints;
+use super::models::team::{Team, TeamName};
+use super::models::timing::LiveTiming;
+use super::models::track_status::TrackStatus;
+use super::models::weather::Weather;
+use crate::models::circuit::Circuit;
+use crate::models::gap::Gap;
+use crate::models::race_control_message::RaceControlMessage;
+use crate::models::session_info::{SessionInfo, SessionType};
 use crate::telemetry_provider::TelemetryUpdate;
 
 #[derive(Debug, Default, Clone)]
@@ -189,11 +189,11 @@ impl TelemetryState {
 #[cfg(test)]
 mod time_diff_tests {
     use super::*;
-    use crate::driver::{Driver, DriverNumber};
-    use crate::lap_time::LapTime;
-    use crate::session_info::{QualiPhase, SessionType};
-    use crate::team::{Team, TeamColor, TeamName};
-    use crate::timing::{BestLap, LapData, LastLap, LiveTiming, PitData, QualiStats, TimeDiffs};
+    use crate::models::driver::{Driver, DriverNumber};
+    use crate::models::lap_time::LapTime;
+    use crate::models::session_info::{QualiPhase, SessionType};
+    use crate::models::team::{Team, TeamColor, TeamName};
+    use crate::models::timing::{BestLap, LapData, LastLap, LiveTiming, PitData, QualiStats, TimeDiffs};
 
     fn create_context(timing: Option<LiveTiming>) -> ParticipantContext<'static> {
         let driver = Box::new(Driver {

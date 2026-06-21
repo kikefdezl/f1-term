@@ -1,5 +1,5 @@
-use f1_term_core::flag::FlagColor;
-use f1_term_core::race_control_message::{MessageCategory, RaceControlMessage};
+use f1_term_core::models::flag::FlagColor;
+use f1_term_core::models::race_control_message::{MessageCategory, RaceControlMessage};
 use ratatui::Frame;
 use ratatui::layout::Rect;
 use ratatui::style::{Color, Style};

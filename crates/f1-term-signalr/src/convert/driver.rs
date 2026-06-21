@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
-use f1_term_core::driver::{Driver, DriverNumber};
-use f1_term_core::team::TeamName;
+use f1_term_core::models::driver::{Driver, DriverNumber};
+use f1_term_core::models::team::TeamName;
 use log::{info, warn};
 
 use crate::parsing::driver_list::RawDriver;

@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use f1_term_core::team::{Team, TeamColor, TeamName};
+use f1_term_core::models::team::{Team, TeamColor, TeamName};
 use log::info;
 
 use crate::parsing::driver_list::RawDriver;

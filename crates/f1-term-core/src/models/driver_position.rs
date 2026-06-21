@@ -1,6 +1,6 @@
 use chrono::{DateTime, Duration, Utc};
 
-use crate::coord::Coord;
+use crate::models::coord::Coord;
 
 #[derive(Clone, Default, Debug)]
 pub struct DriverPosition {

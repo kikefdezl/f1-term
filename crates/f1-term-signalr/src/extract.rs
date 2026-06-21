@@ -1,17 +1,17 @@
 use std::collections::HashMap;
 
-use f1_term_core::circuit::Circuit;
-use f1_term_core::clock::Clock;
-use f1_term_core::driver::{Driver, DriverNumber};
-use f1_term_core::laps::Laps;
-use f1_term_core::race_control_message::RaceControlMessage;
-use f1_term_core::session_info::SessionInfo;
-use f1_term_core::stint::Stints;
-use f1_term_core::team::{Team, TeamName};
+use f1_term_core::models::circuit::Circuit;
+use f1_term_core::models::clock::Clock;
+use f1_term_core::models::driver::{Driver, DriverNumber};
+use f1_term_core::models::laps::Laps;
+use f1_term_core::models::race_control_message::RaceControlMessage;
+use f1_term_core::models::session_info::SessionInfo;
+use f1_term_core::models::stint::Stints;
+use f1_term_core::models::team::{Team, TeamName};
+use f1_term_core::models::timing::LiveTiming;
+use f1_term_core::models::track_status::TrackStatus;
+use f1_term_core::models::weather::Weather;
 use f1_term_core::telemetry_provider::TelemetryUpdate;
-use f1_term_core::timing::LiveTiming;
-use f1_term_core::track_status::TrackStatus;
-use f1_term_core::weather::Weather;
 use log::error;
 
 use crate::convert::circuit::convert_circuit;
