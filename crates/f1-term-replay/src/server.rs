@@ -5,13 +5,15 @@ use axum::Router;
 use axum::extract::State;
 use axum::extract::ws::{Message, WebSocket, WebSocketUpgrade};
 use axum::response::IntoResponse;
-use axum::routing::get;
+use axum::routing::{any, get};
 use log::{info, warn};
 use serde_json::json;
 use tokio::net::TcpListener;
 use tokio::sync::RwLock;
 
 use crate::player::Player;
+
+const RECORD_SEPARATOR: &str = "\u{001E}";
 
 pub struct AppState {
     pub player: Arc<RwLock<Player>>,
@@ -21,9 +23,8 @@ pub async fn start_server(player: Arc<RwLock<Player>>, port: u16) {
     let state = Arc::new(AppState { player });
 
     let app = Router::new()
-        .route("/negotiate", get(negotiate_handler))
-        .route("/connect", get(connect_handler))
-        .route("/start", get(start_handler))
+        .route("/negotiate", any(negotiate_handler))
+        .route("/", get(connect_handler))
         .with_state(state);
 
     let listener = TcpListener::bind(format!("0.0.0.0:{}", port))
@@ -35,17 +36,30 @@ pub async fn start_server(player: Arc<RwLock<Player>>, port: u16) {
 }
 
 async fn negotiate_handler() -> impl IntoResponse {
-    axum::Json(json!({
-        "ConnectionToken": "mock_token",
-        "ConnectionId": "mock_id",
-        "KeepAliveTimeout": 20.0,
-        "DisconnectTimeout": 30.0,
-        "ConnectionTimeout": 110.0,
-        "TryWebSockets": true,
-        "ProtocolVersion": "1.5",
-        "TransportConnectTimeout": 5.0,
-        "LongPollDelay": 0.0
-    }))
+    let mut headers = axum::http::HeaderMap::new();
+    headers.insert(
+        axum::http::header::SET_COOKIE,
+        "AWSALBCORS=mock_cookie; Path=/; SameSite=None; Secure"
+            .parse()
+            .unwrap(),
+    );
+    (
+        headers,
+        axum::Json(json!({
+            "connectionToken": "mock_token",
+            "connectionId": "mock_id",
+            "negotiateVersion": 1,
+            "availableTransports": [
+                {
+                    "transport": "WebSockets",
+                    "transferFormats": [
+                        "Text",
+                        "Binary"
+                    ]
+                }
+            ]
+        })),
+    )
 }
 
 async fn connect_handler(
@@ -55,33 +69,40 @@ async fn connect_handler(
     ws.on_upgrade(|socket| handle_socket(socket, state))
 }
 
-async fn start_handler() -> impl IntoResponse {
-    axum::Json(json!({"Response": "started"}))
-}
-
 async fn handle_socket(mut socket: WebSocket, state: Arc<AppState>) {
     info!("Client connected to websocket");
 
-    // Send the initial canonical state.
-    // SignalR usually sends `{"R": { ...canonical state ... }}` as a response to a `Subscribe` message.
+    // 1. Wait for SignalR Core Handshake
     while let Some(msg) = socket.recv().await {
-        if let Ok(Message::Text(text)) = msg
-            && let Ok(json) = serde_json::from_str::<serde_json::Value>(&text)
-            && json.get("M").and_then(|m| m.as_str()) == Some("Subscribe")
-        {
-            info!("Client subscribed, sending canonical state");
-            let player = state.player.read().await;
-            let initial_state = json!({
-                "I": json.get("I").unwrap_or(&json!("1")),
-                "R": player.canonical_state
-            });
-            if let Err(e) = socket
-                .send(Message::Text(initial_state.to_string().into()))
-                .await
-            {
-                warn!("Failed to send initial state: {}", e);
-            }
+        if let Ok(Message::Text(_)) = msg {
+            let response = format!("{}{}", json!({}), RECORD_SEPARATOR);
+            socket.send(Message::Text(response.into())).await.ok();
             break;
+        }
+    }
+
+    // 2. Wait for Subscribe
+    while let Some(msg) = socket.recv().await {
+        if let Ok(Message::Text(text)) = msg {
+            let stripped = text.trim_end_matches(RECORD_SEPARATOR);
+            if let Ok(json) = serde_json::from_str::<serde_json::Value>(stripped)
+                && json.get("target").and_then(|t| t.as_str()) == Some("Subscribe")
+            {
+                info!("Client subscribed, sending canonical state");
+                let player = state.player.read().await;
+
+                let initial_state = json!({
+                    "type": 3,
+                    "invocationId": json.get("invocationId").unwrap_or(&json!("1")),
+                    "result": player.canonical_state
+                });
+
+                let msg_str = format!("{}{}", initial_state, RECORD_SEPARATOR);
+                if let Err(e) = socket.send(Message::Text(msg_str.into())).await {
+                    warn!("Failed to send initial state: {}", e);
+                }
+                break;
+            }
         }
     }
 
@@ -96,14 +117,14 @@ async fn handle_socket(mut socket: WebSocket, state: Arc<AppState>) {
 
         if player.seek_counter != last_seek_counter {
             last_seek_counter = player.seek_counter;
-            // Send full canonical state immediately
+            // Send full canonical state immediately using a mock type 3 message
             let state_payload = json!({
-                "R": player.canonical_state
+                "type": 3,
+                "invocationId": "mock",
+                "result": player.canonical_state
             });
-            if let Err(e) = socket
-                .send(Message::Text(state_payload.to_string().into()))
-                .await
-            {
+            let msg_str = format!("{}{}", state_payload, RECORD_SEPARATOR);
+            if let Err(e) = socket.send(Message::Text(msg_str.into())).await {
                 warn!("Client disconnected during seek: {}", e);
                 break;
             }
@@ -115,22 +136,18 @@ async fn handle_socket(mut socket: WebSocket, state: Arc<AppState>) {
             continue;
         }
 
-        let m_array: Vec<_> = messages
-            .into_iter()
-            .map(|msg| {
-                json!({
-                    "H": "Streaming",
-                    "M": "feed",
-                    "A": [msg.topic, msg.delta]
-                })
-            })
-            .collect();
+        let mut out_str = String::new();
+        for msg in messages {
+            let payload = json!({
+                "type": 1,
+                "target": "feed",
+                "arguments": [msg.topic, msg.delta]
+            });
+            out_str.push_str(&payload.to_string());
+            out_str.push_str(RECORD_SEPARATOR);
+        }
 
-        let payload = json!({
-            "M": m_array
-        });
-
-        if let Err(e) = socket.send(Message::Text(payload.to_string().into())).await {
+        if let Err(e) = socket.send(Message::Text(out_str.into())).await {
             warn!("Client disconnected: {}", e);
             break;
         }
