@@ -59,7 +59,7 @@ impl Component for CircuitCanvas {
                         .timing_data
                         .get(&number)
                         .expect("Should have timing data");
-                    if timing_data.retired || timing_data.stopped {
+                    if timing_data.retired || timing_data.stopped || timing_data.pit_data.in_pit {
                         continue;
                     }
                     let team = state
