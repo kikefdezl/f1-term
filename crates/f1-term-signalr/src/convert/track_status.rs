@@ -1,4 +1,4 @@
-use f1_term_core::track_status::TrackStatus;
+use f1_term_core::models::track_status::TrackStatus;
 
 use crate::parsing::track_status::RawTrackStatus;
 

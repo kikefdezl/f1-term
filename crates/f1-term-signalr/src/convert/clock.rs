@@ -1,6 +1,6 @@
 use std::time::Duration;
 
-use f1_term_core::clock::Clock;
+use f1_term_core::models::clock::Clock;
 
 use crate::parsing::extrapolated_clock::RawExtrapolatedClock;
 

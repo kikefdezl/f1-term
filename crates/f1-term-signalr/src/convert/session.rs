@@ -1,6 +1,6 @@
 use chrono::{DateTime, FixedOffset, NaiveDateTime, Utc};
-use f1_term_core::circuit::CircuitKey;
-use f1_term_core::session_info::{
+use f1_term_core::models::circuit::CircuitKey;
+use f1_term_core::models::session_info::{
     ArchiveStatus, Country, Meeting, QualiPhase, SessionInfo, SessionStatus, SessionType,
 };
 

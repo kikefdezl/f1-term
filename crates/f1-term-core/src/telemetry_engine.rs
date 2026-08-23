@@ -6,13 +6,13 @@ use log::info;
 use tokio::sync::mpsc::UnboundedReceiver;
 use tokio::time::{Instant, interval};
 
-use super::circuit::CircuitLayoutProvider;
+use super::models::circuit::CircuitLayoutProvider;
 use super::telemetry_provider::{TelemetryProvider, TelemetryUpdate};
 use super::telemetry_state::TelemetryState;
 use crate::aggregators::TelemetryAggregator;
 use crate::aggregators::layout_fetch::LayoutFetchAggregator;
 use crate::aggregators::sector_count::SectorCountAggregator;
-use crate::circuit::CircuitKey;
+use crate::models::circuit::CircuitKey;
 
 pub enum EngineTask {
     FetchCircuitLayout,
@@ -179,7 +179,8 @@ mod tests {
     use tokio::time::advance;
 
     use super::*;
-    use crate::circuit::{Circuit, MockCircuitLayoutProvider};
+    use crate::models::circuit::{Circuit, MockCircuitLayoutProvider};
+    use crate::models::track_status::TrackStatus;
     use crate::telemetry_provider::{MockTelemetryProvider, TelemetryUpdate};
 
     struct TestFixture {
@@ -238,7 +239,7 @@ mod tests {
         let fixture = TestFixture::setup().with_delay(Duration::from_secs(5));
 
         let update = TelemetryUpdate {
-            track_status: Some(crate::track_status::TrackStatus {
+            track_status: Some(TrackStatus {
                 status: 1,
                 message: "All Clear".to_string(),
             }),
@@ -260,7 +261,7 @@ mod tests {
         let fixture = TestFixture::setup().with_delay(Duration::from_secs(5));
 
         let update = TelemetryUpdate {
-            track_status: Some(crate::track_status::TrackStatus {
+            track_status: Some(TrackStatus {
                 status: 1,
                 message: "All Clear".to_string(),
             }),

@@ -1,5 +1,5 @@
-use f1_term_core::gap::Gap;
-use f1_term_core::lap_time::LapTime;
+use f1_term_core::models::gap::Gap;
+use f1_term_core::models::lap_time::LapTime;
 use ratatui::Frame;
 use ratatui::layout::Rect;
 use ratatui::style::{Color, Style};

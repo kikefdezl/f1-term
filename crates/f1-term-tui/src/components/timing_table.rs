@@ -1,13 +1,13 @@
 use std::fmt::Display;
 
 use crossterm::event::KeyCode;
-use f1_term_core::driver::Driver;
-use f1_term_core::gap::Gap;
-use f1_term_core::lap_time::LapTime;
-use f1_term_core::stint::{Compound, Stints};
-use f1_term_core::team::Team;
+use f1_term_core::models::driver::Driver;
+use f1_term_core::models::gap::Gap;
+use f1_term_core::models::lap_time::LapTime;
+use f1_term_core::models::stint::{Compound, Stints};
+use f1_term_core::models::team::Team;
+use f1_term_core::models::timing::{LiveTiming, Sector, Segment, SegmentStatus};
 use f1_term_core::telemetry_state::TelemetryState;
-use f1_term_core::timing::{LiveTiming, Sector, Segment, SegmentStatus};
 use ratatui::Frame;
 use ratatui::layout::{Constraint, Rect};
 use ratatui::style::{Color, Modifier, Style};
@@ -479,7 +479,7 @@ impl TimingTable {
 }
 #[cfg(test)]
 mod tests {
-    use f1_term_core::stint::Compound;
+    use f1_term_core::models::stint::Compound;
 
     use super::*;
 

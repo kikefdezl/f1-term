@@ -1,4 +1,4 @@
-use f1_term_core::weather::{Weather, Wind, WindDirection};
+use f1_term_core::models::weather::{Weather, Wind, WindDirection};
 
 use crate::parsing::weather_data::RawWeatherData;
 

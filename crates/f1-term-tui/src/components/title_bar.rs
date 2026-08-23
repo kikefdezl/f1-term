@@ -2,11 +2,11 @@ use std::time::Duration;
 
 use chrono::{DateTime, Datelike, Utc};
 use crossterm::event::KeyCode;
-use f1_term_core::clock::Clock;
-use f1_term_core::laps::Laps;
+use f1_term_core::models::clock::Clock;
+use f1_term_core::models::laps::Laps;
+use f1_term_core::models::track_status::TrackStatus;
+use f1_term_core::models::weather::Weather;
 use f1_term_core::telemetry_state::TelemetryState;
-use f1_term_core::track_status::TrackStatus;
-use f1_term_core::weather::Weather;
 use ratatui::Frame;
 use ratatui::layout::{Alignment, Constraint, Layout, Rect};
 use ratatui::style::{Color, Style, Stylize};

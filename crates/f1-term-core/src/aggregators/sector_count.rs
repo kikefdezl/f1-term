@@ -37,9 +37,9 @@ mod tests {
     use std::collections::HashMap;
 
     use super::*;
-    use crate::circuit::{Circuit, CircuitLayout};
-    use crate::driver::DriverNumber;
-    use crate::timing::LiveTiming;
+    use crate::models::circuit::{Circuit, CircuitLayout};
+    use crate::models::driver::DriverNumber;
+    use crate::models::timing::LiveTiming;
 
     // If the app is running when the session changes, the segment count for the drivers is
     // briefly zero, leading to a division by zero error in the interpolate_mini_sectors() function.

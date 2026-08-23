@@ -4,13 +4,13 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
-chrono = "0.4.44"
-crossterm = { version = "0.29.0", features = ["event-stream"] }
-f1-term-core = { path = "../f1-term-core/" }
-futures = "0.3.32"
-log = "0.4.29"
-ratatui = "0.30.0"
-tokio = "1.50.0"
+chrono.workspace = true
+crossterm.workspace = true
+f1-term-core.workspace = true
+futures.workspace = true
+log.workspace = true
+ratatui.workspace = true
+tokio.workspace = true
 
 [dev-dependencies]
-approx = "0.5.1"
+approx.workspace = true

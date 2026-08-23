@@ -1,11 +1,11 @@
 use std::error::Error;
 
 use crossterm::event::KeyCode;
-use f1_term_core::circuit::{
+use f1_term_core::models::circuit::{
     Bounds, CircuitKey, CircuitLayout, CircuitScope, CircuitStatus, Corner,
 };
-use f1_term_core::driver::DriverNumber;
-use f1_term_core::team::TeamColor;
+use f1_term_core::models::driver::DriverNumber;
+use f1_term_core::models::team::TeamColor;
 use ratatui::Frame;
 use ratatui::layout::Rect;
 use ratatui::style::{Color, Style};

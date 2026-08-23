@@ -1,9 +1,11 @@
 use std::collections::HashMap;
 
-use f1_term_core::driver::DriverNumber;
-use f1_term_core::gap::Gap;
-use f1_term_core::lap_time::LapTime;
-use f1_term_core::timing::{
+use f1_term_core::models::driver::DriverNumber;
+use f1_term_core::models::gap::Gap;
+use f1_term_core::models::lap_time::LapTime;
+use f1_term_core::models::timing::QualiStats;
+use f1_term_core::models::timing::PitData;
+use f1_term_core::models::timing::{
     BestLap, LapData, LastLap, LiveTiming, Sector, Segment, SegmentStatus, Speed, Speeds, TimeDiffs,
 };
 use log::{info, warn};
@@ -164,7 +166,7 @@ impl TryFrom<&RawTimingData> for LiveTiming {
             number_of_laps: payload.NumberOfLaps,
         };
 
-        let pit_data = f1_term_core::timing::PitData {
+        let pit_data = PitData {
             in_pit: payload.InPit,
             pit_out: payload.PitOut,
             number_of_pit_stops: payload.NumberOfPitStops,
@@ -174,7 +176,7 @@ impl TryFrom<&RawTimingData> for LiveTiming {
             || payload.KnockedOut.is_some()
             || payload.Stats.is_some()
         {
-            Some(f1_term_core::timing::QualiStats {
+            Some(QualiStats {
                 cutoff: payload.Cutoff,
                 knocked_out: payload.KnockedOut,
                 q1_diffs,
@@ -248,7 +250,7 @@ pub fn convert_timing_data(
 
 #[cfg(test)]
 mod tests {
-    use f1_term_core::driver::DriverNumber;
+    use f1_term_core::models::driver::DriverNumber;
 
     use super::*;
     use crate::parsing::timing_data::{

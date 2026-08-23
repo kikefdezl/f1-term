@@ -4,14 +4,41 @@ version = "0.1.0"
 edition = "2024"
 
 [workspace]
-members = ["crates/f1-term-core", "crates/f1-term-multiviewer", "crates/f1-term-replay", "crates/f1-term-signalr", "crates/f1-term-tui"]
+members = [
+    "crates/f1-term-core",
+    "crates/f1-term-multiviewer",
+    "crates/f1-term-replay",
+    "crates/f1-term-signalr",
+    "crates/f1-term-tui",
+]
+
+[workspace.dependencies]
+f1-term-core = { version = "0.1.0", path = "crates/f1-term-core" }
+f1-term-multiviewer = { version = "0.1.0", path = "crates/f1-term-multiviewer" }
+f1-term-replay = { version = "0.1.0", path = "crates/f1-term-replay" }
+f1-term-signalr = { version = "0.1.0", path = "crates/f1-term-signalr" }
+f1-term-tui = { version = "0.1.0", path = "crates/f1-term-tui" }
+
+approx = "0.5.1"
+axum = { version = "0.8.1", features = ["ws"] }
+chrono = "0.4.44"
+crossterm = { version = "0.29.0", features = ["event-stream"] }
+futures = "0.3.32"
+futures-util = "0.3.31"
+log = { version = "0.4.29", features = ["std"] }
+ratatui = "0.30.0"
+reqwest = { version = "0.13.2", default-features = false, features = ["json", "native-tls"] }
+serde = { version = "1.0.228", features = ["derive"] }
+serde_json = "1.0.149"
+tokio = { version = "1.49.0", features = ["full"] }
+tokio-tungstenite = { version = "0.28.0", features = ["native-tls"] }
 
 [dependencies]
-f1-term-signalr = { version = "0.1.0", path = "crates/f1-term-signalr" }
-f1-term-core = { version = "0.1.0", path = "crates/f1-term-core" }
-f1-term-tui = { version = "0.1.0", path = "crates/f1-term-tui" }
-ratatui = "0.30.0"
-tokio = { version = "1.49.0", features = ["full"] }
-f1-term-multiviewer = { version = "0.1.0", path = "crates/f1-term-multiviewer" }
-log = { version = "0.4", features = ["std"] }
-chrono = "0.4"
+chrono.workspace = true
+f1-term-core.workspace = true
+f1-term-multiviewer.workspace = true
+f1-term-signalr.workspace = true
+f1-term-tui.workspace = true
+log.workspace = true
+ratatui.workspace = true
+tokio.workspace = true
