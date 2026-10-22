@@ -1,6 +1,6 @@
 # f1-term
 
-![f1-term demo](assets/f1-term.gif)
+![f1-term screenshot](assets/f1-term.png)
 
 A terminal user interface for Formula 1 telemetry and live timing.
 
